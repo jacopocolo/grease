@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Hello!</title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="apple-mobile-web-app-capable" content="no" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <meta name="viewport" content="user-scalable = no" />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!--<script src="js/InfiniteGridHelper.js"></script>-->
+    <script src="js/script.js" type="module" defer></script>
+    <link rel="stylesheet" href="/style.css" />
+</head>
+
+<body>
+    <!--<div class="controls">
+Controls enabled: <input type="checkbox" id="controlsEnabled">
+</div>-->
+    <canvas id="drawingCanvas"></canvas>
+    <div id="main"></div>
+    <div id="mini"></div>
+
+    <!--Tools-->
+    <div id="toolSelection">
+        <span>
+            <input type="radio" id="toolDraw" name="tools" value="draw" /><label for="toolDraw">Draw</label>
+        </span>
+        <span>
+            <input type="radio" id="toolEraser" name="tools" value="erase" /><label for="toolEraser">Eraser</label>
+        </span>
+        <span>
+            <input type="radio" id="toolSelect" name="tools" value="select" checked /><label
+                for="toolSelect">Select</label>
+        </span>
+    </div>
+</body>
+
+</html>

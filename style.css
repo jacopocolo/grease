@@ -1,0 +1,96 @@
+html {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+body {
+	background-color: #000;
+	margin: 0px;
+	overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.controls {
+  background-color: #666;
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+#main {
+  width: 100%;
+  height: 100%;
+}
+
+#mini{
+  width: 300px;
+  height: 300px;
+  position: absolute;
+  border-radius: 8px;
+  left: 8px;
+  top: 8px;
+  z-index: 4;
+}
+
+#undo {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.button {
+  width: auto;
+  height: 22px;
+  z-index: 3;
+  border-radius: 22px;
+  background-color: #999;
+  padding: 8px;
+  vertical-align: center;
+}
+
+#drawingCanvas {
+  position: absolute;
+   z-index: 2;
+}
+
+#toolSelection {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 5;
+}
+
+#toolSelection input[type="radio"] {
+  opacity: 0;
+  position: fixed;
+  width: 0;
+  position: absolute;
+}
+
+#toolSelection span {
+  display: block;
+  margin-bottom: 25px;
+}
+
+#toolSelection span label {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid black;
+ }
+
+#toolSelection input[type="radio"]:checked + label {
+    background-color: #bfb;
+    border-color: #4c4;
+}
+
+.selectBox {
+				border: 1px solid #55aaff;
+				background-color: rgba(75, 160, 255, 0.3);
+				position: fixed;
+        z-index: 9999;
+			}
