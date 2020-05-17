@@ -13,6 +13,7 @@ var drawingplane;
 var matLine, matLineBasic;
 var matLineDrawn;
 var materials = [];
+
 var somethingSelected = false;
 var selectedObject; //may not be necessary anymore
 var selectedGroup;
@@ -81,38 +82,226 @@ function selectedTool() {
     }
 }
 
-function deselectIfNeeded() {
-    if (tempgroup) {
-        var tempArray = [];
-        for (var i = 0; i < tempgroup.children.length; i++) {
-            var children = tempgroup.children[i]
-            var position = new THREE.Vector3();
-            position = children.getWorldPosition(position);
-            children.position.copy(position);
-            //Rotation definitly doesn't work. It's difficult to work with because
-            //it requires me to reset the rotation center in the center of the tempgroup
-            //which is a mess so I'll see if I can live without it
-            /*var quaternion = new THREE.Quaternion();
-            quaternion = children.getWorldQuaternion(position);
-            children.quaternion.copy(quaternion);*/
-            children.needsUpdate = true;
-            dashMaterial(false, children.material);
-            tempArray.push(children);
+function checkIfHelperObject(object) {
+    if (object.type === "AxesHelper" || object.type === "GridHelper" || object.type === "Object3D") {
+        return true
+    } else { return false }
+}
+
+function drawStart() {
+    //draw line
+    context.beginPath();
+    context.lineWidth = "1";
+    context.strokeStyle = "white";
+    context.moveTo(mouse.cx, mouse.cy);
+    //Start
+    var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+    vNow.unproject(camera);
+    linepositions.push(vNow.x, vNow.y, vNow.z);
+    linecolors.push(255, 255, 0);
+}
+
+function drawMove() {
+    //Draw on canvas
+    context.lineTo(mouse.cx, mouse.cy);
+    context.stroke();
+    //Add line elements
+    var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+    vNow.unproject(camera);
+    linepositions.push(vNow.x, vNow.y, vNow.z);
+    linecolors.push(255, 255, 0);
+}
+
+function drawEnd() {
+    //render line
+    context.lineTo(mouse.cx, mouse.cy);
+    context.stroke();
+    context.closePath();
+    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    //Close and add line to scene
+    var matLineDrawn = new LineMaterial({
+        color: 0xffffff,
+        linewidth: 5, // in pixels
+        vertexColors: true,
+        //resolution set later,
+        depthWrite: true
+    });
+    materials.push(matLineDrawn);
+    var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+    vNow.unproject(camera);
+    linepositions.push(vNow.x, vNow.y, vNow.z);
+    linecolors.push(255, 255, 0);
+    var geometry = new LineGeometry();
+    geometry.setPositions(linepositions);
+    geometry.setColors(linecolors);
+    line = new Line2(geometry, matLineDrawn);
+    //recentering geometry around a central point
+    line.position.set(
+        line.geometry.boundingSphere.center.x,
+        line.geometry.boundingSphere.center.y,
+        line.geometry.boundingSphere.center.z
+    );
+    line.geometry.center();
+    line.needsUpdate = true;
+    line.computeLineDistances();
+    line.scale.set(1, 1, 1);
+    scene.add(line);
+    //Remove listener and clear arrays
+    linepositions = [];
+    linecolors = [];
+
+}
+
+function eraseStart() {
+    raycaster = new THREE.Raycaster();
+    raycaster.params.Line.threshold = 0.01;
+}
+
+function eraseMove() {
+    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+    var object = raycaster.intersectObjects(scene.children)[0].object;
+    if (checkIfHelperObject(object)) {
+    } else {
+        scene.remove(object);
+    }
+}
+
+function eraseEnd() {
+    //Actually empty for now
+}
+
+function selectStart() {
+    //draw line
+    context.beginPath();
+    context.lineWidth = "30";
+    context.strokeStyle = 'rgba(255,255,255,0.1)';
+    context.fillStyle = 'rgba(255,255,255,0.1)';
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.moveTo(mouse.cx, mouse.cy);
+
+    raycaster = new THREE.Raycaster();
+    raycaster.params.Line.threshold = 0.00001;
+    tempArray = [];
+    //Setting the first raycast at start point seems to be causing problems,
+    //turning it off for now
+    /*raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+    var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+    
+ 
+    if (intersectObject && !checkIfHelperObject(intersectObject)) {
+        toggleDash(intersectObject, true);
+        tempArray.push(intersectObject);
+    }*/
+}
+
+function selectMove() {
+
+    context.lineTo(mouse.cx, mouse.cy);
+    context.stroke();
+
+    if (somethingSelected === false) {
+        raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+        var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+        //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
+        if (intersectObject && !checkIfHelperObject(intersectObject) && tempArray.indexOf(intersectObject) < 0) {
+            toggleDash(intersectObject, true);
+            tempArray.push(intersectObject);
+        }
+    }
+}
+
+function selectEnd() {
+
+    context.lineTo(mouse.cx, mouse.cy);
+    context.stroke();
+    context.closePath();
+    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+
+    //If tempArray is empty and we are not transforming, we deselect
+    if (tempArray.length == 0 && !transforming) {
+
+        //Ungroup if we have a group selection
+        if (typeof tempgroup !== 'undefined') {
+
+            var ungroupArray = [];
+            for (var i = 0; i < tempgroup.children.length; i++) {
+                var object = tempgroup.children[i]
+                var position = new THREE.Vector3();
+                position = object.getWorldPosition(position);
+                object.position.copy(position);
+                //Rotation definitly doesn't work. It's difficult to work with because
+                //it requires me to reset the rotation center in the center of the tempgroup
+                //which is a mess so I'll see if I can live without it
+                /*var quaternion = new THREE.Quaternion();
+                quaternion = children.getWorldQuaternion(quaternion);
+                children.quaternion.copy(quaternion);*/
+                object.needsUpdate = true;
+                if (!checkIfHelperObject(object)) {
+                    toggleDash(object, false)
+                }
+                ungroupArray.push(object);
+            }
+
+            ungroupArray.forEach(object => scene.add(object))
+            //tempArray = [];
+            transformControls.detach();
+            transforming = false;
+            scene.remove(tempgroup);
         }
 
-        tempArray.forEach(object => scene.add(object))
-        //tempArray = [];
+        //This is _extremely_ wasteful but it will work for now
+        scene.children.forEach(object => {
+            if (!checkIfHelperObject(object)) {
+                toggleDash(object, false)
+            }
+        })
+        somethingSelected = false;
         transformControls.detach();
-        transforming = false;
-        //transformControls.dispose();
-        scene.remove(transformControls);
-
-        scene.remove(tempgroup);
-        tempgroup = null;
     }
+    //If tempArray has one selected object, 
+    //we attach the controls only to that object
+    else if (tempArray.length == 1) {
+        somethingSelected = true;
+        transformControls = new TransformControls(camera, drawingCanvas);
+        transformControls.mode = 'rotate';
+        transformControls.attach(tempArray[0]);
+        scene.add(transformControls);
+        transformControls.addEventListener("mouseDown", function () {
+            transforming = true;
+        });
+        transformControls.addEventListener("mouseUp", function () {
+            transforming = false;
+        });
 
-    for (var item of selectionBox.collection) {
-        dashMaterial(false, item.material);
+    }
+    //If tempArray has several selected objects,
+    //we group them together and attach transform controls to the group
+    else if (tempArray.length > 1) {
+        somethingSelected = true;
+        tempgroup = new THREE.Group();
+        scene.add(tempgroup);
+        //Add all the selected elements to the temporary groups
+        tempArray.forEach(element => {
+            toggleDash(element, true)
+            tempgroup.add(element);
+        })
+        //Attach controls to the temporary group
+        transformControls = new TransformControls(camera, drawingCanvas);
+        transformControls.attach(tempgroup);
+        scene.add(transformControls);
+        //Calculate center between the elements of the group
+        transformControls.position.set(
+            computeGroupCenter().x,
+            computeGroupCenter().y,
+            computeGroupCenter().z
+        );
+        transformControls.addEventListener("mouseDown", function () {
+            transforming = true;
+        });
+        transformControls.addEventListener("mouseUp", function () {
+            transforming = false;
+        });
     }
 }
 
@@ -127,16 +316,17 @@ function computeGroupCenter() {
     return center;
 }
 
-function dashMaterial(bool, material) {
+function toggleDash(object, bool) {
+    var material = object.material;
     material.dashed = bool;
     // dashed is implemented as a defines -- not as a uniform. this could be changed.
     // ... or THREE.LineDashedMaterial could be implemented as a separate material
     // temporary hack - renderer should do this eventually
     if (bool) material.defines.USE_DASH = "";
     else delete material.defines.USE_DASH;
-    material.dashSize = bool ? 0.01 : 100;
-    material.gapSize = bool ? 0.01 : 100;
-    material.dashScale = bool ? 1 : 100;
+    material.dashSize = bool ? 0.01 : 1000;
+    material.gapSize = bool ? 0.01 : 1000;
+    material.dashScale = bool ? 1 : 1000;
     material.needsUpdate = true;
 }
 
@@ -161,12 +351,12 @@ function init() {
 
     scene = new THREE.Scene();
 
-    /*var axesHelper = new THREE.AxesHelper(5);
+    var axesHelper = new THREE.AxesHelper(5);
     scene.add(axesHelper);
     var size = 1;
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
-    scene.add(gridHelper);*/
+    scene.add(gridHelper);
 
     camera = new THREE.OrthographicCamera(
         window.innerWidth / -2,
@@ -311,59 +501,15 @@ function onTapMove(event) {
     mouse.updateCoordinates(event);
     //DRAW
     if (selectedTool() == "draw") {
-        //Draw on canvas
-        context.lineTo(mouse.cx, mouse.cy);
-        context.stroke();
-        //Add line elements
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        linepositions.push(vNow.x, vNow.y, vNow.z);
-        linecolors.push(255, 255, 0);
+        drawMove();
     }
     //ERASER
     else if (selectedTool() == "erase") {
-        raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-        var object = raycaster.intersectObjects(scene.children)[0].object;
-
-        if (object.type === "AxesHelper" || object.type === "GridHelper") {
-        } else {
-            scene.remove(object);
-        }
-        //SELECT
+        eraseMove()
     }
     //SELECT
     else if (selectedTool() == "select") {
-        if (!transforming) {
-            context.rect(
-                selectionBoxStartX,
-                selectionBoxStartY,
-                -(selectionBoxStartX - mouse.cx),
-                -(selectionBoxStartY - mouse.cy)
-            );
-            context.stroke();
-            //Clears context inside
-            context.clearRect(
-                selectionBoxStartX,
-                selectionBoxStartY,
-                -(selectionBoxStartX - mouse.cx),
-                -(selectionBoxStartY - mouse.cy)
-            );
-            //Clears context outside?!
-            //context.clearRect(???)
-
-            if (helper.isDown) {
-                for (var i = 0; i < selectionBox.collection.length; i++) {
-                    dashMaterial(true, selectionBox.collection[i].material);
-                }
-
-                selectionBox.endPoint.set(mouse.tx, mouse.ty, 0.5);
-                var allSelected = selectionBox.select();
-
-                for (var i = 0; i < allSelected.length; i++) {
-                    dashMaterial(false, allSelected[i].material);
-                }
-            }
-        }
+        selectMove()
     }
 }
 
@@ -372,91 +518,15 @@ function onTapEnd(event) {
     mouse.updateCoordinates(event);
     //DRAW
     if (selectedTool() == "draw") {
-        //render line
-        context.lineTo(mouse.cx, mouse.cy);
-        context.stroke();
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        //Close and add line to scene
-        var matLineDrawn = new LineMaterial({
-            color: 0xffffff,
-            linewidth: 5, // in pixels
-            vertexColors: true,
-            //resolution set later,
-            depthWrite: true
-        });
-        materials.push(matLineDrawn);
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        linepositions.push(vNow.x, vNow.y, vNow.z);
-        linecolors.push(255, 255, 0);
-        var geometry = new LineGeometry();
-        geometry.setPositions(linepositions);
-        geometry.setColors(linecolors);
-        line = new Line2(geometry, matLineDrawn);
-        //recentering geometry around a central point
-        line.position.set(
-            line.geometry.boundingSphere.center.x,
-            line.geometry.boundingSphere.center.y,
-            line.geometry.boundingSphere.center.z
-        );
-        line.geometry.center();
-        line.needsUpdate = true;
-        line.computeLineDistances();
-        line.scale.set(1, 1, 1);
-        scene.add(line);
-        //Remove listener and clear arrays
-        linepositions = [];
-        linecolors = [];
+        drawEnd()
     }
     //ERASER
     else if (selectedTool() == "erase") {
+        eraseEnd() //actually empty for now
     }
     //SELECT
     else if (selectedTool() == "select") {
-
-        var allSelected = selectionBox.select();
-
-        if (transformControls.object && !transforming) {
-            deselectIfNeeded();
-        }
-
-        if (!transforming) {
-            context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-            selectionBox.endPoint.set(mouse.tx, mouse.ty, 0.5);
-
-            if (allSelected.length >= 1) {
-                //Create a temporary group
-                tempgroup = new THREE.Group();
-                //Add all the selected elements to the temporary groups
-                for (var i = 0; i < allSelected.length; i++) {
-                    dashMaterial(true, allSelected[i].material);
-                    tempgroup.add(allSelected[i]);
-                }
-                //Attach controls to the temporary group
-                //transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(tempgroup);
-                //Calculate center between the elements of the group
-                transformControls.position.set(
-                    computeGroupCenter().x,
-                    computeGroupCenter().y,
-                    computeGroupCenter().z
-                );
-                //transformControls.mode = "rotate";
-                transformControls.space = "local";
-
-                transformControls.addEventListener("mouseDown", function () {
-                    transforming = true;
-                    console.log(transforming)
-                });
-                transformControls.addEventListener("mouseUp", function () {
-                    transforming = false;
-                    console.log(transforming)
-                });
-                scene.add(transformControls);
-                scene.add(tempgroup);
-            }
-        }
+        selectEnd()
     }
     drawingCanvas.removeEventListener("touchmove", onTapMove, false);
     drawingCanvas.removeEventListener("mousemove", onTapMove, false);
@@ -464,37 +534,18 @@ function onTapEnd(event) {
 
 function onTapStart(event) {
     if (event.which == 3) return;
-
     mouse.updateCoordinates(event);
     //DRAW
     if (selectedTool() == "draw") {
-        //draw line
-        context.beginPath();
-        context.lineWidth = "1";
-        context.strokeStyle = "white";
-        context.moveTo(mouse.cx, mouse.cy);
-        //Start
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        linepositions.push(vNow.x, vNow.y, vNow.z);
-        linecolors.push(255, 255, 0);
+        drawStart()
     }
     //ERASER
     else if (selectedTool() == "erase") {
-        raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = 30;
-        raycaster.linePrecision = 0.01;
+        eraseStart();
     }
     //SELECT
     else if (selectedTool() == "select") {
-
-        if (!transforming) {
-            //Start a selection if we are not transforming
-            selectionBoxStartX = mouse.cx;
-            selectionBoxStartY = mouse.cy;
-            context.beginPath();
-            selectionBox.startPoint.set(mouse.tx, mouse.ty, 0.5);
-        }
+        selectStart();
     }
     drawingCanvas.addEventListener("touchmove", onTapMove, false);
     drawingCanvas.addEventListener("mousemove", onTapMove, false);
