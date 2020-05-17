@@ -121,7 +121,7 @@ function drawStart() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
-    linecolors.push(255, 255, 0);
+    linecolors.push(206, 216, 247);
 }
 
 function drawMove() {
@@ -132,7 +132,7 @@ function drawMove() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
-    linecolors.push(255, 255, 0);
+    linecolors.push(206, 216, 247);
 }
 
 function drawEnd() {
@@ -153,7 +153,7 @@ function drawEnd() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
-    linecolors.push(255, 255, 0);
+    linecolors.push(206, 216, 247);
     var geometry = new LineGeometry();
     geometry.setPositions(linepositions);
     geometry.setColors(linecolors);
@@ -364,7 +364,7 @@ function init() {
         alpha: true
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x333333, 1.0);
+    renderer.setClearColor(0x002082, 1.0);
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
 
