@@ -14,10 +14,14 @@ var matLine, matLineBasic;
 var matLineDrawn;
 var materials = [];
 
+var paths = [];
+
 var somethingSelected = false;
 var selectedObject; //may not be necessary anymore
 var selectedGroup;
 var tempgroup;
+var tempArray;
+
 var transforming;
 var raycaster;
 var raycastObject;
@@ -88,6 +92,25 @@ function checkIfHelperObject(object) {
     } else { return false }
 }
 
+function redrawLine(color) {
+    // clear canvas
+    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    context.strokeStyle = color;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.lineWidth = 30;
+    context.beginPath();
+    for (var i = 0; i < paths.length; ++i) {
+        var path = paths[i];
+        if (path.length < 1)
+            continue;
+        context.moveTo(path[0][0], path[0][1]);
+        for (var j = 1; j < path.length; ++j)
+            context.lineTo(path[j][0], path[j][1]);
+    }
+    context.stroke();
+}
+
 function drawStart() {
     //draw line
     context.beginPath();
@@ -155,9 +178,15 @@ function drawEnd() {
 function eraseStart() {
     raycaster = new THREE.Raycaster();
     raycaster.params.Line.threshold = 0.01;
+    paths.push([mouse.cx, mouse.cy]);
 }
 
 function eraseMove() {
+    paths[paths.length - 1].push([mouse.cx, mouse.cy]);
+    //This is to render line transparency,
+    //we are redrawing the line every frame
+    redrawLine('rgba(255,20,147, 0.15)');
+
     raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
     var object = raycaster.intersectObjects(scene.children)[0].object;
     if (checkIfHelperObject(object)) {
@@ -168,27 +197,22 @@ function eraseMove() {
 
 function eraseEnd() {
     //Actually empty for now
+    context.closePath();
+    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    paths = [];
 }
 
 function selectStart() {
-    //draw line
-    context.beginPath();
-    context.lineWidth = "30";
-    context.strokeStyle = 'rgba(255,255,255,0.1)';
-    context.fillStyle = 'rgba(255,255,255,0.1)';
-    context.lineCap = "round";
-    context.lineJoin = "round";
-    context.moveTo(mouse.cx, mouse.cy);
-
-    raycaster = new THREE.Raycaster();
-    raycaster.params.Line.threshold = 0.00001;
-    tempArray = [];
+    if (!transforming) {
+        paths.push([mouse.cx, mouse.cy]);
+        raycaster = new THREE.Raycaster();
+        raycaster.params.Line.threshold = 0.0000001;
+        tempArray = [];
+    }
     //Setting the first raycast at start point seems to be causing problems,
     //turning it off for now
     /*raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
     var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-    
- 
     if (intersectObject && !checkIfHelperObject(intersectObject)) {
         toggleDash(intersectObject, true);
         tempArray.push(intersectObject);
@@ -196,9 +220,12 @@ function selectStart() {
 }
 
 function selectMove() {
-
-    context.lineTo(mouse.cx, mouse.cy);
-    context.stroke();
+    if (!transforming) {
+        paths[paths.length - 1].push([mouse.cx, mouse.cy]);
+        //This is to render line transparency,
+        //we are redrawing the line every frame
+        redrawLine('rgba(255, 255, 255, 0.15)');
+    }
 
     if (somethingSelected === false) {
         raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
@@ -213,10 +240,11 @@ function selectMove() {
 
 function selectEnd() {
 
-    context.lineTo(mouse.cx, mouse.cy);
-    context.stroke();
-    context.closePath();
-    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+    if (!transforming) {
+        context.closePath();
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        paths = [];
+    }
 
     //If tempArray is empty and we are not transforming, we deselect
     if (tempArray.length == 0 && !transforming) {
