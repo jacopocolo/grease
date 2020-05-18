@@ -7,7 +7,7 @@ import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometr
 import { SelectionBox } from "https://threejs.org/examples/jsm/interactive/SelectionBox.js";
 import { SelectionHelper } from "https://threejs.org/examples/jsm/interactive/SelectionHelper.js";
 
-var line, renderer, minirenderer, scene, camera, minicamera;
+var line, renderer, minirenderer, experimentalRenderer, scene, controlScene, camera, minicamera, experimentalCamera;
 var controls, transformControls;
 var drawingplane;
 var matLine, matLineBasic;
@@ -37,6 +37,7 @@ drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var mini = document.getElementById("mini");
+var experimental = document.getElementById("experimental");
 
 // viewport
 var insetWidth;
@@ -75,6 +76,12 @@ function updateMiniCamera() {
     minicamera.zoom = camera.zoom;
     minicamera.position.copy(camera.position);
     minicamera.quaternion.copy(camera.quaternion);
+}
+
+function updateExperimentalCamera() {
+    experimentalCamera.zoom = camera.zoom;
+    experimentalCamera.position.copy(camera.position);
+    experimentalCamera.quaternion.copy(camera.quaternion);
 }
 
 function selectedTool() {
@@ -377,10 +384,29 @@ function init() {
     minirenderer.setSize(300, 300);
     mini.appendChild(minirenderer.domElement);
 
-    scene = new THREE.Scene();
+    experimentalRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: false
+    });
+    experimentalRenderer.setPixelRatio(window.devicePixelRatio);
+    experimentalRenderer.setClearColor(0x000000, 1);
+    experimentalRenderer.setSize(300, 300);
+    experimental.appendChild(experimentalRenderer.domElement);
 
-    var axesHelper = new THREE.AxesHelper(5);
+    scene = new THREE.Scene();
+    controlScene = new THREE.Scene();
+
+    var controlAxesHelper = new THREE.AxesHelper();
+    var axesHelper = new THREE.AxesHelper();
     scene.add(axesHelper);
+    controlScene.add(controlAxesHelper);
+
+    var geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var cube = new THREE.Mesh(geometry, material);
+    cube.position.set(0, 0, 1)
+    controlScene.add(cube);
+
     var size = 1;
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
@@ -395,7 +421,8 @@ function init() {
         3
     );
     camera.position.set(0, 0, 2);
-    controls = new OrbitControls(camera, minirenderer.domElement);
+    //controls = new OrbitControls(camera, minirenderer.domElement);
+    controls = new OrbitControls(camera, experimentalRenderer.domElement);
     controls.enabled = true;
     controls.minDistance = 1;
     controls.maxDistance = 3;
@@ -404,10 +431,13 @@ function init() {
     controls.panEnabled = true;
     transformControls = new TransformControls(camera, drawingCanvas);
 
-    //minicamera = new THREE.OrthographicCamera( 300 / - 2, 300 / 2, 300 / 2, 300 / - 2, 1, 3 );
     minicamera = new THREE.OrthographicCamera();
     minicamera.position.copy(camera.position);
     minicamera.zoom = 75;
+
+    experimentalCamera = new THREE.OrthographicCamera();
+    experimentalCamera.position.copy(camera.position);
+    experimentalCamera.zoom = 75;
 
     var positions = [];
     var colors = [];
@@ -448,7 +478,6 @@ function init() {
     line.scale.set(1, 1, 1);
     scene.add(line);
 
-
     var positions = [];
     var colors = [];
 
@@ -487,9 +516,6 @@ function init() {
     line.scale.set(1, 1, 1);
     scene.add(line);
 
-
-    selectionBox = new SelectionBox(camera, scene);
-    helper = new SelectionHelper(selectionBox, renderer, "selectBox");
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", onTapStart, false);
@@ -509,9 +535,11 @@ function onWindowResize() {
 function animate() {
     //controls.update();
     updateMiniCamera();
+    updateExperimentalCamera();
     requestAnimationFrame(animate);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     minirenderer.setViewport(0, 0, 300, 300);
+    experimentalRenderer.setViewport(0, 0, 300, 300);
     // renderer will set this eventually
 
     //matLine.resolution.set(window.innerWidth, window.innerHeight); // resolution of the viewport
@@ -523,6 +551,7 @@ function animate() {
 
     renderer.render(scene, camera);
     minirenderer.render(scene, minicamera);
+    experimentalRenderer.render(controlScene, experimentalCamera);
 }
 
 function onTapMove(event) {
