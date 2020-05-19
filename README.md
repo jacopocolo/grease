@@ -7,6 +7,8 @@ Draw:
 - Change color of the line
     - https://github.com/Simonwep/pickr
 - Change width of the line
+- Maybe add some smoothing?
+  - https://github.com/dulnan/lazy-brush
 
 Erase:
 
@@ -21,13 +23,14 @@ Select:
   - https://github.com/mrdoob/three.js/issues/6336
 
 Camera controls:
-- Fine tune speed
+~~- Fine tune speed~~
 - Snap to axis (x, y, z)
 
 Other features
 - Selectable themes (light, dark, blueprint)
     - Would imply changing the color of the main color line, at least. Could be diffiult but maybe it can be brute-forced
-- Make the camera control window draggable
+- ~~Make the miniAxis window draggable~~
+  - Make sure the miniAxis window can't be dragged out of the screen 
 - Handle undo properly (can't delete basic objects!)
   - Maybe not needed? Maybe I only need an eraser? Handling undo is a lot of work because it needs to support ALL events.
 - Make slow auto rotate that hides UI

@@ -5,7 +5,7 @@ import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
 
-var line, renderer, experimentalRenderer, scene, controlScene, camera, experimentalCamera;
+var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
 var drawingplane;
 var matLine, matLineBasic;
@@ -34,7 +34,7 @@ var context = drawingCanvas.getContext("2d");
 drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
-var experimental = document.getElementById("experimental");
+var miniAxis = document.getElementById("miniAxis");
 
 // viewport
 var insetWidth;
@@ -69,10 +69,10 @@ let mouse = {
     }
 };
 
-function updateExperimentalCamera() {
-    experimentalCamera.zoom = camera.zoom;
-    experimentalCamera.position.copy(camera.position);
-    experimentalCamera.quaternion.copy(camera.quaternion);
+function updateminiAxisCamera() {
+    miniAxisCamera.zoom = camera.zoom;
+    miniAxisCamera.position.copy(camera.position);
+    miniAxisCamera.quaternion.copy(camera.quaternion);
 }
 
 function selectedTool() {
@@ -366,17 +366,17 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
 
-    experimentalRenderer = new THREE.WebGLRenderer({
+    miniAxisRenderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false
     });
-    experimentalRenderer.setPixelRatio(window.devicePixelRatio);
-    experimentalRenderer.setClearColor(0x000000, 1);
-    experimentalRenderer.setSize(300, 300);
-    experimental.appendChild(experimentalRenderer.domElement);
+    miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
+    miniAxisRenderer.setClearColor(0x000000, 1);
+    miniAxisRenderer.setSize(300, 300);
+    miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
-    controlScene = new THREE.Scene();
+    miniAxisScene = new THREE.Scene();
 
 
     var axesHelper = new THREE.AxesHelper();
@@ -398,7 +398,7 @@ function init() {
         3
     );
     camera.position.set(0, 0, 2);
-    controls = new OrbitControls(camera, experimentalRenderer.domElement);
+    controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.enabled = true;
     controls.minDistance = 1;
     controls.maxDistance = 3;
@@ -408,9 +408,9 @@ function init() {
     controls.panEnabled = false;
     transformControls = new TransformControls(camera, drawingCanvas);
 
-    experimentalCamera = new THREE.OrthographicCamera();
-    experimentalCamera.position.copy(camera.position);
-    experimentalCamera.zoom = 75;
+    miniAxisCamera = new THREE.OrthographicCamera();
+    miniAxisCamera.position.copy(camera.position);
+    miniAxisCamera.zoom = 75;
 
     drawTestLines();
 
@@ -431,10 +431,10 @@ function onWindowResize() {
 }
 
 function animate() {
-    updateExperimentalCamera();
+    updateminiAxisCamera();
     requestAnimationFrame(animate);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    experimentalRenderer.setViewport(0, 0, 300, 300);
+    miniAxisRenderer.setViewport(0, 0, 300, 300);
     // renderer will set this eventually
 
     //matLine.resolution.set(window.innerWidth, window.innerHeight); // resolution of the viewport
@@ -445,7 +445,7 @@ function animate() {
     } // resolution of the inset viewport
 
     renderer.render(scene, camera);
-    experimentalRenderer.render(controlScene, experimentalCamera);
+    miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
 function onTapMove(event) {
@@ -600,7 +600,7 @@ function drawAxisHelperControls() {
     let handlesDistance = 0.6
 
     var controlAxesHelper = new THREE.AxesHelper();
-    controlScene.add(controlAxesHelper);
+    miniAxisScene.add(controlAxesHelper);
     controlAxesHelper.scale.set(0.5, 0.5, 0.5)
 
     //Z axis
@@ -609,25 +609,25 @@ function drawAxisHelperControls() {
     var sphereZ = new THREE.Mesh(geometry, material);
     sphereZ.position.set(0, 0, handlesDistance)
     sphereZ.name = "z";
-    controlScene.add(sphereZ);
+    miniAxisScene.add(sphereZ);
     //Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     var sphereY = new THREE.Mesh(geometry, material);
     sphereY.position.set(0, handlesDistance, 0)
     sphereY.name = "y";
-    controlScene.add(sphereY);
+    miniAxisScene.add(sphereY);
     //X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     var sphereX = new THREE.Mesh(geometry, material);
     sphereX.position.set(handlesDistance, 0, 0)
     sphereX.name = "x";
-    controlScene.add(sphereX);
+    miniAxisScene.add(sphereX);
 
     //Flipped control handles
     var controlAxesHelperFlipped = new THREE.AxesHelper();
-    controlScene.add(controlAxesHelperFlipped);
+    miniAxisScene.add(controlAxesHelperFlipped);
     controlAxesHelperFlipped.applyMatrix(new THREE.Matrix4().makeScale(-0.5, -0.5, -0.5));
     //-Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
@@ -635,31 +635,31 @@ function drawAxisHelperControls() {
     var sphereZFlipped = new THREE.Mesh(geometry, material);
     sphereZFlipped.position.set(0, 0, -handlesDistance)
     sphereZFlipped.name = "-z";
-    controlScene.add(sphereZFlipped);
+    miniAxisScene.add(sphereZFlipped);
     //-Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     var sphereYFlipped = new THREE.Mesh(geometry, material);
     sphereYFlipped.position.set(0, -handlesDistance, 0)
     sphereYFlipped.name = "-y";
-    controlScene.add(sphereYFlipped);
+    miniAxisScene.add(sphereYFlipped);
     //-X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     var sphereXFlipped = new THREE.Mesh(geometry, material);
     sphereXFlipped.position.set(-handlesDistance, 0, 0)
     sphereXFlipped.name = "-x";
-    controlScene.add(sphereXFlipped);
+    miniAxisScene.add(sphereXFlipped);
 
-    experimental.addEventListener("touchstart", repositionCamera, false);
-    experimental.addEventListener("mousedown", repositionCamera, false);
+    miniAxis.addEventListener("touchstart", repositionCamera, false);
+    miniAxis.addEventListener("mousedown", repositionCamera, false);
 }
 
-let experimentalmouse = {
+let miniAxisMouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     updateCoordinates: function (event) {
-        let canvasBounds = experimentalRenderer.context.canvas.getBoundingClientRect();
+        let canvasBounds = miniAxisRenderer.context.canvas.getBoundingClientRect();
         if (event.touches) {
             this.tx = ((event.changedTouches[0].pageX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1;
             this.ty = - ((event.changedTouches[0].pageY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1;
@@ -672,17 +672,17 @@ let experimentalmouse = {
 }
 
 function repositionCamera() {
-    experimentalmouse.updateCoordinates(event);
-    var experimentalRaycaster = new THREE.Raycaster();
-    experimentalRaycaster.setFromCamera(
+    miniAxisMouse.updateCoordinates(event);
+    var miniAxisRaycaster = new THREE.Raycaster();
+    miniAxisRaycaster.setFromCamera(
         new THREE.Vector2(
-            experimentalmouse.tx,
-            experimentalmouse.ty
+            miniAxisMouse.tx,
+            miniAxisMouse.ty
         ),
-        experimentalCamera);
-    console.log(experimentalmouse.tx,
-        experimentalmouse.ty)
-    var object = experimentalRaycaster.intersectObjects(controlScene.children)[0].object;
+        miniAxisCamera);
+    console.log(miniAxisMouse.tx,
+        miniAxisMouse.ty)
+    var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
     if (checkIfHelperObject(object)) {
     } else {
         console.log(object.name)

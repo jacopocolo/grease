@@ -1,88 +1,58 @@
+function makeDragable(dragHandle, dragTarget) {
+    let dragObj = null; //object to be moved
+    let xOffset = 0; //used to prevent dragged object jumping to mouse location
+    let yOffset = 0;
 
-export function drawTestLines() {
-    var positions = [];
-    var colors = [];
-    // Position and THREE.Color Data
-    positions.push(0, 0, 0);
-    positions.push(0.4, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: 5, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    scene.add(line);
-    var positions = [];
-    var colors = [];
-    // Position and THREE.Color Data
-    positions.push(0.4, 0, 0);
-    positions.push(0, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: 5, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    scene.add(line);
+    document.querySelector(dragHandle).addEventListener("mousedown", startDrag, true);
+    document.querySelector(dragHandle).addEventListener("touchstart", startDrag, true);
+
+    /*sets offset parameters and starts listening for mouse-move*/
+    function startDrag(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        dragObj = document.querySelector(dragTarget);
+        dragObj.style.position = "absolute";
+        let rect = dragObj.getBoundingClientRect();
+
+        if (e.type == "mousedown") {
+            xOffset = e.clientX - rect.left; //clientX and getBoundingClientRect() both use viewable area adjusted when scrolling aka 'viewport'
+            yOffset = e.clientY - rect.top;
+            window.addEventListener('mousemove', dragObject, true);
+        } else if (e.type == "touchstart") {
+            xOffset = e.targetTouches[0].pageX - rect.left;
+            yOffset = e.targetTouches[0].pageY - rect.top;
+            window.addEventListener('touchmove', dragObject, true);
+        }
+    }
+
+    /*Drag object*/
+    function dragObject(e) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        if (dragObj == null) {
+            return; // if there is no object being dragged then do nothing
+        } else if (e.type == "mousemove") {
+            dragObj.style.left = e.clientX - xOffset + "px"; // adjust location of dragged object so doesn't jump to mouse position
+            dragObj.style.top = e.clientY - yOffset + "px";
+        } else if (e.type == "touchmove") {
+            dragObj.style.left = e.targetTouches[0].pageX - xOffset + "px"; // adjust location of dragged object so doesn't jump to mouse position
+            dragObj.style.top = e.targetTouches[0].pageY - yOffset + "px";
+        }
+    }
+
+    document.addEventListener('touchend', endDragging, true)
+    document.addEventListener('mouseup', endDragging, true)
+
+    /*End dragging*/
+    function endDragging(e) {
+        if (dragObj) {
+            //need to make sure we are not dragging out of view?
+            dragObj = null;
+            window.removeEventListener('mousemove', dragObject, true);
+            window.removeEventListener('touchmove', dragObject, true);
+        }
+    }
 }
 
-export function drawAxisHelperControls() {
-    //x axis
-    var geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-    var cube = new THREE.Mesh(geometry, material);
-    cube.position.set(0, 0, 1)
-    controlScene.add(cube);
-
-    //y axis
-
-    //z axis
-}
+makeDragable('#handle', '#miniAxis')
