@@ -4,10 +4,8 @@ import { TransformControls } from "https://threejs.org/examples/jsm/controls/Tra
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
-import { SelectionBox } from "https://threejs.org/examples/jsm/interactive/SelectionBox.js";
-import { SelectionHelper } from "https://threejs.org/examples/jsm/interactive/SelectionHelper.js";
 
-var line, renderer, minirenderer, experimentalRenderer, scene, controlScene, camera, minicamera, experimentalCamera;
+var line, renderer, experimentalRenderer, scene, controlScene, camera, experimentalCamera;
 var controls, transformControls;
 var drawingplane;
 var matLine, matLineBasic;
@@ -36,7 +34,6 @@ var context = drawingCanvas.getContext("2d");
 drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
-var mini = document.getElementById("mini");
 var experimental = document.getElementById("experimental");
 
 // viewport
@@ -71,12 +68,6 @@ let mouse = {
         }
     }
 };
-
-function updateMiniCamera() {
-    minicamera.zoom = camera.zoom;
-    minicamera.position.copy(camera.position);
-    minicamera.quaternion.copy(camera.quaternion);
-}
 
 function updateExperimentalCamera() {
     experimentalCamera.zoom = camera.zoom;
@@ -375,15 +366,6 @@ function init() {
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
 
-    minirenderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: false
-    });
-    minirenderer.setPixelRatio(window.devicePixelRatio);
-    minirenderer.setClearColor(0x000000, 1);
-    minirenderer.setSize(300, 300);
-    mini.appendChild(minirenderer.domElement);
-
     experimentalRenderer = new THREE.WebGLRenderer({
         antialias: true,
         alpha: false
@@ -396,16 +378,11 @@ function init() {
     scene = new THREE.Scene();
     controlScene = new THREE.Scene();
 
-    var controlAxesHelper = new THREE.AxesHelper();
+
     var axesHelper = new THREE.AxesHelper();
     scene.add(axesHelper);
-    controlScene.add(controlAxesHelper);
 
-    var geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
-    var cube = new THREE.Mesh(geometry, material);
-    cube.position.set(0, 0, 1)
-    controlScene.add(cube);
+    drawAxisHelperControls();
 
     var size = 1;
     var divisions = 1;
@@ -421,7 +398,6 @@ function init() {
         3
     );
     camera.position.set(0, 0, 2);
-    //controls = new OrbitControls(camera, minirenderer.domElement);
     controls = new OrbitControls(camera, experimentalRenderer.domElement);
     controls.enabled = true;
     controls.minDistance = 1;
@@ -431,90 +407,11 @@ function init() {
     controls.panEnabled = true;
     transformControls = new TransformControls(camera, drawingCanvas);
 
-    minicamera = new THREE.OrthographicCamera();
-    minicamera.position.copy(camera.position);
-    minicamera.zoom = 75;
-
     experimentalCamera = new THREE.OrthographicCamera();
     experimentalCamera.position.copy(camera.position);
     experimentalCamera.zoom = 75;
 
-    var positions = [];
-    var colors = [];
-
-    // Position and THREE.Color Data
-    positions.push(0, 0, 0);
-    positions.push(0.4, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: 5, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    scene.add(line);
-
-    var positions = [];
-    var colors = [];
-
-    // Position and THREE.Color Data
-    positions.push(0.4, 0, 0);
-    positions.push(0, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: 5, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    scene.add(line);
+    drawTestLines();
 
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
@@ -533,12 +430,9 @@ function onWindowResize() {
 }
 
 function animate() {
-    //controls.update();
-    updateMiniCamera();
     updateExperimentalCamera();
     requestAnimationFrame(animate);
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    minirenderer.setViewport(0, 0, 300, 300);
     experimentalRenderer.setViewport(0, 0, 300, 300);
     // renderer will set this eventually
 
@@ -550,7 +444,6 @@ function animate() {
     } // resolution of the inset viewport
 
     renderer.render(scene, camera);
-    minirenderer.render(scene, minicamera);
     experimentalRenderer.render(controlScene, experimentalCamera);
 }
 
@@ -625,3 +518,139 @@ function onTapStart(event) {
     scene.remove(scene.children[scene.children.length - 1]);
   }
 });*/
+
+function drawTestLines() {
+    var positions = [];
+    var colors = [];
+    // Position and THREE.Color Data
+    positions.push(0, 0, 0);
+    positions.push(0.4, 0.4, 0.4);
+    colors.push(255, 0, 0);
+    colors.push(255, 0, 0);
+    // Line2 ( LineGeometry, LineMaterial )
+    var geometry = new LineGeometry();
+    //geometry.setDrawRange( 0, 100);
+    //geometry.maxInstancedCount = 100;
+    geometry.setPositions(
+        positions,
+        new THREE.Float32BufferAttribute(positions, 3)
+    );
+    geometry.setColors(colors);
+    matLine = new LineMaterial({
+        color: 0xffffff,
+        linewidth: 5, // in pixels
+        vertexColors: true,
+        //resolution:  // to be set by renderer, eventually
+        depthWrite: false
+    });
+    materials.push(matLine);
+    line = new Line2(geometry, matLine);
+    //Recentering geometry around the central point
+    line.position.set(
+        line.geometry.boundingSphere.center.x,
+        line.geometry.boundingSphere.center.y,
+        line.geometry.boundingSphere.center.z
+    );
+    line.geometry.center();
+    line.needsUpdate = true;
+    line.computeLineDistances();
+    line.scale.set(1, 1, 1);
+    scene.add(line);
+    var positions = [];
+    var colors = [];
+    // Position and THREE.Color Data
+    positions.push(0.4, 0, 0);
+    positions.push(0, 0.4, 0.4);
+    colors.push(255, 0, 0);
+    colors.push(255, 0, 0);
+    // Line2 ( LineGeometry, LineMaterial )
+    var geometry = new LineGeometry();
+    //geometry.setDrawRange( 0, 100);
+    //geometry.maxInstancedCount = 100;
+    geometry.setPositions(
+        positions,
+        new THREE.Float32BufferAttribute(positions, 3)
+    );
+    geometry.setColors(colors);
+    matLine = new LineMaterial({
+        color: 0xffffff,
+        linewidth: 5, // in pixels
+        vertexColors: true,
+        //resolution:  // to be set by renderer, eventually
+        depthWrite: false
+    });
+    materials.push(matLine);
+    line = new Line2(geometry, matLine);
+    //Recentering geometry around the central point
+    line.position.set(
+        line.geometry.boundingSphere.center.x,
+        line.geometry.boundingSphere.center.y,
+        line.geometry.boundingSphere.center.z
+    );
+    line.geometry.center();
+    line.needsUpdate = true;
+    line.computeLineDistances();
+    line.scale.set(1, 1, 1);
+    scene.add(line);
+}
+
+function drawAxisHelperControls() {
+    var controlAxesHelper = new THREE.AxesHelper();
+    controlScene.add(controlAxesHelper);
+    controlAxesHelper.scale.set(0.5, 0.5, 0.5)
+
+    //Z axis
+    var geometry = new THREE.SphereGeometry(0.1, 0.1, 0.1);
+    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var sphereZ = new THREE.Mesh(geometry, material);
+    sphereZ.position.set(0, 0, 0.5)
+    sphereZ.name = "z";
+    controlScene.add(sphereZ);
+
+    //y axis
+    var geometry = new THREE.SphereGeometry(0.1, 0.1, 0.1);
+    var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    var sphereY = new THREE.Mesh(geometry, material);
+    sphereY.position.set(0, 0.5, 0)
+    sphereY.name = "y";
+    controlScene.add(sphereY);
+
+    //X axis
+    var geometry = new THREE.SphereGeometry(0.1, 0.1, 0.1);
+    var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    var sphereX = new THREE.Mesh(geometry, material);
+    sphereX.position.set(0.5, 0, 0)
+    sphereX.name = "x";
+    controlScene.add(sphereX);
+
+    experimental.addEventListener("touchstart", repositionCamera, false);
+    experimental.addEventListener("mousedown", repositionCamera, false);
+}
+
+//need to handle touch events as well
+var experimentalmouse = {
+    tx: 0, //x coord for threejs
+    ty: 0, //y coord for threejs
+    cx: 0, //x coord for canvas
+    cy: 0, //y coord for canvas
+    updateCoordinates: function (event) {
+        this.tx = (event.layerX / experimental.width) * 2 - 1;
+        this.ty = -(event.layerY / experimental.height) * 2 + 1;
+    }
+}
+
+function repositionCamera() {
+    let canvasBounds = experimentalRenderer.context.canvas.getBoundingClientRect();
+    var experimentalRaycaster = new THREE.Raycaster();
+    experimentalRaycaster.setFromCamera(
+        new THREE.Vector2(
+            ((event.clientX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1,
+            - ((event.clientY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1
+        ),
+        experimentalCamera);
+    var object = experimentalRaycaster.intersectObjects(controlScene.children)[0].object;
+    if (checkIfHelperObject(object)) {
+    } else {
+        console.log(object.name);
+    }
+};
