@@ -42,8 +42,8 @@ body {
   height: 300px;
   position: absolute;
   border-radius: 8px;
-  left: 0px;
-  bottom: 0px;
+  left: 8px;
+  bottom: 8px;
   z-index: 4;
 }
 

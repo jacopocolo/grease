@@ -402,9 +402,10 @@ function init() {
     controls.enabled = true;
     controls.minDistance = 1;
     controls.maxDistance = 3;
+    controls.rotateSpeed = 0.5;
     camera.zoom = 900;
     controls.zoomEnabled = false;
-    controls.panEnabled = true;
+    controls.panEnabled = false;
     transformControls = new TransformControls(camera, drawingCanvas);
 
     experimentalCamera = new THREE.OrthographicCamera();
@@ -595,62 +596,134 @@ function drawTestLines() {
 }
 
 function drawAxisHelperControls() {
+    let handlesSize = 0.15;
+    let handlesDistance = 0.6
+
     var controlAxesHelper = new THREE.AxesHelper();
     controlScene.add(controlAxesHelper);
     controlAxesHelper.scale.set(0.5, 0.5, 0.5)
 
     //Z axis
-    var geometry = new THREE.SphereGeometry(0.1, 0.1, 0.1);
+    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
     var sphereZ = new THREE.Mesh(geometry, material);
-    sphereZ.position.set(0, 0, 0.5)
+    sphereZ.position.set(0, 0, handlesDistance)
     sphereZ.name = "z";
     controlScene.add(sphereZ);
-
-    //y axis
-    var geometry = new THREE.SphereGeometry(0.1, 0.1, 0.1);
+    //Y axis
+    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
     var sphereY = new THREE.Mesh(geometry, material);
-    sphereY.position.set(0, 0.5, 0)
+    sphereY.position.set(0, handlesDistance, 0)
     sphereY.name = "y";
     controlScene.add(sphereY);
-
     //X axis
-    var geometry = new THREE.SphereGeometry(0.1, 0.1, 0.1);
+    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
     var sphereX = new THREE.Mesh(geometry, material);
-    sphereX.position.set(0.5, 0, 0)
+    sphereX.position.set(handlesDistance, 0, 0)
     sphereX.name = "x";
     controlScene.add(sphereX);
+
+    //Flipped control handles
+    var controlAxesHelperFlipped = new THREE.AxesHelper();
+    controlScene.add(controlAxesHelperFlipped);
+    controlAxesHelperFlipped.applyMatrix(new THREE.Matrix4().makeScale(-0.5, -0.5, -0.5));
+    //-Z axis
+    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
+    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var sphereZFlipped = new THREE.Mesh(geometry, material);
+    sphereZFlipped.position.set(0, 0, -handlesDistance)
+    sphereZFlipped.name = "-z";
+    controlScene.add(sphereZFlipped);
+    //-Y axis
+    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
+    var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    var sphereYFlipped = new THREE.Mesh(geometry, material);
+    sphereYFlipped.position.set(0, -handlesDistance, 0)
+    sphereYFlipped.name = "-y";
+    controlScene.add(sphereYFlipped);
+    //-X axis
+    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
+    var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    var sphereXFlipped = new THREE.Mesh(geometry, material);
+    sphereXFlipped.position.set(-handlesDistance, 0, 0)
+    sphereXFlipped.name = "-x";
+    controlScene.add(sphereXFlipped);
 
     experimental.addEventListener("touchstart", repositionCamera, false);
     experimental.addEventListener("mousedown", repositionCamera, false);
 }
 
-//need to handle touch events as well
-var experimentalmouse = {
+let experimentalmouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
-    cx: 0, //x coord for canvas
-    cy: 0, //y coord for canvas
     updateCoordinates: function (event) {
-        this.tx = (event.layerX / experimental.width) * 2 - 1;
-        this.ty = -(event.layerY / experimental.height) * 2 + 1;
+        let canvasBounds = experimentalRenderer.context.canvas.getBoundingClientRect();
+        if (event.touches) {
+            this.tx = ((event.changedTouches[0].pageX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1;
+            this.ty = - ((event.changedTouches[0].pageY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1;
+            //handler if it's a mouse event
+        } else {
+            this.tx = ((event.clientX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1;
+            this.ty = -((event.clientY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1;
+        }
     }
 }
 
 function repositionCamera() {
-    let canvasBounds = experimentalRenderer.context.canvas.getBoundingClientRect();
+    experimentalmouse.updateCoordinates(event);
     var experimentalRaycaster = new THREE.Raycaster();
     experimentalRaycaster.setFromCamera(
         new THREE.Vector2(
-            ((event.clientX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1,
-            - ((event.clientY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1
+            experimentalmouse.tx,
+            experimentalmouse.ty
         ),
         experimentalCamera);
+    console.log(experimentalmouse.tx,
+        experimentalmouse.ty)
     var object = experimentalRaycaster.intersectObjects(controlScene.children)[0].object;
     if (checkIfHelperObject(object)) {
     } else {
-        console.log(object.name);
+        console.log(object.name)
+        switch (object.name) {
+            case 'z':
+                controls.enabled = false;
+                camera.position.set(0, 0, 2);
+                camera.lookAt(controls.target);
+                controls.enabled = true;
+                break;
+            case 'x':
+                controls.enabled = false;
+                camera.position.set(2, 0, 0);
+                camera.lookAt(controls.target);
+                controls.enabled = true;
+                break;
+            case 'y':
+                controls.enabled = false;
+                camera.position.set(0, 2, 0);
+                camera.lookAt(controls.target);
+                controls.enabled = true;
+                break;
+            case '-x':
+                controls.enabled = false;
+                camera.position.set(-2, 0, 0);
+                camera.lookAt(controls.target);
+                controls.enabled = true;
+                break;
+            case '-y':
+                controls.enabled = false;
+                camera.position.set(0, -2, 0);
+                camera.lookAt(controls.target);
+                controls.enabled = true;
+                break;
+            case '-z':
+                controls.enabled = false;
+                camera.position.set(0, 0, -2);
+                camera.lookAt(controls.target);
+                controls.enabled = true;
+                break;
+            default:
+        }
     }
 };
