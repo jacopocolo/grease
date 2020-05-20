@@ -121,7 +121,6 @@ function drawStart() {
     linepositions.push(vNow.x, vNow.y, vNow.z);
     linecolors.push(206, 216, 247);
 }
-
 function drawMove() {
     //Draw on canvas
     context.lineTo(mouse.cx, mouse.cy);
@@ -132,7 +131,6 @@ function drawMove() {
     linepositions.push(vNow.x, vNow.y, vNow.z);
     linecolors.push(206, 216, 247);
 }
-
 function drawEnd() {
     //render line
     context.lineTo(mouse.cx, mouse.cy);
@@ -153,6 +151,16 @@ function drawEnd() {
     linepositions.push(vNow.x, vNow.y, vNow.z);
     linecolors.push(206, 216, 247);
     var geometry = new LineGeometry();
+
+    //experimental approach to rejecting points that
+    //are too far apart and are artifacts of palm rejection failing
+    // for (var i = 0; i < linepositions.length - 3; i = i + 3) {
+    //     alert(linepositions.length[i] - linepositions.length[i + 3])
+    //     // if (linepositions.length[i] - linepositions.length[i + 3] > 0.01) {
+    //     //     alert('should palm reject')
+    //     // }
+    // }
+
     geometry.setPositions(linepositions);
     geometry.setColors(linecolors);
     line = new Line2(geometry, matLineDrawn);
@@ -168,6 +176,7 @@ function drawEnd() {
     line.scale.set(1, 1, 1);
     scene.add(line);
     //Remove listener and clear arrays
+    alert(linepositions)
     linepositions = [];
     linecolors = [];
 
@@ -176,9 +185,9 @@ function drawEnd() {
 function eraseStart() {
     raycaster = new THREE.Raycaster();
     raycaster.params.Line.threshold = 0.01;
+    raycaster.layers.set(1);
     paths.push([mouse.cx, mouse.cy]);
 }
-
 function eraseMove() {
     paths[paths.length - 1].push([mouse.cx, mouse.cy]);
     //This is to render line transparency,
@@ -192,7 +201,6 @@ function eraseMove() {
         scene.remove(object);
     }
 }
-
 function eraseEnd() {
     //Actually empty for now
     context.closePath();
@@ -204,7 +212,8 @@ function selectStart() {
     if (!transforming) {
         paths.push([mouse.cx, mouse.cy]);
         raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = 0.0000001;
+        raycaster.layers.set(1);
+        raycaster.params.Line.threshold = 0.0000000001;
         tempArray = [];
     }
     //Setting the first raycast at start point seems to be causing problems,
@@ -216,7 +225,6 @@ function selectStart() {
         tempArray.push(intersectObject);
     }*/
 }
-
 function selectMove() {
     if (!transforming) {
         paths[paths.length - 1].push([mouse.cx, mouse.cy]);
@@ -235,7 +243,6 @@ function selectMove() {
         }
     }
 }
-
 function selectEnd() {
 
     if (!transforming) {
@@ -378,8 +385,8 @@ function init() {
     scene = new THREE.Scene();
     miniAxisScene = new THREE.Scene();
 
-
     var axesHelper = new THREE.AxesHelper();
+    axesHelper.layers.set(0);
     scene.add(axesHelper);
 
     drawAxisHelperControls();
@@ -387,6 +394,7 @@ function init() {
     var size = 1;
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
+    gridHelper.layers.set(0);
     scene.add(gridHelper);
 
     camera = new THREE.OrthographicCamera(
@@ -397,6 +405,9 @@ function init() {
         1,
         3
     );
+    camera.layers.enable(0); // enabled by default
+    camera.layers.enable(1);
+
     camera.position.set(0, 0, 2);
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.enabled = true;
@@ -411,6 +422,8 @@ function init() {
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.zoom = 75;
+    miniAxisCamera.layers.enable(0);
+    miniAxisCamera.layers.enable(1);
 
     drawTestLines();
 
@@ -556,6 +569,7 @@ function drawTestLines() {
     line.needsUpdate = true;
     line.computeLineDistances();
     line.scale.set(1, 1, 1);
+    line.layers.set(1);
     scene.add(line);
     var positions = [];
     var colors = [];
@@ -592,6 +606,7 @@ function drawTestLines() {
     line.needsUpdate = true;
     line.computeLineDistances();
     line.scale.set(1, 1, 1);
+    line.layers.set(1);
     scene.add(line);
 }
 
@@ -601,6 +616,7 @@ function drawAxisHelperControls() {
 
     var controlAxesHelper = new THREE.AxesHelper();
     miniAxisScene.add(controlAxesHelper);
+    miniAxisScene.layers.set(0);
     controlAxesHelper.scale.set(0.5, 0.5, 0.5)
 
     //Z axis
@@ -609,6 +625,7 @@ function drawAxisHelperControls() {
     var sphereZ = new THREE.Mesh(geometry, material);
     sphereZ.position.set(0, 0, handlesDistance)
     sphereZ.name = "z";
+    sphereZ.layers.set(1);
     miniAxisScene.add(sphereZ);
     //Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
@@ -616,6 +633,7 @@ function drawAxisHelperControls() {
     var sphereY = new THREE.Mesh(geometry, material);
     sphereY.position.set(0, handlesDistance, 0)
     sphereY.name = "y";
+    sphereY.layers.set(1);
     miniAxisScene.add(sphereY);
     //X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
@@ -623,12 +641,15 @@ function drawAxisHelperControls() {
     var sphereX = new THREE.Mesh(geometry, material);
     sphereX.position.set(handlesDistance, 0, 0)
     sphereX.name = "x";
+    sphereX.layers.set(1);
     miniAxisScene.add(sphereX);
 
     //Flipped control handles
     var controlAxesHelperFlipped = new THREE.AxesHelper();
     miniAxisScene.add(controlAxesHelperFlipped);
     controlAxesHelperFlipped.applyMatrix(new THREE.Matrix4().makeScale(-0.5, -0.5, -0.5));
+    miniAxisScene.layers.set(0);
+
     //-Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
@@ -636,6 +657,7 @@ function drawAxisHelperControls() {
     sphereZFlipped.position.set(0, 0, -handlesDistance)
     sphereZFlipped.name = "-z";
     miniAxisScene.add(sphereZFlipped);
+    sphereZFlipped.layers.set(1);
     //-Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
@@ -643,6 +665,7 @@ function drawAxisHelperControls() {
     sphereYFlipped.position.set(0, -handlesDistance, 0)
     sphereYFlipped.name = "-y";
     miniAxisScene.add(sphereYFlipped);
+    sphereYFlipped.layers.set(1);
     //-X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
     var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
@@ -650,6 +673,7 @@ function drawAxisHelperControls() {
     sphereXFlipped.position.set(-handlesDistance, 0, 0)
     sphereXFlipped.name = "-x";
     miniAxisScene.add(sphereXFlipped);
+    sphereXFlipped.layers.set(1);
 
     miniAxis.addEventListener("touchstart", repositionCamera, false);
     miniAxis.addEventListener("mousedown", repositionCamera, false);
@@ -674,6 +698,7 @@ let miniAxisMouse = {
 function repositionCamera() {
     miniAxisMouse.updateCoordinates(event);
     var miniAxisRaycaster = new THREE.Raycaster();
+    miniAxisRaycaster.layers.set(1);
     miniAxisRaycaster.setFromCamera(
         new THREE.Vector2(
             miniAxisMouse.tx,

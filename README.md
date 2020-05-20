@@ -9,6 +9,8 @@ Draw:
 - Change width of the line
 - Maybe add some smoothing?
   - https://github.com/dulnan/lazy-brush
+- Figure out if there's a way to ignore palm fake presses? 
+  - Maybe I could discard the first input if the distance between the first input and the second one is massive. No one can draw such long and perfect lines? 
 
 Erase:
 
