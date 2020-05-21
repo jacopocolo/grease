@@ -4,6 +4,7 @@ import { TransformControls } from "https://threejs.org/examples/jsm/controls/Tra
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
+import { Reflector } from 'https://threejs.org/examples/jsm/objects/Reflector.js';
 
 var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
@@ -119,6 +120,7 @@ function drawStart() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
+    mirrorAxis(true, false, false, vNow.x, vNow.y, vNow.z)
     linecolors.push(206, 216, 247);
 }
 function drawMove() {
@@ -129,6 +131,7 @@ function drawMove() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
+    mirrorAxis(true, false, false, vNow.x, vNow.y, vNow.z)
     linecolors.push(206, 216, 247);
 }
 function drawEnd() {
@@ -149,6 +152,7 @@ function drawEnd() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
+    mirrorAxis(true, false, false, vNow.x, vNow.y, vNow.z)
     linecolors.push(206, 216, 247);
     var geometry = new LineGeometry();
 
@@ -174,12 +178,12 @@ function drawEnd() {
     line.needsUpdate = true;
     line.computeLineDistances();
     line.scale.set(1, 1, 1);
+    line.layers.set(1);
     scene.add(line);
+    drawMirrored()
     //Remove listener and clear arrays
-    alert(linepositions)
     linepositions = [];
     linecolors = [];
-
 }
 
 function eraseStart() {
@@ -425,7 +429,8 @@ function init() {
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
-    drawTestLines();
+
+    //drawTestLines();
 
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
@@ -537,7 +542,7 @@ function drawTestLines() {
     var positions = [];
     var colors = [];
     // Position and THREE.Color Data
-    positions.push(0, 0, 0);
+    positions.push(0.1, 0.1, 0.1);
     positions.push(0.4, 0.4, 0.4);
     colors.push(255, 0, 0);
     colors.push(255, 0, 0);
@@ -647,7 +652,7 @@ function drawAxisHelperControls() {
     //Flipped control handles
     var controlAxesHelperFlipped = new THREE.AxesHelper();
     miniAxisScene.add(controlAxesHelperFlipped);
-    controlAxesHelperFlipped.applyMatrix(new THREE.Matrix4().makeScale(-0.5, -0.5, -0.5));
+    controlAxesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-0.5, -0.5, -0.5));
     miniAxisScene.layers.set(0);
 
     //-Z axis
@@ -705,12 +710,9 @@ function repositionCamera() {
             miniAxisMouse.ty
         ),
         miniAxisCamera);
-    console.log(miniAxisMouse.tx,
-        miniAxisMouse.ty)
     var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
     if (checkIfHelperObject(object)) {
     } else {
-        console.log(object.name)
         switch (object.name) {
             case 'z':
                 controls.enabled = false;
@@ -752,3 +754,41 @@ function repositionCamera() {
         }
     }
 };
+
+//may to have to group?
+//need to check that we don't keep adding objects again and again?
+//Or maybe I just wipe everything and redraw when needed?
+var mirroredLinePositions = [];
+
+function mirrorAxis(xBool, yBool, zBool, x, y, z) {
+    if (xBool) {
+        mirroredLinePositions.push(-x, y, z);
+    }
+}
+function drawMirrored() {
+    var matLineDrawn = new LineMaterial({
+        color: 0xffffff,
+        linewidth: 5, // in pixels
+        vertexColors: true,
+        //resolution set later,
+        depthWrite: true
+    });
+    materials.push(matLineDrawn);
+    var geometry = new LineGeometry();
+    geometry.setPositions(mirroredLinePositions);
+    geometry.setColors(linecolors);
+    line = new Line2(geometry, matLineDrawn);
+    //recentering geometry around a central point
+    line.position.set(
+        line.geometry.boundingSphere.center.x,
+        line.geometry.boundingSphere.center.y,
+        line.geometry.boundingSphere.center.z
+    );
+    line.geometry.center();
+    line.needsUpdate = true;
+    line.computeLineDistances();
+    line.scale.set(1, 1, 1);
+    line.layers.set(1);
+    scene.add(line);
+    mirroredLinePositions = [];
+}
