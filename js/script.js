@@ -77,12 +77,14 @@ function updateminiAxisCamera() {
 }
 
 function selectedTool() {
-    let radio = document.getElementsByName("tools");
-    for (let x = 0; x < radio.length; x++) {
-        if (radio[x].checked) {
-            return radio[x].value;
-        }
-    }
+    console.log(app.selectedTool);
+    return app.selectedTool;
+    // let radio = document.getElementsByName("tools");
+    // for (let x = 0; x < radio.length; x++) {
+    //     if (radio[x].checked) {
+    //         return radio[x].value;
+    //     }
+    // }
 }
 
 function checkIfHelperObject(object) {
@@ -120,7 +122,7 @@ function drawStart() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(true, false, false, vNow.x, vNow.y, vNow.z)
+    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
     linecolors.push(206, 216, 247);
 }
 function drawMove() {
@@ -131,7 +133,7 @@ function drawMove() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(true, false, false, vNow.x, vNow.y, vNow.z)
+    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
     linecolors.push(206, 216, 247);
 }
 function drawEnd() {
@@ -152,7 +154,7 @@ function drawEnd() {
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(true, false, false, vNow.x, vNow.y, vNow.z)
+    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
     linecolors.push(206, 216, 247);
     var geometry = new LineGeometry();
 
@@ -180,7 +182,7 @@ function drawEnd() {
     line.scale.set(1, 1, 1);
     line.layers.set(1);
     scene.add(line);
-    drawMirrored()
+    drawMirrored(app.mirrorX)
     //Remove listener and clear arrays
     linepositions = [];
     linecolors = [];
@@ -301,7 +303,6 @@ function selectEnd() {
     else if (tempArray.length == 1) {
         somethingSelected = true;
         transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.mode = 'rotate';
         transformControls.attach(tempArray[0]);
         scene.add(transformControls);
         transformControls.addEventListener("mouseDown", function () {
@@ -451,6 +452,10 @@ function onWindowResize() {
 function animate() {
     updateminiAxisCamera();
     requestAnimationFrame(animate);
+    //may need to wrap this in a function
+    if (transformControls) {
+        transformControls.mode = app.selectedTransformation;
+    }
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     miniAxisRenderer.setViewport(0, 0, 300, 300);
     // renderer will set this eventually
@@ -491,7 +496,7 @@ function onTapEnd(event) {
     }
     //ERASER
     else if (selectedTool() == "erase") {
-        eraseEnd() //actually empty for now
+        eraseEnd()
     }
     //SELECT
     else if (selectedTool() == "select") {
@@ -755,40 +760,47 @@ function repositionCamera() {
     }
 };
 
-//may to have to group?
-//need to check that we don't keep adding objects again and again?
-//Or maybe I just wipe everything and redraw when needed?
 var mirroredLinePositions = [];
 
 function mirrorAxis(xBool, yBool, zBool, x, y, z) {
     if (xBool) {
         mirroredLinePositions.push(-x, y, z);
     }
+    if (yBool) {
+        //fill in later
+    }
+    if (zBool) {
+        //fill in later
+    }
 }
-function drawMirrored() {
-    var matLineDrawn = new LineMaterial({
-        color: 0xffffff,
-        linewidth: 5, // in pixels
-        vertexColors: true,
-        //resolution set later,
-        depthWrite: true
-    });
-    materials.push(matLineDrawn);
-    var geometry = new LineGeometry();
-    geometry.setPositions(mirroredLinePositions);
-    geometry.setColors(linecolors);
-    line = new Line2(geometry, matLineDrawn);
-    //recentering geometry around a central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-    mirroredLinePositions = [];
+
+function drawMirrored(xBool) {
+    if (xBool) {
+        var matLineDrawn = new LineMaterial({
+            color: 0xffffff,
+            linewidth: 5, // in pixels
+            vertexColors: true,
+            //resolution set later,
+            depthWrite: true
+        });
+        materials.push(matLineDrawn);
+        var geometry = new LineGeometry();
+        geometry.setPositions(mirroredLinePositions);
+        geometry.setColors(linecolors);
+        line = new Line2(geometry, matLineDrawn);
+        //recentering geometry around a central point
+        line.position.set(
+            line.geometry.boundingSphere.center.x,
+            line.geometry.boundingSphere.center.y,
+            line.geometry.boundingSphere.center.z
+        );
+        line.geometry.center();
+        line.needsUpdate = true;
+        line.computeLineDistances();
+        line.scale.set(1, 1, 1);
+        line.layers.set(1);
+        scene.add(line);
+
+        mirroredLinePositions = [];
+    }
 }

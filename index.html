@@ -16,21 +16,12 @@
     <link rel="stylesheet" href="/style.css" />
 </head>
 
-<body>
-    <!--<div class="controls">
-Controls enabled: <input type="checkbox" id="controlsEnabled">
-</div>-->
+<!--<body>
     <canvas id="drawingCanvas"></canvas>
     <div id="main"></div>
     <div id="miniAxis">
         <div id="handle"></div>
     </div>
-
-    <div id="mirror">
-
-    </div>
-
-    <!--Tools-->
     <div id="toolSelection">
         <span>
             <input type="radio" id="toolDraw" name="tools" value="draw" /><label for="toolDraw">Draw</label>
@@ -42,45 +33,71 @@ Controls enabled: <input type="checkbox" id="controlsEnabled">
             <input type="radio" id="toolSelect" name="tools" value="select" /><label for="toolSelect">Select</label>
         </span>
     </div>
+</body>-->
+
+<body>
+    <div id="app">
+        <canvas id="drawingCanvas"></canvas>
+        <div id="main"></div>
+        <div id="miniAxis">
+            <div id="handle"></div>
+        </div>
+        <div id="mirror">
+            <input type="checkbox" id="mirrorX" v-model="mirrorX">
+            <label for="mirrorX">X</label>
+            <input type="checkbox" id="mirrorY" v-model="mirrorY">
+            <label for="john">Y</label>
+            <input type="checkbox" id="mirrorZ" v-model="mirrorZ">
+            <label for="mirrorZ">Z</label>
+        </div>
+        <div id="toolSelection">
+            <span>
+                <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" checked /><label
+                    for="toolDraw">Draw</label>
+            </span>
+            <span>
+                <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
+                    for="toolEraser">Eraser</label>
+            </span>
+            <span>
+                <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool" /><label
+                    for="toolSelect">Select</label>
+            </span>
+        </div>
+
+        <div id="transformationSelection" v-if="selectedTool === 'select'">
+            <span>
+                <input type="radio" id="translate" name="transformations" value="translate"
+                    v-model="selectedTransformation" checked /><label for="translate">Translate</label>
+            </span>
+            <span>
+                <input type="radio" id="rotate" name="transformations" value="rotate"
+                    v-model="selectedTransformation" /><label for="rotate">Rotate</label>
+            </span>
+            <span>
+                <input type="radio" id="scale" name="transformations" value="scale"
+                    v-model="selectedTransformation" /><label for="scale">Scale</label>
+            </span>
+        </div>
+
+    </div>
 </body>
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
+            selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
+            isAGroupSelected: false, //Transform tools must be restricted if true
+            lineColor: '206, 216, 247', //Rgb value
+            lineWidth: 1, //Default
+            theme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
+            controlsLocked: false,
+            mirrorX: false,
+            mirrorY: false,
+            mirrorZ: false
+        }
+    })
+</script>
 
 </html>
-
-<!--
-
-var app = new Vue({
-  el: '#app',
-  data: {
-    selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
-    selectedTransformation: 'translate' //Options are "translate", "rotate" and "scale"
-    isAGroupSelected: false, //Transform tools must be restricted if true
-    lineColor: '206, 216, 247', //Rgb value
-    lineWidth: 1 //Default
-    theme: 'blueprint' //Options are 'blueprint', 'light', 'dark'
-    controlsLocked: false,
-    mirrorXAxis: false,
-    mirrorYAxis: false,
-    mirrorZAxis: false
-  }
-})
-
-Vue rewrite
-<div id="app">
-<canvas id="drawingCanvas"></canvas>
-<div id="main"></div>
-<div id="miniAxis"></div>
-
-    <div id="toolSelection">
-        <span>
-            <input type="radio" id="toolDraw" name="tools" value="draw" /><label for="toolDraw">Draw</label>
-        </span>
-        <span>
-            <input type="radio" id="toolEraser" name="tools" value="erase" /><label for="toolEraser">Eraser</label>
-        </span>
-        <span>
-            <input type="radio" id="toolSelect" name="tools" value="select" checked /><label
-                for="toolSelect">Select</label>
-        </span>
-    </div>
-</div>
--->
