@@ -2,47 +2,35 @@
 <html lang="en">
 
 <head>
-    <title>Hello!</title>
+    <title>Blueprint</title>
     <meta charset="utf-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="apple-mobile-web-app-capable" content="no" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="viewport" content="user-scalable = no" />
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport"
+        content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/inobounce/0.2.0/inobounce.min.js"
+        integrity="sha256-Fc0S35M2Uo4ZMUBJy7ZWT+fkxv5Vpk8k1+cToMBUze4=" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="js/script.js" type="module" defer></script>
     <script src="js/utils.js" type="module" defer></script>
+
+    <link rel="stylesheet" href="/reset.css" />
     <link rel="stylesheet" href="/style.css" />
 </head>
-
-<!--<body>
-    <canvas id="drawingCanvas"></canvas>
-    <div id="main"></div>
-    <div id="miniAxis">
-        <div id="handle"></div>
-    </div>
-    <div id="toolSelection">
-        <span>
-            <input type="radio" id="toolDraw" name="tools" value="draw" /><label for="toolDraw">Draw</label>
-        </span>
-        <span>
-            <input type="radio" id="toolEraser" name="tools" value="erase" /><label for="toolEraser">Eraser</label>
-        </span>
-        <span>
-            <input type="radio" id="toolSelect" name="tools" value="select" /><label for="toolSelect">Select</label>
-        </span>
-    </div>
-</body>-->
 
 <body>
     <div id="app">
         <canvas id="drawingCanvas"></canvas>
         <div id="main"></div>
         <div id="miniAxis">
-            <div id="handle"></div>
+            <div id="handle"><span class="miniAxisButton">
+                    <input type="checkbox" id="lockRotation" v-model="controlsLocked">
+                    <label for="lockRotation">Lock</label></span></div>
         </div>
-        <div id="mirror">
+        <div id="mirror" v-if="selectedTool == 'draw'">Mirror:
             <input type="checkbox" id="mirrorX" v-model="mirrorX">
             <label for="mirrorX">X</label>
             <input type="checkbox" id="mirrorY" v-model="mirrorY">
@@ -83,21 +71,39 @@
     </div>
 </body>
 <script>
-    var app = new Vue({
-        el: '#app',
-        data: {
-            selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
-            selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
-            isAGroupSelected: false, //Transform tools must be restricted if true
-            lineColor: '206, 216, 247', //Rgb value
-            lineWidth: 1, //Default
-            theme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
-            controlsLocked: false,
-            mirrorX: false,
-            mirrorY: false,
-            mirrorZ: false
-        }
-    })
+    document.body.addEventListener('touchmove', function (event) {
+        event.preventDefault();
+    }, {
+        passive: false,
+        useCapture: false
+    });
+
+    window.onresize = function () {
+        $(document.body).width(window.innerWidth).height(window.innerHeight);
+    }
+
+    $(function () {
+        window.onresize();
+    });
 </script>
+
+<body ontouchmove="blockMove()">
+    <script>
+        var app = new Vue({
+            el: '#app',
+            data: {
+                selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
+                selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
+                isAGroupSelected: false, //Transform tools must be restricted if true
+                lineColor: '206, 216, 247', //Rgb value
+                lineWidth: 1, //Default
+                theme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
+                controlsLocked: false,
+                mirrorX: false,
+                mirrorY: false,
+                mirrorZ: false
+            }
+        })
+    </script>
 
 </html>

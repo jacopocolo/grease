@@ -77,14 +77,7 @@ function updateminiAxisCamera() {
 }
 
 function selectedTool() {
-    console.log(app.selectedTool);
     return app.selectedTool;
-    // let radio = document.getElementsByName("tools");
-    // for (let x = 0; x < radio.length; x++) {
-    //     if (radio[x].checked) {
-    //         return radio[x].value;
-    //     }
-    // }
 }
 
 function checkIfHelperObject(object) {
@@ -219,7 +212,7 @@ function selectStart() {
         paths.push([mouse.cx, mouse.cy]);
         raycaster = new THREE.Raycaster();
         raycaster.layers.set(1);
-        raycaster.params.Line.threshold = 0.0000000001;
+        raycaster.params.Line.threshold = 0.01;
         tempArray = [];
     }
     //Setting the first raycast at start point seems to be causing problems,
@@ -455,6 +448,10 @@ function animate() {
     //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
+        transformControls.en
+    }
+    if (controls) {
+        controls.enabled = !app.controlsLocked
     }
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     miniAxisRenderer.setViewport(0, 0, 300, 300);
@@ -706,56 +703,58 @@ let miniAxisMouse = {
 }
 
 function repositionCamera() {
-    miniAxisMouse.updateCoordinates(event);
-    var miniAxisRaycaster = new THREE.Raycaster();
-    miniAxisRaycaster.layers.set(1);
-    miniAxisRaycaster.setFromCamera(
-        new THREE.Vector2(
-            miniAxisMouse.tx,
-            miniAxisMouse.ty
-        ),
-        miniAxisCamera);
-    var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
-    if (checkIfHelperObject(object)) {
-    } else {
-        switch (object.name) {
-            case 'z':
-                controls.enabled = false;
-                camera.position.set(0, 0, 2);
-                camera.lookAt(controls.target);
-                controls.enabled = true;
-                break;
-            case 'x':
-                controls.enabled = false;
-                camera.position.set(2, 0, 0);
-                camera.lookAt(controls.target);
-                controls.enabled = true;
-                break;
-            case 'y':
-                controls.enabled = false;
-                camera.position.set(0, 2, 0);
-                camera.lookAt(controls.target);
-                controls.enabled = true;
-                break;
-            case '-x':
-                controls.enabled = false;
-                camera.position.set(-2, 0, 0);
-                camera.lookAt(controls.target);
-                controls.enabled = true;
-                break;
-            case '-y':
-                controls.enabled = false;
-                camera.position.set(0, -2, 0);
-                camera.lookAt(controls.target);
-                controls.enabled = true;
-                break;
-            case '-z':
-                controls.enabled = false;
-                camera.position.set(0, 0, -2);
-                camera.lookAt(controls.target);
-                controls.enabled = true;
-                break;
-            default:
+    if (!app.controlsLocked) {
+        miniAxisMouse.updateCoordinates(event);
+        var miniAxisRaycaster = new THREE.Raycaster();
+        miniAxisRaycaster.layers.set(1);
+        miniAxisRaycaster.setFromCamera(
+            new THREE.Vector2(
+                miniAxisMouse.tx,
+                miniAxisMouse.ty
+            ),
+            miniAxisCamera);
+        var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
+        if (checkIfHelperObject(object)) {
+        } else {
+            switch (object.name) {
+                case 'z':
+                    controls.enabled = false;
+                    camera.position.set(0, 0, 2);
+                    camera.lookAt(controls.target);
+                    controls.enabled = true;
+                    break;
+                case 'x':
+                    controls.enabled = false;
+                    camera.position.set(2, 0, 0);
+                    camera.lookAt(controls.target);
+                    controls.enabled = true;
+                    break;
+                case 'y':
+                    controls.enabled = false;
+                    camera.position.set(0, 2, 0);
+                    camera.lookAt(controls.target);
+                    controls.enabled = true;
+                    break;
+                case '-x':
+                    controls.enabled = false;
+                    camera.position.set(-2, 0, 0);
+                    camera.lookAt(controls.target);
+                    controls.enabled = true;
+                    break;
+                case '-y':
+                    controls.enabled = false;
+                    camera.position.set(0, -2, 0);
+                    camera.lookAt(controls.target);
+                    controls.enabled = true;
+                    break;
+                case '-z':
+                    controls.enabled = false;
+                    camera.position.set(0, 0, -2);
+                    camera.lookAt(controls.target);
+                    controls.enabled = true;
+                    break;
+                default:
+            }
         }
     }
 };

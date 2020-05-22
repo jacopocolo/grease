@@ -17,7 +17,7 @@ Erase:
 Select:
 -~~ Make lines selectable~~
 -~~Make lines DE selectable~~
-- Allow switching between modes (move, rotation, scale)
+~~- Allow switching between modes (move, rotation, scale)~~
 - ~~Group selection~~
   - Allow all group selection transform (at the moment it's only move)
   - https://threejs.org/examples/misc_boxselection.html
@@ -26,16 +26,22 @@ Select:
 
 Camera controls:
 ~~- Fine tune speed~~
-- Snap to axis (x, y, z)
+~~- Snap to axis (x, y, z)~~
+- Lock controls
+- Reset camera?
 
 Other features
 - Selectable themes (light, dark, blueprint)
     - Would imply changing the color of the main color line, at least. Could be diffiult but maybe it can be brute-forced
 - ~~Make the miniAxis window draggable~~
-  - Make sure the miniAxis window can't be dragged out of the screen 
+  ~~- Make sure the miniAxis window can't be dragged out of the screen~~
+  - Make sure you can't drag the miniAxis out of the screen 
 - Handle undo properly (can't delete basic objects!)
   - Maybe not needed? Maybe I only need an eraser? Handling undo is a lot of work because it needs to support ALL events.
 - Make slow auto rotate that hides UI
+
+Fixes:
+- Fix rubberbanding if in Webapp mode
 
 Difficult stuff:
 - Drawing while rotating the camera is possible but it would require to actually render the "guide line" as it's drawn
