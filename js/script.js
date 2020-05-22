@@ -108,7 +108,7 @@ function redrawLine(color) {
 function drawStart() {
     //draw line
     context.beginPath();
-    context.lineWidth = "1";
+    context.lineWidth = app.lineWidth;
     context.strokeStyle = "white";
     context.moveTo(mouse.cx, mouse.cy);
     //Start
@@ -138,7 +138,7 @@ function drawEnd() {
     //Close and add line to scene
     var matLineDrawn = new LineMaterial({
         color: 0xffffff,
-        linewidth: 5, // in pixels
+        linewidth: app.lineWidth, // in pixels
         vertexColors: true,
         //resolution set later,
         depthWrite: true
@@ -558,8 +558,8 @@ function drawTestLines() {
     );
     geometry.setColors(colors);
     matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: 5, // in pixels
+        //color: 0xffffff,
+        linewidth: app.lineWidth, // in pixels
         vertexColors: true,
         //resolution:  // to be set by renderer, eventually
         depthWrite: false
@@ -596,7 +596,7 @@ function drawTestLines() {
     geometry.setColors(colors);
     matLine = new LineMaterial({
         color: 0xffffff,
-        linewidth: 5, // in pixels
+        linewidth: app.lineWidth, // in pixels
         vertexColors: true,
         //resolution:  // to be set by renderer, eventually
         depthWrite: false
@@ -777,7 +777,7 @@ function drawMirrored(xBool) {
     if (xBool) {
         var matLineDrawn = new LineMaterial({
             color: 0xffffff,
-            linewidth: 5, // in pixels
+            linewidth: app.lineWidth, // in pixels
             vertexColors: true,
             //resolution set later,
             depthWrite: true

@@ -73,10 +73,12 @@
 <script>
     document.body.addEventListener('touchmove', function (event) {
         event.preventDefault();
-    }, {
-        passive: false,
-        useCapture: false
-    });
+    },
+        // {
+        //     passive: false,
+        //     useCapture: false
+        // }
+    );
 
     window.onresize = function () {
         $(document.body).width(window.innerWidth).height(window.innerHeight);
@@ -86,24 +88,23 @@
         window.onresize();
     });
 </script>
-
-<body ontouchmove="blockMove()">
-    <script>
-        var app = new Vue({
-            el: '#app',
-            data: {
-                selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
-                selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
-                isAGroupSelected: false, //Transform tools must be restricted if true
-                lineColor: '206, 216, 247', //Rgb value
-                lineWidth: 1, //Default
-                theme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
-                controlsLocked: false,
-                mirrorX: false,
-                mirrorY: false,
-                mirrorZ: false
-            }
-        })
-    </script>
+<!-- <body ontouchmove="blockMove()"></body> -->
+<script>
+    var app = new Vue({
+        el: '#app',
+        data: {
+            selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
+            selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
+            isAGroupSelected: false, //Transform tools must be restricted if true
+            lineColor: '206, 216, 247', //Rgb value
+            lineWidth: 50, //Default 1
+            theme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
+            controlsLocked: false,
+            mirrorX: false,
+            mirrorY: false,
+            mirrorZ: false
+        }
+    })
+</script>
 
 </html>
