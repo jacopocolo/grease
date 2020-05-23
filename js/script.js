@@ -162,16 +162,17 @@ function drawEnd() {
     //     //     alert('should palm reject')
     //     // }
     // }
-    const line = new MeshLine()
-    line.setVertices(linepositions, p => 1 - p)
+    const line = new MeshLine();
+    linepositions = linepositions.slice(7, linepositions.length - 2) //let's see what happens if we chop off few points at the end and beginning
+    line.setVertices(linepositions, p => p * 1.5)
     //line.setVertices(linepositions)
     var material = new MeshLineMaterial({
-        lineWidth: app.lineWidth / 50,
-        color: new THREE.Color("rgb(255, 255, 255)"),
-        sizeAttenuation: 1,
+        lineWidth: app.lineWidth / 200,
+        // color: new THREE.Color("rgb(255, 255, 255)"),
+        sizeAttenuation: 0,
         depthTest: false,
-        alphaTest: 1,
-        resolution: new THREE.Vector2(window.innerWidth, window.insetHeight)
+        // alphaTest: 1,
+        // resolution: new THREE.Vector2(window.innerWidth, window.insetHeight)
     });
     var mesh = new THREE.Mesh(line, material);
     mesh.raycast = MeshLineRaycast;
