@@ -430,7 +430,7 @@ function init() {
     controls.minDistance = 1;
     controls.maxDistance = 3;
     controls.rotateSpeed = 0.5;
-    controls.autoRotateSpeed = 4.0;
+    controls.autoRotateSpeed = 5.0;
     camera.zoom = 900;
     controls.zoomEnabled = false;
     controls.panEnabled = false;

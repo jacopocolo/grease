@@ -16,7 +16,6 @@
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
     <script src="js/script.js" type="module" defer></script>
     <script src="js/utils.js" type="module" defer></script>
-
     <link rel="stylesheet" href="/reset.css" />
     <link rel="stylesheet" href="/style.css" />
 </head>
@@ -78,10 +77,10 @@
                 <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
                     checked /><label for="blueprintTheme">Blueprint</label>
             </span>
-            <span>
+            <!-- <span>
                 <input type="radio" id="lightTheme" name="themes" value="light" v-model="selectedTheme" /><label
                     for="lightTheme">Light</label>
-            </span>
+            </span> -->
             <span>
                 <input type="radio" id="darkTheme" name="themes" value="dark" v-model="selectedTheme" /><label
                     for="darkTheme">Dark</label>
@@ -120,7 +119,7 @@
             selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
             isAGroupSelected: false, //Transform tools must be restricted if true
             lineColor: '206, 216, 247', //Rgb value
-            lineWidth: 50, //Default 1
+            lineWidth: 20, //Default 1
             selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
             linesNeedThemeUpdate: false,
             controlsLocked: false,
