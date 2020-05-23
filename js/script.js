@@ -1,10 +1,6 @@
-import * as THREE from "https://threejs.org/build/three.module.js";
-import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
-import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
-import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
-import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
-import { Reflector } from 'https://threejs.org/examples/jsm/objects/Reflector.js';
+// import * as THREE from "https://threejs.org/build/three.module.js";
+// import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
+// import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
 
 var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
@@ -132,9 +128,9 @@ function drawStart() {
     //Start
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
-    linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    linecolors.push(206, 216, 247);
+    linepositions.push(vNow);
+    //mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
+    //linecolors.push(206, 216, 247);
 }
 function drawMove() {
     //Draw on canvas
@@ -143,9 +139,9 @@ function drawMove() {
     //Add line elements
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
-    linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    linecolors.push(206, 216, 247);
+    linepositions.push(vNow);
+    //mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
+    //linecolors.push(206, 216, 247);
 }
 function drawEnd() {
     //render line
@@ -154,21 +150,10 @@ function drawEnd() {
     context.closePath();
     context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     //Close and add line to scene
-    var matLineDrawn = new LineMaterial({
-        color: 0xffffff,
-        linewidth: app.lineWidth, // in pixels
-        vertexColors: true,
-        //resolution set later,
-        depthWrite: true
-    });
-    materials.push(matLineDrawn);
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
-    linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    linecolors.push(206, 216, 247);
-    var geometry = new LineGeometry();
-
+    linepositions.push(vNow);
+    //mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
     //experimental approach to rejecting points that
     //are too far apart and are artifacts of palm rejection failing
     // for (var i = 0; i < linepositions.length - 3; i = i + 3) {
@@ -177,23 +162,23 @@ function drawEnd() {
     //     //     alert('should palm reject')
     //     // }
     // }
-
-    geometry.setPositions(linepositions);
-    geometry.setColors(linecolors);
-    line = new Line2(geometry, matLineDrawn);
+    const line = new MeshLine()
+    line.setVertices(linepositions, p => p / p)
+    var material = new MeshLineMaterial({
+        transparent: true,
+        lineWidth: 0.05,
+        depthTest: true,
+        dashArray: 0.01,
+        color: new THREE.Color("rgb(255, 0, 0)"),
+        sizeAttenuation: 1,
+        alpha: 0.4
+    });
+    var mesh = new THREE.Mesh(line, material);
+    mesh.raycast = MeshLineRaycast;
     //recentering geometry around a central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-    drawMirrored(app.mirrorX)
+    mesh.layers.set(1);
+    scene.add(mesh);
+    //drawMirrored(app.mirrorX)
     //Remove listener and clear arrays
     linepositions = [];
     linecolors = [];
@@ -201,9 +186,11 @@ function drawEnd() {
 
 function eraseStart() {
     raycaster = new THREE.Raycaster();
-    raycaster.params.Line.threshold = 0.01;
-    raycaster.layers.set(1);
-    paths.push([mouse.cx, mouse.cy]);
+    raycaster.layers.set(1)
+    raycaster.params.Line.threshold = 0.00001;
+    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+    var object = raycaster.intersectObjects(scene.children)[0].object;
+    console.log(object);
 }
 function eraseMove() {
     paths[paths.length - 1].push([mouse.cx, mouse.cy]);
@@ -211,12 +198,13 @@ function eraseMove() {
     //we are redrawing the line every frame
     redrawLine('rgba(255,20,147, 0.15)');
 
-    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-    var object = raycaster.intersectObjects(scene.children)[0].object;
-    if (checkIfHelperObject(object)) {
-    } else {
-        scene.remove(object);
-    }
+    raycaster.params.Line.threshold = 0.0000001;
+    // raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+    // var object = raycaster.intersectObjects(scene.children)[0].object;
+    // if (checkIfHelperObject(object)) {
+    // } else {
+    //     scene.remove(object);
+    // }
 }
 function eraseEnd() {
     //Actually empty for now
@@ -230,7 +218,8 @@ function selectStart() {
         paths.push([mouse.cx, mouse.cy]);
         raycaster = new THREE.Raycaster();
         raycaster.layers.set(1);
-        raycaster.params.Line.threshold = 0.01;
+        // raycaster.params.Line.threshold = 0.001;
+        // raycaster.params.Mesh.threshold = 0.001;
         tempArray = [];
     }
     //Setting the first raycast at start point seems to be causing problems,
@@ -313,7 +302,7 @@ function selectEnd() {
     //we attach the controls only to that object
     else if (tempArray.length == 1) {
         somethingSelected = true;
-        transformControls = new TransformControls(camera, drawingCanvas);
+        transformControls = new THREE.TransformControls(camera, drawingCanvas);
         transformControls.attach(tempArray[0]);
         scene.add(transformControls);
         transformControls.addEventListener("mouseDown", function () {
@@ -366,17 +355,17 @@ function computeGroupCenter() {
 }
 
 function toggleDash(object, bool) {
-    var material = object.material;
-    material.dashed = bool;
-    // dashed is implemented as a defines -- not as a uniform. this could be changed.
-    // ... or THREE.LineDashedMaterial could be implemented as a separate material
-    // temporary hack - renderer should do this eventually
-    if (bool) material.defines.USE_DASH = "";
-    else delete material.defines.USE_DASH;
-    material.dashSize = bool ? 0.01 : 1000;
-    material.gapSize = bool ? 0.01 : 1000;
-    material.dashScale = bool ? 1 : 1000;
-    material.needsUpdate = true;
+    // var material = object.material;
+    // material.dashed = bool;
+    // // dashed is implemented as a defines -- not as a uniform. this could be changed.
+    // // ... or THREE.LineDashedMaterial could be implemented as a separate material
+    // // temporary hack - renderer should do this eventually
+    // if (bool) material.defines.USE_DASH = "";
+    // else delete material.defines.USE_DASH;
+    // material.dashSize = bool ? 0.01 : 1000;
+    // material.gapSize = bool ? 0.01 : 1000;
+    // material.dashScale = bool ? 1 : 1000;
+    // material.needsUpdate = true;
 }
 
 function init() {
@@ -419,22 +408,22 @@ function init() {
         window.innerHeight / 2,
         window.innerHeight / -2,
         1,
-        3
+        90
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
 
     camera.position.set(0, 0, 2);
-    controls = new OrbitControls(camera, miniAxisRenderer.domElement);
+    controls = new THREE.OrbitControls(camera, miniAxisRenderer.domElement);
     controls.enabled = true;
     controls.minDistance = 1;
     controls.maxDistance = 3;
     controls.rotateSpeed = 0.5;
     controls.autoRotateSpeed = 5.0;
-    camera.zoom = 900;
+    camera.zoom = 100;
     controls.zoomEnabled = false;
     controls.panEnabled = false;
-    transformControls = new TransformControls(camera, drawingCanvas);
+    transformControls = new THREE.TransformControls(camera, drawingCanvas);
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
