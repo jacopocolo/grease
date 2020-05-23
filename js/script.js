@@ -163,19 +163,27 @@ function drawEnd() {
     //     // }
     // }
     const line = new MeshLine()
-    line.setVertices(linepositions, p => p / p)
+    line.setVertices(linepositions, p => 1 - p)
+    //line.setVertices(linepositions)
     var material = new MeshLineMaterial({
-        transparent: true,
-        lineWidth: 0.05,
-        depthTest: true,
-        dashArray: 0.01,
-        color: new THREE.Color("rgb(255, 0, 0)"),
+        lineWidth: app.lineWidth / 50,
+        color: new THREE.Color("rgb(255, 255, 255)"),
         sizeAttenuation: 1,
-        alpha: 0.4
+        depthTest: false,
+        alphaTest: 1,
+        resolution: new THREE.Vector2(window.innerWidth, window.insetHeight)
     });
     var mesh = new THREE.Mesh(line, material);
     mesh.raycast = MeshLineRaycast;
     //recentering geometry around a central point
+    mesh.position.set(
+        mesh.geometry.boundingSphere.center.x,
+        mesh.geometry.boundingSphere.center.y,
+        mesh.geometry.boundingSphere.center.z
+    );
+    mesh.geometry.center();
+    mesh.needsUpdate = true;
+    mesh.material.needsUpdate = true;
     mesh.layers.set(1);
     scene.add(mesh);
     //drawMirrored(app.mirrorX)
@@ -187,27 +195,26 @@ function drawEnd() {
 function eraseStart() {
     raycaster = new THREE.Raycaster();
     raycaster.layers.set(1)
-    raycaster.params.Line.threshold = 0.00001;
     raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-    var object = raycaster.intersectObjects(scene.children)[0].object;
-    console.log(object);
+
+    raycaster.params.Line.threshold = 0.01;
+    paths.push([mouse.cx, mouse.cy]);
+    // if (raycaster.intersectObjects(scene.children)[0].object != undefined) {
+    //     var object = raycaster.intersectObjects(scene.children)[0].object;
+    //     scene.remove(object);
 }
 function eraseMove() {
     paths[paths.length - 1].push([mouse.cx, mouse.cy]);
     //This is to render line transparency,
     //we are redrawing the line every frame
     redrawLine('rgba(255,20,147, 0.15)');
-
-    raycaster.params.Line.threshold = 0.0000001;
-    // raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-    // var object = raycaster.intersectObjects(scene.children)[0].object;
-    // if (checkIfHelperObject(object)) {
-    // } else {
-    //     scene.remove(object);
-    // }
+    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+    var object = raycaster.intersectObjects(scene.children)[0].object;
+    if (object != undefined) {
+        scene.remove(object);
+    }
 }
 function eraseEnd() {
-    //Actually empty for now
     context.closePath();
     context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     paths = [];
@@ -218,7 +225,7 @@ function selectStart() {
         paths.push([mouse.cx, mouse.cy]);
         raycaster = new THREE.Raycaster();
         raycaster.layers.set(1);
-        // raycaster.params.Line.threshold = 0.001;
+        raycaster.params.Line.threshold = 0.1;
         // raycaster.params.Mesh.threshold = 0.001;
         tempArray = [];
     }
@@ -259,10 +266,8 @@ function selectEnd() {
 
     //If tempArray is empty and we are not transforming, we deselect
     if (tempArray.length == 0 && !transforming) {
-
         //Ungroup if we have a group selection
         if (typeof tempgroup !== 'undefined') {
-
             var ungroupArray = [];
             for (var i = 0; i < tempgroup.children.length; i++) {
                 var object = tempgroup.children[i]
@@ -355,17 +360,9 @@ function computeGroupCenter() {
 }
 
 function toggleDash(object, bool) {
-    // var material = object.material;
-    // material.dashed = bool;
-    // // dashed is implemented as a defines -- not as a uniform. this could be changed.
-    // // ... or THREE.LineDashedMaterial could be implemented as a separate material
-    // // temporary hack - renderer should do this eventually
-    // if (bool) material.defines.USE_DASH = "";
-    // else delete material.defines.USE_DASH;
-    // material.dashSize = bool ? 0.01 : 1000;
-    // material.gapSize = bool ? 0.01 : 1000;
-    // material.dashScale = bool ? 1 : 1000;
-    // material.needsUpdate = true;
+    var material = object.material;
+    material.transparent = bool
+    material.dashArray = bool ? 0.001 : 0
 }
 
 function init() {
@@ -408,7 +405,7 @@ function init() {
         window.innerHeight / 2,
         window.innerHeight / -2,
         1,
-        90
+        3
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
@@ -420,7 +417,7 @@ function init() {
     controls.maxDistance = 3;
     controls.rotateSpeed = 0.5;
     controls.autoRotateSpeed = 5.0;
-    camera.zoom = 100;
+    camera.zoom = 500;
     controls.zoomEnabled = false;
     controls.panEnabled = false;
     transformControls = new THREE.TransformControls(camera, drawingCanvas);
