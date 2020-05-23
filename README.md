@@ -31,6 +31,8 @@ Camera controls:
 - Reset camera?
 
 Other features
+- Might be worth trying an implementation with LineMesh (see: https://jsfiddle.net/jacopocolo/ygj6195e/62/)
+- Local host library and freeze threejs release
 - Selectable themes (light, dark, blueprint)
     - Would imply changing the color of the main color line, at least. Could be diffiult but maybe it can be brute-forced
     - It's technically possible to update every single line in the scene with new colors. You can do:
