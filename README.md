@@ -33,6 +33,24 @@ Camera controls:
 Other features
 - Selectable themes (light, dark, blueprint)
     - Would imply changing the color of the main color line, at least. Could be diffiult but maybe it can be brute-forced
+    - It's technically possible to update every single line in the scene with new colors. You can do:
+
+      ````
+      function recolorLine(object, r, g, b) {
+      var colorArray = [];
+      for (var x = 0; x < object.geometry.attributes.instanceColorStart.data.array.length; x++) {
+      colorArray.push(r)
+      colorArray.push(g)
+      colorArray.push(b)
+      }
+      var updatedColors = new Float32Array(colorArray);
+      object.geometry.attributes.instanceColorStart.data.array = updatedColors;
+      var updatedColors = new Float32Array(colorArray);
+      object.geometry.attributes.instanceColorStart.data.array = updatedColors;
+      object.geometry.colorsNeedUpdate = true;
+      object.material.needsUpdate = true;
+    }
+    ````
 - ~~Make the miniAxis window draggable~~
   ~~- Make sure the miniAxis window can't be dragged out of the screen~~
   - Make sure you can't drag the miniAxis out of the screen 

@@ -8,7 +8,6 @@ import { Reflector } from 'https://threejs.org/examples/jsm/objects/Reflector.js
 
 var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
-var drawingplane;
 var matLine, matLineBasic;
 var matLineDrawn;
 var materials = [];
@@ -30,6 +29,8 @@ var selectionBoxStartX, selectionBoxStartY;
 var selectionBox;
 var helper;
 
+var linesNeedThemeUpdate = false;
+
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
 drawingCanvas.width = window.innerWidth;
@@ -45,6 +46,21 @@ var linecolors = [];
 
 //selection
 var pickedObjects = [];
+
+var themes = {
+    blueprint: {
+        backgroundColor: '',
+        mainColor: '',
+    },
+    light: {
+        backgroundColor: '',
+        mainColor: '',
+    },
+    dark: {
+        backgroundColor: '',
+        mainColor: '',
+    }
+}
 
 init();
 animate();
@@ -110,6 +126,8 @@ function drawStart() {
     context.beginPath();
     context.lineWidth = app.lineWidth;
     context.strokeStyle = "white";
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
     context.moveTo(mouse.cx, mouse.cy);
     //Start
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
@@ -367,7 +385,7 @@ function init() {
         alpha: true
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x002082, 1.0);
+    renderer.setClearColor(0x000000, 0); //transparent so the background shows through
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
 
@@ -412,6 +430,7 @@ function init() {
     controls.minDistance = 1;
     controls.maxDistance = 3;
     controls.rotateSpeed = 0.5;
+    controls.autoRotateSpeed = 4.0;
     camera.zoom = 900;
     controls.zoomEnabled = false;
     controls.panEnabled = false;
@@ -448,10 +467,19 @@ function animate() {
     //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
-        transformControls.en
     }
     if (controls) {
         controls.enabled = !app.controlsLocked
+        //should make sure we can't mess with autorotate
+        if (app.autoRotate) {
+            app.controlsLocked = true;
+            camera.layers.disable(0)
+            controls.autoRotate = app.autoRotate;
+            controls.update();
+        } else {
+            camera.layers.enable(0)
+            app.controlsLocked = false;
+        }
     }
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     miniAxisRenderer.setViewport(0, 0, 300, 300);
@@ -463,6 +491,17 @@ function animate() {
             material.resolution.set(window.innerWidth, window.innerHeight)
         );
     } // resolution of the inset viewport
+
+    //May not be possible? Maybe too much geometry to update?
+    // if (app.linesNeedThemeUpdate) {
+    //     scene.children.forEach(object => {
+    //         if (object.layers.mask == 2) {
+    //             console.log(object)
+    //             recolorLine(object, 255, 0, 0);
+    //         }
+    //     })
+    //     app.linesNeedThemeUpdate = false;
+    // }
 
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
@@ -803,3 +842,19 @@ function drawMirrored(xBool) {
         mirroredLinePositions = [];
     }
 }
+
+function recolorLine(object, r, g, b) {
+    var colorArray = [];
+    for (var x = 0; x < object.geometry.attributes.instanceColorStart.data.array.length; x++) {
+        colorArray.push(r)
+        colorArray.push(g)
+        colorArray.push(b)
+    }
+    var updatedColors = new Float32Array(colorArray);
+    object.geometry.attributes.instanceColorStart.data.array = updatedColors;
+    var updatedColors = new Float32Array(colorArray);
+    object.geometry.attributes.instanceColorStart.data.array = updatedColors;
+    object.geometry.colorsNeedUpdate = true;
+    object.material.needsUpdate = true;
+}
+

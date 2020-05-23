@@ -24,7 +24,7 @@
 <body>
     <div id="app">
         <canvas id="drawingCanvas"></canvas>
-        <div id="main"></div>
+        <div id="main" :class="selectedTheme"></div>
         <div id="miniAxis">
             <div id="handle"><span class="miniAxisButton">
                     <input type="checkbox" id="lockRotation" v-model="controlsLocked">
@@ -53,6 +53,11 @@
             </span>
         </div>
 
+        <div id="lineSelection" v-if="selectedTool == 'draw'">
+            <label for="lineWidth">Width</label>
+            <input type="range" id="lineWidthSlider" name="lineWidth" min="1" max="50" v-model="lineWidth">
+        </div>
+
         <div id="transformationSelection" v-if="selectedTool === 'select'">
             <span>
                 <input type="radio" id="translate" name="transformations" value="translate"
@@ -68,6 +73,26 @@
             </span>
         </div>
 
+        <div id="themeSelection">
+            <span>
+                <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
+                    checked /><label for="blueprintTheme">Blueprint</label>
+            </span>
+            <span>
+                <input type="radio" id="lightTheme" name="themes" value="light" v-model="selectedTheme" /><label
+                    for="lightTheme">Light</label>
+            </span>
+            <span>
+                <input type="radio" id="darkTheme" name="themes" value="dark" v-model="selectedTheme" /><label
+                    for="darkTheme">Dark</label>
+            </span>
+        </div>
+
+        <div id="autoRotate">
+            <input type="checkbox" id="autoRotate" v-model="autoRotate">
+            <label for="autoRotate">Autorotate</label>
+        </div>
+
     </div>
 </body>
 <script>
@@ -81,14 +106,12 @@
     );
 
     window.onresize = function () {
-        $(document.body).width(window.innerWidth).height(window.innerHeight);
+        //$(document.body).width(window.innerWidth).height(window.innerHeight);
     }
-
-    $(function () {
-        window.onresize();
-    });
+    // $(function () {
+    //     window.onresize();
+    // });
 </script>
-<!-- <body ontouchmove="blockMove()"></body> -->
 <script>
     var app = new Vue({
         el: '#app',
@@ -98,12 +121,27 @@
             isAGroupSelected: false, //Transform tools must be restricted if true
             lineColor: '206, 216, 247', //Rgb value
             lineWidth: 50, //Default 1
-            theme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
+            selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
+            linesNeedThemeUpdate: false,
             controlsLocked: false,
             mirrorX: false,
             mirrorY: false,
-            mirrorZ: false
+            mirrorZ: false,
+            autoRotate: false,
+        },
+        watch: {
+            selectedTheme: function () {
+                app.linesNeedThemeUpdate = true;
+                // if (app.selectedTheme == 'blueprint') {
+                //     linesNeedThemeUpdate = true;
+                // } else if (app.selectedTheme == 'light') {
+                //     linesNeedThemeUpdate = true;
+                // } else if (app.selectedTheme == 'dark') {
+                //     linesNeedThemeUpdate = true;
+                // }
+            }
         }
+
     })
 </script>
 
