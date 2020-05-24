@@ -1,7 +1,3 @@
-// import * as THREE from "https://threejs.org/build/three.module.js";
-// import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
-// import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
-
 var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
 var matLine, matLineBasic;
@@ -128,7 +124,7 @@ function drawStart() {
     //Start
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
-    linepositions.push(vNow);
+    linepositions.push(new THREE.Vector2(vNow.x, vNow.y));
     //mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
     //linecolors.push(206, 216, 247);
 }
@@ -139,7 +135,7 @@ function drawMove() {
     //Add line elements
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
-    linepositions.push(vNow);
+    linepositions.push(new THREE.Vector2(vNow.x, vNow.y));
     //mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
     //linecolors.push(206, 216, 247);
 }
@@ -152,25 +148,34 @@ function drawEnd() {
     //Close and add line to scene
     var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
     vNow.unproject(camera);
-    linepositions.push(vNow);
-    //mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    //experimental approach to rejecting points that
-    //are too far apart and are artifacts of palm rejection failing
-    // for (var i = 0; i < linepositions.length - 3; i = i + 3) {
-    //     alert(linepositions.length[i] - linepositions.length[i + 3])
-    //     // if (linepositions.length[i] - linepositions.length[i + 3] > 0.01) {
-    //     //     alert('should palm reject')
-    //     // }
-    // }
+    linepositions.push(new THREE.Vector2(vNow.x, vNow.y));
+    //linepositions = simplify(linepositions, 0.0000001)
+
+    //poor man implementation of palm rejection: if the distance is too wide, we reject the points
+    for (var i = 0; i < linepositions.length - 1; i++) {
+        if (linepositions[i].x - linepositions[i + 1].x > 0.1) {
+            linepositions.slice(i)
+        }
+    }
+
+
+    linepositions = new THREE.SplineCurve(linepositions)
+    //linepositions.arcLengthDivisions(400)
+    linepositions = linepositions.points;
+    for (var i = 0; i < linepositions.length; i++) {
+        linepositions[i] = new THREE.Vector3(linepositions[i].x, linepositions[i].y, 0)
+    }
+
     const line = new MeshLine();
-    linepositions = linepositions.slice(2, linepositions.length - 2) //let's see what happens if we chop off few points at the end and beginning
-    //line.setVertices(linepositions, p => p * 1.5)
-    getCurvePoints(linepositions)
-    line.setVertices(linepositions)
+    //linepositions = linepositions.slice(2, linepositions.length - 2) //let's see what happens if we chop off few points at the end and beginning
+    //getCurvePoints(linepositions)
+    //line.setVertices(linepositions)
+    line.setVertices(linepositions, p => 2 + Math.cos(p))
+
     var material = new MeshLineMaterial({
         //lineWidth: app.lineWidth / 200,
         transparent: true,
-        lineWidth: 0.05,
+        lineWidth: 0.01,
         depthTest: true,
         color: new THREE.Color("rgb(255, 0, 0)"),
         sizeAttenuation: 0,
