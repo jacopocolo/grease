@@ -398,6 +398,12 @@ function init() {
     axesHelper.layers.set(0);
     scene.add(axesHelper);
 
+    var axesHelperFlipped = new THREE.AxesHelper();
+    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
+    axesHelperFlipped.layers.set(0);
+    scene.add(axesHelperFlipped);
+
+
     drawAxisHelperControls();
 
     var size = 1;
