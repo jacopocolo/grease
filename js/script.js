@@ -4,7 +4,6 @@ import { TransformControls } from "https://threejs.org/examples/jsm/controls/Tra
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
-import { Reflector } from 'https://threejs.org/examples/jsm/objects/Reflector.js';
 
 var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
@@ -403,6 +402,11 @@ function init() {
     var axesHelper = new THREE.AxesHelper();
     axesHelper.layers.set(0);
     scene.add(axesHelper);
+
+    var axesHelperFlipped = new THREE.AxesHelper();
+    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
+    axesHelperFlipped.layers.set(0);
+    scene.add(axesHelperFlipped);
 
     drawAxisHelperControls();
 
