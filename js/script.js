@@ -169,30 +169,13 @@ function drawEnd() {
     linecolors.push(206, 216, 247);
     var geometry = new LineGeometry();
 
-    //experimental approach to rejecting points that
+    //rudimentary approach to palm rejection
     //are too far apart and are artifacts of palm rejection failing
-    // for (var i = 0; i < linepositions.length - 3; i = i + 3) {
-    //     alert(linepositions.length[i] - linepositions.length[i + 3])
-    //     // if (linepositions.length[i] - linepositions.length[i + 3] > 0.01) {
-    //     //     alert('should palm reject')
-    //     // }
-    // }
-
-    console.log(linepositions)
-    // linepositions = getCurvePoints(linepositions, 0.1)
-    // function addItemEvery(arr, item, starting, frequency) {
-    //     for (var i = 0, a = []; i < arr.length; i++) {
-    //         a.push(arr[i]);
-    //         if ((i + 1 + starting) % frequency === 0) {
-    //             a.push(item);
-    //             i++;
-    //             if (arr[i]) a.push(arr[i]);
-    //         }
-    //     }
-    //     return a;
-    // }
-    // linepositions = addItemEvery(linepositions, 0, 2, 2)
-    // console.log(linepositions)
+    for (var i = 0; i < linepositions.length - 2; i = i + 2) {
+        if (linepositions.length[i] - linepositions.length[i + 2] > 0.1) {
+            linepositions.slice(i)
+        }
+    }
 
     geometry.setPositions(linepositions);
     geometry.setColors(linecolors);
