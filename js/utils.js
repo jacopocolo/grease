@@ -56,3 +56,4 @@ function makeDragable(dragHandle, dragTarget) {
 }
 
 makeDragable('#handle', '#miniAxis')
+
