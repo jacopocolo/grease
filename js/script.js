@@ -163,16 +163,17 @@ function drawEnd() {
     //     // }
     // }
     const line = new MeshLine();
-    linepositions = linepositions.slice(7, linepositions.length - 2) //let's see what happens if we chop off few points at the end and beginning
-    line.setVertices(linepositions, p => p * 1.5)
-    //line.setVertices(linepositions)
+    linepositions = linepositions.slice(2, linepositions.length - 2) //let's see what happens if we chop off few points at the end and beginning
+    //line.setVertices(linepositions, p => p * 1.5)
+    getCurvePoints(linepositions)
+    line.setVertices(linepositions)
     var material = new MeshLineMaterial({
-        lineWidth: app.lineWidth / 200,
-        // color: new THREE.Color("rgb(255, 255, 255)"),
+        //lineWidth: app.lineWidth / 200,
+        transparent: true,
+        lineWidth: 0.05,
+        depthTest: true,
+        color: new THREE.Color("rgb(255, 0, 0)"),
         sizeAttenuation: 0,
-        depthTest: false,
-        // alphaTest: 1,
-        // resolution: new THREE.Vector2(window.innerWidth, window.insetHeight)
     });
     var mesh = new THREE.Mesh(line, material);
     mesh.raycast = MeshLineRaycast;
@@ -405,8 +406,7 @@ function init() {
         window.innerWidth / 2,
         window.innerHeight / 2,
         window.innerHeight / -2,
-        1,
-        3
+        1, 3
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
@@ -565,83 +565,6 @@ function onTapStart(event) {
     scene.remove(scene.children[scene.children.length - 1]);
   }
 });*/
-
-function drawTestLines() {
-    var positions = [];
-    var colors = [];
-    // Position and THREE.Color Data
-    positions.push(0.1, 0.1, 0.1);
-    positions.push(0.4, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        //color: 0xffffff,
-        linewidth: app.lineWidth, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-    var positions = [];
-    var colors = [];
-    // Position and THREE.Color Data
-    positions.push(0.4, 0, 0);
-    positions.push(0, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: app.lineWidth, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-}
 
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
