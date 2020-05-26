@@ -134,11 +134,15 @@ function redrawLine(color) {
     context.stroke();
 }
 
+function random255() {
+    return Math.random() * 256 | 0;
+}
+
 function drawStart() {
     //draw line
     context.beginPath();
     context.lineWidth = app.lineWidth;
-    context.strokeStyle = "white";
+    context.strokeStyle = app.lineColor;
     context.lineCap = 'round';
     context.lineJoin = 'round';
     context.moveTo(mouse.cx, mouse.cy);
@@ -147,7 +151,8 @@ function drawStart() {
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
     mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    linecolors.push(206, 216, 247);
+    //linecolors.push(random255(), random255(), random255());
+    //linecolors.push(206, 216, 247);
 }
 function drawMove() {
     //Draw on canvas
@@ -158,7 +163,8 @@ function drawMove() {
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
     mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    linecolors.push(206, 216, 247);
+    //linecolors.push(random255(), random255(), random255());
+    //linecolors.push(206, 216, 247);
 }
 function drawEnd() {
     //render line
@@ -168,9 +174,9 @@ function drawEnd() {
     context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
     //Close and add line to scene
     var matLineDrawn = new LineMaterial({
-        color: 0xffffff,
+        color: new THREE.Color(app.lineColor),
         linewidth: app.lineWidth, // in pixels
-        vertexColors: true,
+        vertexColors: false,
         //resolution set later,
         depthWrite: true
     });
@@ -179,7 +185,7 @@ function drawEnd() {
     vNow.unproject(camera);
     linepositions.push(vNow.x, vNow.y, vNow.z);
     mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    linecolors.push(206, 216, 247);
+    //linecolors.push(206, 216, 247);
     var geometry = new LineGeometry();
 
     //rudimentary approach to palm rejection
@@ -191,7 +197,7 @@ function drawEnd() {
     }
 
     geometry.setPositions(linepositions);
-    geometry.setColors(linecolors);
+    //geometry.setColors(linecolors);
     line = new Line2(geometry, matLineDrawn);
     //recentering geometry around a central point
     line.position.set(
@@ -509,16 +515,14 @@ function animate() {
         );
     } // resolution of the inset viewport
 
-    //May not be possible? Maybe too much geometry to update?
-    // if (app.linesNeedThemeUpdate) {
-    //     scene.children.forEach(object => {
-    //         if (object.layers.mask == 2) {
-    //             console.log(object)
-    //             recolorLine(object, 255, 0, 0);
-    //         }
-    //     })
-    //     app.linesNeedThemeUpdate = false;
-    // }
+    if (app.linesNeedThemeUpdate) {
+        scene.children.forEach(object => {
+            if (object.layers.mask == 2) {
+                console.log(object.material.color)
+            }
+        })
+        app.linesNeedThemeUpdate = false;
+    }
 
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);

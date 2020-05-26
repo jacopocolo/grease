@@ -52,6 +52,10 @@
             </span>
         </div>
         <div id="lineSelection" v-if="selectedTool == 'draw'">
+
+            <label for="lineColor">Color:</label>
+            <input type="text" id="lineColor" name="lineColor" v-model="lineColor">
+
             <label for="lineWidth">Width</label>
             <input type="range" id="lineWidthSlider" name="lineWidth" min="1" max="50" v-model="lineWidth">
         </div>
@@ -74,15 +78,15 @@
         <div v-if="selectedTool === 'select'" id="duplicate" class="button" v-on:click="duplicateSelected">Duplicate
         </div>
 
-        <div id=" themeSelection">
+        <div id="themeSelection">
             <span>
                 <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
                     checked /><label for="blueprintTheme">Blueprint</label>
             </span>
-            <!-- <span>
+            <span>
                 <input type="radio" id="lightTheme" name="themes" value="light" v-model="selectedTheme" /><label
                     for="lightTheme">Light</label>
-            </span> -->
+            </span>
             <span>
                 <input type="radio" id="darkTheme" name="themes" value="dark" v-model="selectedTheme" /><label
                     for="darkTheme">Dark</label>
@@ -120,7 +124,7 @@
             selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
             selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
             isAGroupSelected: false, //Transform tools must be restricted if true
-            lineColor: '206, 216, 247', //Rgb value
+            lineColor: 'rgb(255, 0, 0)', //Rgb value
             lineWidth: 20, //Default 1
             selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
             linesNeedThemeUpdate: false,
