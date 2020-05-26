@@ -491,6 +491,7 @@ function animate() {
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
     }
+
     if (controls) {
         controls.enabled = !app.controlsLocked
         //should make sure we can't mess with autorotate
@@ -518,7 +519,19 @@ function animate() {
     if (app.linesNeedThemeUpdate) {
         scene.children.forEach(object => {
             if (object.layers.mask == 2) {
-                console.log(object.material.color)
+                if (app.selectedTheme == 'blueprint' || app.selectedTheme == 'dark') {
+                    if (
+                        object.material.color.r == 0 &&
+                        object.material.color.g == 0 &&
+                        object.material.color.b == 0
+                    ) { object.material.color = { r: 1, g: 1, b: 1 }; }
+                } else {
+                    if (
+                        object.material.color.r == 1 &&
+                        object.material.color.g == 1 &&
+                        object.material.color.b == 1
+                    ) { object.material.color = { r: 0, g: 0, b: 0 }; }
+                }
             }
         })
         app.linesNeedThemeUpdate = false;
