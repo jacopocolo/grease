@@ -465,7 +465,6 @@ function init() {
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
-
     //drawTestLines();
 
     window.addEventListener("resize", onWindowResize, false);
@@ -487,11 +486,13 @@ function onWindowResize() {
 function animate() {
     updateminiAxisCamera();
     requestAnimationFrame(animate);
+
     //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
     }
 
+    //check if we need to disable controls
     if (controls) {
         controls.enabled = !app.controlsLocked
         //should make sure we can't mess with autorotate
@@ -505,17 +506,16 @@ function animate() {
             app.controlsLocked = false;
         }
     }
-    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    miniAxisRenderer.setViewport(0, 0, 300, 300);
-    // renderer will set this eventually
 
-    //matLine.resolution.set(window.innerWidth, window.innerHeight); // resolution of the viewport
+    //this sets the resolution of the materials correctly every frame
+    //seems to be needed based on examples    
     if (materials) {
         materials.forEach(material =>
             material.resolution.set(window.innerWidth, window.innerHeight)
         );
-    } // resolution of the inset viewport
+    }
 
+    //Update colors of lines based on theme?
     if (app.linesNeedThemeUpdate) {
         scene.children.forEach(object => {
             if (object.layers.mask == 2) {
@@ -537,6 +537,8 @@ function animate() {
         app.linesNeedThemeUpdate = false;
     }
 
+    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    miniAxisRenderer.setViewport(0, 0, 300, 300);
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
