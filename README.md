@@ -10,7 +10,7 @@ Draw:
 - Maybe add some smoothing?
   - https://github.com/dulnan/lazy-brush
 - Figure out if there's a way to ignore palm fake presses? 
-  - Maybe I could discard the first input if the distance between the first input and the second one is massive. No one can draw such long and perfect lines? 
+  - Maybe I could discard the first input if the distance between the first input and the second one is massive. No one can draw such long and perfect lines?
 
 Erase:
 
@@ -31,7 +31,9 @@ Camera controls:
 - Reset camera?
 
 Other features
+- Export a gif --> https://threesjs-to-gif.glitch.me/
 - Might be worth trying an implementation with LineMesh (see: https://jsfiddle.net/jacopocolo/ygj6195e/62/)
+- Maybe worth trying to explode into mesh polylines (https://stackoverflow.com/questions/11638883/thickness-of-lines-using-three-linebasicmaterial)
 - Local host library and freeze threejs release
 - Selectable themes (light, dark, blueprint)
     - Would imply changing the color of the main color line, at least. Could be diffiult but maybe it can be brute-forced
@@ -54,14 +56,20 @@ Other features
     }
     ````
 - ~~Make the miniAxis window draggable~~
-  ~~- Make sure the miniAxis window can't be dragged out of the screen~~
+  - ~~Make sure the miniAxis window can't be dragged out of the screen~~
   - Make sure you can't drag the miniAxis out of the screen 
 - Handle undo properly (can't delete basic objects!)
   - Maybe not needed? Maybe I only need an eraser? Handling undo is a lot of work because it needs to support ALL events.
 - Make slow auto rotate that hides UI
+- Maybe fill could be possible? 
+
+References
+- https://vimeo.com/2864554
+- https://github.com/billhsu/cashew
+- http://rhondaforever.com/
 
 Fixes:
-- Fix rubberbanding if in Webapp mode
+- ~~Fix rubberbanding if in Webapp mode~~
 
 Difficult stuff:
 - Drawing while rotating the camera is possible but it would require to actually render the "guide line" as it's drawn

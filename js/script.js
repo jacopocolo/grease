@@ -19,6 +19,20 @@ var selectedGroup;
 var tempgroup;
 var tempArray;
 
+var selection = {
+    array: [],
+    group: undefined,
+    duplicate: function () {
+        console.log('duplicate')
+        // if (this.array.length > 1) {
+        //     var duplicate = this.group;
+        //     scene.add(group);
+        // } else if (this.array.length == 1) {
+        //     var duplicate = this.array[0].copy();
+        //     scene.add(duplicate);
+        // }
+    }
+}
 var transforming;
 var raycaster;
 var raycastObject;
@@ -229,7 +243,7 @@ function selectStart() {
         raycaster = new THREE.Raycaster();
         raycaster.layers.set(1);
         raycaster.params.Line.threshold = 0.01;
-        tempArray = [];
+        selection.array = [];
     }
     //Setting the first raycast at start point seems to be causing problems,
     //turning it off for now
@@ -252,9 +266,9 @@ function selectMove() {
         raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
         var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
         //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
-        if (intersectObject && !checkIfHelperObject(intersectObject) && tempArray.indexOf(intersectObject) < 0) {
+        if (intersectObject && !checkIfHelperObject(intersectObject) && selection.array.indexOf(intersectObject) < 0) {
             toggleDash(intersectObject, true);
-            tempArray.push(intersectObject);
+            selection.array.push(intersectObject);
         }
     }
 }
@@ -267,14 +281,14 @@ function selectEnd() {
     }
 
     //If tempArray is empty and we are not transforming, we deselect
-    if (tempArray.length == 0 && !transforming) {
+    if (selection.array.length == 0 && !transforming) {
 
         //Ungroup if we have a group selection
-        if (typeof tempgroup !== 'undefined') {
+        if (typeof selection.group !== 'undefined') {
 
             var ungroupArray = [];
-            for (var i = 0; i < tempgroup.children.length; i++) {
-                var object = tempgroup.children[i]
+            for (var i = 0; i < selection.group.children.length; i++) {
+                var object = selection.group.children[i]
                 var position = new THREE.Vector3();
                 position = object.getWorldPosition(position);
                 object.position.copy(position);
@@ -295,7 +309,7 @@ function selectEnd() {
             //tempArray = [];
             transformControls.detach();
             transforming = false;
-            scene.remove(tempgroup);
+            scene.remove(selection.group);
         }
 
         //This is _extremely_ wasteful but it will work for now
@@ -309,10 +323,10 @@ function selectEnd() {
     }
     //If tempArray has one selected object, 
     //we attach the controls only to that object
-    else if (tempArray.length == 1) {
+    else if (selection.array.length == 1) {
         somethingSelected = true;
         transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.attach(tempArray[0]);
+        transformControls.attach(selection.array[0]);
         scene.add(transformControls);
         transformControls.addEventListener("mouseDown", function () {
             transforming = true;
@@ -324,18 +338,18 @@ function selectEnd() {
     }
     //If tempArray has several selected objects,
     //we group them together and attach transform controls to the group
-    else if (tempArray.length > 1) {
+    else if (selection.array.length > 1) {
         somethingSelected = true;
-        tempgroup = new THREE.Group();
-        scene.add(tempgroup);
+        selection.group = new THREE.Group();
+        scene.add(selection.group);
         //Add all the selected elements to the temporary groups
-        tempArray.forEach(element => {
+        selection.array.forEach(element => {
             toggleDash(element, true)
-            tempgroup.add(element);
+            selection.group.add(element);
         })
         //Attach controls to the temporary group
         transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.attach(tempgroup);
+        transformControls.attach(selection.group);
         scene.add(transformControls);
         //Calculate center between the elements of the group
         transformControls.position.set(
@@ -354,7 +368,7 @@ function selectEnd() {
 
 function computeGroupCenter() {
     var center = new THREE.Vector3();
-    var children = tempgroup.children;
+    var children = selection.group.children;
     var count = children.length;
     for (var i = 0; i < count; i++) {
         center.add(children[i].position);

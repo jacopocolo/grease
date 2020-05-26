@@ -51,7 +51,6 @@
                     for="toolSelect">Select</label>
             </span>
         </div>
-
         <div id="lineSelection" v-if="selectedTool == 'draw'">
             <label for="lineWidth">Width</label>
             <input type="range" id="lineWidthSlider" name="lineWidth" min="1" max="50" v-model="lineWidth">
@@ -72,7 +71,10 @@
             </span>
         </div>
 
-        <div id="themeSelection">
+        <div v-if="selectedTool === 'select'" id="duplicate" class="button" v-on:click="duplicateSelected">Duplicate
+        </div>
+
+        <div id=" themeSelection">
             <span>
                 <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
                     checked /><label for="blueprintTheme">Blueprint</label>
@@ -131,13 +133,11 @@
         watch: {
             selectedTheme: function () {
                 app.linesNeedThemeUpdate = true;
-                // if (app.selectedTheme == 'blueprint') {
-                //     linesNeedThemeUpdate = true;
-                // } else if (app.selectedTheme == 'light') {
-                //     linesNeedThemeUpdate = true;
-                // } else if (app.selectedTheme == 'dark') {
-                //     linesNeedThemeUpdate = true;
-                // }
+            }
+        },
+        methods: {
+            duplicateSelected: function () {
+                selection.duplicate()
             }
         }
 
