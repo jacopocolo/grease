@@ -19,20 +19,7 @@ var selectedGroup;
 var tempgroup;
 var tempArray;
 
-var selection = {
-    array: [],
-    group: undefined,
-    duplicate: function () {
-        console.log('duplicate')
-        // if (this.array.length > 1) {
-        //     var duplicate = this.group;
-        //     scene.add(group);
-        // } else if (this.array.length == 1) {
-        //     var duplicate = this.array[0].copy();
-        //     scene.add(duplicate);
-        // }
-    }
-}
+//var selection = app.selection;
 var transforming;
 var raycaster;
 var raycastObject;
@@ -166,6 +153,7 @@ function drawMove() {
     //linecolors.push(random255(), random255(), random255());
     //linecolors.push(206, 216, 247);
 }
+
 function drawEnd() {
     //render line
     context.lineTo(mouse.cx, mouse.cy);
@@ -177,6 +165,7 @@ function drawEnd() {
         color: new THREE.Color(app.lineColor),
         linewidth: app.lineWidth, // in pixels
         vertexColors: false,
+        wireframe: true,
         //resolution set later,
         depthWrite: true
     });
@@ -249,7 +238,7 @@ function selectStart() {
         raycaster = new THREE.Raycaster();
         raycaster.layers.set(1);
         raycaster.params.Line.threshold = 0.01;
-        selection.array = [];
+        app.selection.array = [];
     }
     //Setting the first raycast at start point seems to be causing problems,
     //turning it off for now
@@ -272,9 +261,9 @@ function selectMove() {
         raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
         var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
         //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
-        if (intersectObject && !checkIfHelperObject(intersectObject) && selection.array.indexOf(intersectObject) < 0) {
+        if (intersectObject && !checkIfHelperObject(intersectObject) && app.selection.array.indexOf(intersectObject) < 0) {
             toggleDash(intersectObject, true);
-            selection.array.push(intersectObject);
+            app.selection.array.push(intersectObject);
         }
     }
 }
@@ -287,14 +276,14 @@ function selectEnd() {
     }
 
     //If tempArray is empty and we are not transforming, we deselect
-    if (selection.array.length == 0 && !transforming) {
+    if (app.selection.array.length == 0 && !transforming) {
 
         //Ungroup if we have a group selection
-        if (typeof selection.group !== 'undefined') {
+        if (typeof app.selection.group !== 'undefined') {
 
             var ungroupArray = [];
-            for (var i = 0; i < selection.group.children.length; i++) {
-                var object = selection.group.children[i]
+            for (var i = 0; i < app.selection.group.children.length; i++) {
+                var object = app.selection.group.children[i]
                 var position = new THREE.Vector3();
                 position = object.getWorldPosition(position);
                 object.position.copy(position);
@@ -315,7 +304,7 @@ function selectEnd() {
             //tempArray = [];
             transformControls.detach();
             transforming = false;
-            scene.remove(selection.group);
+            scene.remove(app.selection.group);
         }
 
         //This is _extremely_ wasteful but it will work for now
@@ -329,10 +318,10 @@ function selectEnd() {
     }
     //If tempArray has one selected object, 
     //we attach the controls only to that object
-    else if (selection.array.length == 1) {
+    else if (app.selection.array.length == 1) {
         somethingSelected = true;
         transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.attach(selection.array[0]);
+        transformControls.attach(app.selection.array[0]);
         scene.add(transformControls);
         transformControls.addEventListener("mouseDown", function () {
             transforming = true;
@@ -344,18 +333,18 @@ function selectEnd() {
     }
     //If tempArray has several selected objects,
     //we group them together and attach transform controls to the group
-    else if (selection.array.length > 1) {
+    else if (app.selection.array.length > 1) {
         somethingSelected = true;
-        selection.group = new THREE.Group();
-        scene.add(selection.group);
+        app.selection.group = new THREE.Group();
+        scene.add(app.selection.group);
         //Add all the selected elements to the temporary groups
-        selection.array.forEach(element => {
+        app.selection.array.forEach(element => {
             toggleDash(element, true)
-            selection.group.add(element);
+            app.selection.group.add(element);
         })
         //Attach controls to the temporary group
         transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.attach(selection.group);
+        transformControls.attach(app.selection.group);
         scene.add(transformControls);
         //Calculate center between the elements of the group
         transformControls.position.set(
@@ -374,7 +363,7 @@ function selectEnd() {
 
 function computeGroupCenter() {
     var center = new THREE.Vector3();
-    var children = selection.group.children;
+    var children = app.selection.group.children;
     var count = children.length;
     for (var i = 0; i < count; i++) {
         center.add(children[i].position);
@@ -465,7 +454,30 @@ function init() {
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
-    //drawTestLines();
+    app.selection = {
+        array: [],
+        group: undefined,
+        duplicate: function () {
+            //console.log('duplicate')
+            if (this.array.length > 1) {
+                console.log(this.array)
+                var duplicate = this.group.clone();
+                scene.add(duplicate);
+            } else if (this.array.length == 1) {
+                //console.log(this.array[0])
+                var duplicate = this.array[0].clone();
+                //We move the duplicate a tiny bit
+                duplicate.position.set(
+                    duplicate.position.x + 0.1,
+                    duplicate.position.y,
+                    duplicate.position.z
+                )
+                //we deselect the current object
+                //And select the new one
+                scene.add(duplicate);
+            }
+        }
+    }
 
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();

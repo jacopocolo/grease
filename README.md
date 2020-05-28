@@ -75,6 +75,9 @@ Difficult stuff:
 - Drawing while rotating the camera is possible but it would require to actually render the "guide line" as it's drawn
   - This is non trivial considering that the "guide line" is drawn on a separate canvas and not really in threejs
   - It would also require multitouch to be handled properly so the user could adjust the camera view as they draw
+- Saving: what if I generated a very very long UUID, let's say Google Docs sharing link long and used that to store my Json object representing the scene in the DB. The DB doesn't know anything BUT the UUID, the json object match and maybe a preview img so I can render pretty previews.
+  - In local storage I only store the UUID and use that to retrievie stuff from the DB
+  -  
 
 Various links:
 https://discourse.threejs.org/t/three-infinitegridhelper-anti-aliased/8377

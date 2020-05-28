@@ -75,7 +75,6 @@
                     v-model="selectedTransformation" /><label for="scale">Scale</label>
             </span>
         </div>
-
         <div v-if="selectedTool === 'select'" id="duplicate" class="button" v-on:click="duplicateSelected">Duplicate
         </div>
 
@@ -134,6 +133,7 @@
             mirrorY: false,
             mirrorZ: false,
             autoRotate: false,
+            selection: undefined, //to be filled from init
         },
         watch: {
             selectedTheme: function () {
@@ -142,7 +142,7 @@
         },
         methods: {
             duplicateSelected: function () {
-                selection.duplicate()
+                app.selection.duplicate()
             }
         }
 
