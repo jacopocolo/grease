@@ -138,6 +138,10 @@
         watch: {
             selectedTheme: function () {
                 app.linesNeedThemeUpdate = true;
+            },
+            selectedTool: function () {
+                //on tool change we always deselect
+                app.selection.deselect();
             }
         },
         methods: {
