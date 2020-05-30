@@ -273,17 +273,20 @@ function init() {
                 raycaster = new THREE.Raycaster();
                 raycaster.layers.set(1);
                 raycaster.params.Line.threshold = 0.01;
+                try {
+                    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+                    var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+                } catch (err) {
+                    //if there's an error here, it just means that the raycaster found nothing
+                }
+                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                    toggleDash(intersectObject, true);
+                    this.selecting.push(intersectObject);
+                }
             }
-            //Setting the first raycast at start point seems to be causing problems,
-            //turning it off for now
-            /*raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-            var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-            if (intersectObject && !checkIfHelperObject(intersectObject)) {
-                toggleDash(intersectObject, true);
-                tempArray.push(intersectObject);
-            }*/
         },
         move: function () {
+            console.log('move');
             if (!transforming) {
                 paths[paths.length - 1].push([mouse.cx, mouse.cy]);
                 //This is to render line transparency,
