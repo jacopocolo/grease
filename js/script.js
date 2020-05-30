@@ -13,21 +13,13 @@ var materials = [];
 
 var paths = [];
 
-var somethingSelected = false;
-var selectedObject; //may not be necessary anymore
-var selectedGroup;
-var tempgroup;
-var tempArray;
-
 //var selection = app.selection;
 var transforming;
 var raycaster;
 var raycastObject;
 
-var selectionBoxStartX, selectionBoxStartY;
-
-var selectionBox;
-var helper;
+var insetWidth;
+var insetHeight;
 
 var linesNeedThemeUpdate = false;
 
@@ -37,13 +29,6 @@ drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
-
-// viewport
-var insetWidth;
-var insetHeight;
-
-//selection
-var pickedObjects = [];
 
 var themes = {
     blueprint: {
@@ -161,97 +146,52 @@ var line = {
     }
 }
 
-function updateminiAxisCamera() {
-    miniAxisCamera.zoom = camera.zoom;
-    miniAxisCamera.position.copy(camera.position);
-    miniAxisCamera.quaternion.copy(camera.quaternion);
-}
+var eraser = {
+    start: function () {
+        raycaster = new THREE.Raycaster();
+        raycaster.params.Line.threshold = 0.0001;
+        raycaster.layers.set(1);
+        paths.push([mouse.cx, mouse.cy]);
+    },
+    move: function () {
+        paths[paths.length - 1].push([mouse.cx, mouse.cy]);
+        //This is to render line transparency,
+        //we are redrawing the line every frame
+        this.redrawLine('rgba(255,20,147, 0.15)');
 
-function selectedTool() {
-    return app.selectedTool;
-}
-
-function checkIfHelperObject(object) {
-    if (object.type === "AxesHelper" || object.type === "GridHelper" || object.type === "Object3D") {
-        return true
-    } else { return false }
-}
-
-function computeGroupCenter() {
-    var center = new THREE.Vector3();
-    var children = app.selection.group.children;
-    var count = children.length;
-    for (var i = 0; i < count; i++) {
-        center.add(children[i].position);
-    }
-    center.divideScalar(count);
-    return center;
-}
-
-function drawStart() {
-    line.start();
-}
-function drawMove() {
-    line.move();
-}
-function drawEnd() {
-    line.end();
-}
-
-function eraseStart() {
-    raycaster = new THREE.Raycaster();
-    raycaster.params.Line.threshold = 0.01;
-    raycaster.layers.set(1);
-    paths.push([mouse.cx, mouse.cy]);
-}
-function eraseMove() {
-    paths[paths.length - 1].push([mouse.cx, mouse.cy]);
-    //This is to render line transparency,
-    //we are redrawing the line every frame
-    redrawLine('rgba(255,20,147, 0.15)');
-
-    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-    var object = raycaster.intersectObjects(scene.children)[0].object;
-    if (checkIfHelperObject(object)) {
-    } else {
-        scene.remove(object);
+        raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+        var object = raycaster.intersectObjects(scene.children)[0].object;
+        if (checkIfHelperObject(object)) {
+        } else {
+            scene.remove(object);
+        }
+    },
+    end: function () {
+        context.closePath();
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        paths = []
+    },
+    redrawLine: function (color) {
+        // clear canvas
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        context.strokeStyle = color;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 30;
+        context.beginPath();
+        for (var i = 0; i < paths.length; ++i) {
+            var path = paths[i];
+            if (path.length < 1)
+                continue;
+            context.moveTo(path[0][0], path[0][1]);
+            for (var j = 1; j < path.length; ++j)
+                context.lineTo(path[j][0], path[j][1]);
+        }
+        context.stroke();
     }
 }
-function eraseEnd() {
-    //Actually empty for now
-    context.closePath();
-    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-    paths = [];
-}
 
-function selectStart() {
-    app.selection.start();
-}
-function selectMove() {
-    app.selection.move();
-}
-function selectEnd() {
-    app.selection.end();
-}
-
-function toggleDash(object, bool) {
-    var material = object.material;
-    material.dashed = bool;
-
-    var ratio = 1000;
-    console.log(material.linewidth / ratio)
-
-    // dashed is implemented as a defines -- not as a uniform. this could be changed.
-    // ... or THREE.LineDashedMaterial could be implemented as a separate material
-    // temporary hack - renderer should do this eventually
-    if (bool) material.defines.USE_DASH = "";
-    else delete material.defines.USE_DASH;
-    material.dashSize = bool ? material.linewidth / ratio : 1000;
-    material.gapSize = bool ? material.linewidth / ratio : 1000;
-    //material.wireframe = bool;
-    material.dashScale = bool ? 1 : 1000;
-    material.needsUpdate = true;
-}
+//selection is defined inside init
 
 function init() {
     renderer = new THREE.WebGLRenderer({
@@ -623,19 +563,21 @@ function animate() {
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
+//MOUSE HANDLERS
+
 function onTapMove(event) {
     mouse.updateCoordinates(event);
     //DRAW
     if (selectedTool() == "draw") {
-        drawMove();
+        line.move();
     }
     //ERASER
     else if (selectedTool() == "erase") {
-        eraseMove()
+        eraser.move()
     }
     //SELECT
     else if (selectedTool() == "select") {
-        selectMove()
+        app.selection.move();
     }
 }
 
@@ -644,15 +586,15 @@ function onTapEnd(event) {
     mouse.updateCoordinates(event);
     //DRAW
     if (selectedTool() == "draw") {
-        drawEnd()
+        line.end()
     }
     //ERASER
     else if (selectedTool() == "erase") {
-        eraseEnd()
+        eraser.end()
     }
     //SELECT
     else if (selectedTool() == "select") {
-        selectEnd()
+        app.selection.end()
     }
     drawingCanvas.removeEventListener("touchmove", onTapMove, false);
     drawingCanvas.removeEventListener("mousemove", onTapMove, false);
@@ -663,15 +605,15 @@ function onTapStart(event) {
     mouse.updateCoordinates(event);
     //DRAW
     if (selectedTool() == "draw") {
-        drawStart()
+        line.start();
     }
     //ERASER
     else if (selectedTool() == "erase") {
-        eraseStart();
+        eraser.start();
     }
     //SELECT
     else if (selectedTool() == "select") {
-        selectStart();
+        app.selection.start();
     }
     drawingCanvas.addEventListener("touchmove", onTapMove, false);
     drawingCanvas.addEventListener("mousemove", onTapMove, false);
@@ -679,98 +621,53 @@ function onTapStart(event) {
     drawingCanvas.addEventListener("mouseup", onTapEnd, false);
 }
 
-//Undo: it removes the last object added to the scene, unless it's an AxesHelper or a GridHelper
-//I might need to make it smarter so it also deletes materials and geometry connected to the deleted object
+//UTILS
+function selectedTool() {
+    return app.selectedTool;
+}
 
-/*document.getElementById("undo").addEventListener("click", function() {
-  var objectToBeRemoved = scene.children[scene.children.length - 1];
-  console.log(objectToBeRemoved);
-  if (
-    objectToBeRemoved.type === "AxesHelper" ||
-    objectToBeRemoved.type === "GridHelper"
-  ) {
-    //do nothing
-  } else {
-    scene.remove(scene.children[scene.children.length - 1]);
-  }
-});*/
+function checkIfHelperObject(object) {
+    if (object.type === "AxesHelper" || object.type === "GridHelper" || object.type === "Object3D") {
+        return true
+    } else { return false }
+}
 
-// function drawTestLines() {
-//     var positions = [];
-//     var colors = [];
-//     // Position and THREE.Color Data
-//     positions.push(0.1, 0.1, 0.1);
-//     positions.push(0.4, 0.4, 0.4);
-//     colors.push(255, 0, 0);
-//     colors.push(255, 0, 0);
-//     // Line2 ( LineGeometry, LineMaterial )
-//     var geometry = new LineGeometry();
-//     //geometry.setDrawRange( 0, 100);
-//     //geometry.maxInstancedCount = 100;
-//     geometry.setPositions(
-//         positions,
-//         new THREE.Float32BufferAttribute(positions, 3)
-//     );
-//     geometry.setColors(colors);
-//     matLine = new LineMaterial({
-//         //color: 0xffffff,
-//         linewidth: app.lineWidth, // in pixels
-//         vertexColors: true,
-//         //resolution:  // to be set by renderer, eventually
-//         depthWrite: false
-//     });
-//     materials.push(matLine);
-//     var line = new Line2(geometry, matLine);
-//     //Recentering geometry around the central point
-//     line.position.set(
-//         line.geometry.boundingSphere.center.x,
-//         line.geometry.boundingSphere.center.y,
-//         line.geometry.boundingSphere.center.z
-//     );
-//     line.geometry.center();
-//     line.needsUpdate = true;
-//     line.computeLineDistances();
-//     line.scale.set(1, 1, 1);
-//     line.layers.set(1);
-//     scene.add(line);
-//     var positions = [];
-//     var colors = [];
-//     // Position and THREE.Color Data
-//     positions.push(0.4, 0, 0);
-//     positions.push(0, 0.4, 0.4);
-//     colors.push(255, 0, 0);
-//     colors.push(255, 0, 0);
-//     // Line2 ( LineGeometry, LineMaterial )
-//     var geometry = new LineGeometry();
-//     //geometry.setDrawRange( 0, 100);
-//     //geometry.maxInstancedCount = 100;
-//     geometry.setPositions(
-//         positions,
-//         new THREE.Float32BufferAttribute(positions, 3)
-//     );
-//     geometry.setColors(colors);
-//     matLine = new LineMaterial({
-//         color: 0xffffff,
-//         linewidth: app.lineWidth, // in pixels
-//         vertexColors: true,
-//         //resolution:  // to be set by renderer, eventually
-//         depthWrite: false
-//     });
-//     materials.push(matLine);
-//     line = new Line2(geometry, matLine);
-//     //Recentering geometry around the central point
-//     line.position.set(
-//         line.geometry.boundingSphere.center.x,
-//         line.geometry.boundingSphere.center.y,
-//         line.geometry.boundingSphere.center.z
-//     );
-//     line.geometry.center();
-//     line.needsUpdate = true;
-//     line.computeLineDistances();
-//     line.scale.set(1, 1, 1);
-//     line.layers.set(1);
-//     scene.add(line);
-// }
+function computeGroupCenter() {
+    var center = new THREE.Vector3();
+    var children = app.selection.group.children;
+    var count = children.length;
+    for (var i = 0; i < count; i++) {
+        center.add(children[i].position);
+    }
+    center.divideScalar(count);
+    return center;
+}
+
+function toggleDash(object, bool) {
+    var material = object.material;
+    material.dashed = bool;
+
+    var ratio = 1000;
+    console.log(material.linewidth / ratio)
+
+    // dashed is implemented as a defines -- not as a uniform. this could be changed.
+    // ... or THREE.LineDashedMaterial could be implemented as a separate material
+    // temporary hack - renderer should do this eventually
+    if (bool) material.defines.USE_DASH = "";
+    else delete material.defines.USE_DASH;
+    material.dashSize = bool ? material.linewidth / ratio : 1000;
+    material.gapSize = bool ? material.linewidth / ratio : 1000;
+    //material.wireframe = bool;
+    material.dashScale = bool ? 1 : 1000;
+    material.needsUpdate = true;
+}
+
+//CAMERA CONTROLS
+function updateminiAxisCamera() {
+    miniAxisCamera.zoom = camera.zoom;
+    miniAxisCamera.position.copy(camera.position);
+    miniAxisCamera.quaternion.copy(camera.quaternion);
+}
 
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
@@ -957,92 +854,4 @@ function drawMirrored(xBool) {
 
         mirroredLinePositions = [];
     }
-}
-
-function recolorLine(object, r, g, b) {
-    var colorArray = [];
-    for (var x = 0; x < object.geometry.attributes.instanceColorStart.data.array.length; x++) {
-        colorArray.push(r)
-        colorArray.push(g)
-        colorArray.push(b)
-    }
-    var updatedColors = new Float32Array(colorArray);
-    object.geometry.attributes.instanceColorStart.data.array = updatedColors;
-    var updatedColors = new Float32Array(colorArray);
-    object.geometry.attributes.instanceColorStart.data.array = updatedColors;
-    object.geometry.colorsNeedUpdate = true;
-    object.material.needsUpdate = true;
-}
-
-function getCurvePoints(pts, tension, isClosed, numOfSegments) {
-
-    // use input value if provided, or use a default value   
-    tension = (typeof tension != 'undefined') ? tension : 0.5;
-    isClosed = isClosed ? isClosed : false;
-    numOfSegments = numOfSegments ? numOfSegments : 16;
-
-    var _pts = [], res = [],    // clone array
-        x, y,           // our x,y coords
-        t1x, t2x, t1y, t2y, // tension vectors
-        c1, c2, c3, c4,     // cardinal points
-        st, t, i;       // steps based on num. of segments
-
-    // clone array so we don't change the original
-    //
-    _pts = pts.slice(0);
-
-    // The algorithm require a previous and next point to the actual point array.
-    // Check if we will draw closed or open curve.
-    // If closed, copy end points to beginning and first points to end
-    // If open, duplicate first points to befinning, end points to end
-    if (isClosed) {
-        _pts.unshift(pts[pts.length - 1]);
-        _pts.unshift(pts[pts.length - 2]);
-        _pts.unshift(pts[pts.length - 1]);
-        _pts.unshift(pts[pts.length - 2]);
-        _pts.push(pts[0]);
-        _pts.push(pts[1]);
-    }
-    else {
-        _pts.unshift(pts[1]);   //copy 1. point and insert at beginning
-        _pts.unshift(pts[0]);
-        _pts.push(pts[pts.length - 2]); //copy last point and append
-        _pts.push(pts[pts.length - 1]);
-    }
-
-    // ok, lets start..
-
-    // 1. loop goes through point array
-    // 2. loop goes through each segment between the 2 pts + 1e point before and after
-    for (i = 2; i < (_pts.length - 4); i += 2) {
-        for (t = 0; t <= numOfSegments; t++) {
-
-            // calc tension vectors
-            t1x = (_pts[i + 2] - _pts[i - 2]) * tension;
-            t2x = (_pts[i + 4] - _pts[i]) * tension;
-
-            t1y = (_pts[i + 3] - _pts[i - 1]) * tension;
-            t2y = (_pts[i + 5] - _pts[i + 1]) * tension;
-
-            // calc step
-            st = t / numOfSegments;
-
-            // calc cardinals
-            c1 = 2 * Math.pow(st, 3) - 3 * Math.pow(st, 2) + 1;
-            c2 = -(2 * Math.pow(st, 3)) + 3 * Math.pow(st, 2);
-            c3 = Math.pow(st, 3) - 2 * Math.pow(st, 2) + st;
-            c4 = Math.pow(st, 3) - Math.pow(st, 2);
-
-            // calc x and y cords with common control vectors
-            x = c1 * _pts[i] + c2 * _pts[i + 2] + c3 * t1x + c4 * t2x;
-            y = c1 * _pts[i + 1] + c2 * _pts[i + 3] + c3 * t1y + c4 * t2y;
-
-            //store points in array
-            res.push(x);
-            res.push(y);
-
-        }
-    }
-
-    return res;
 }
