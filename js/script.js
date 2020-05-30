@@ -5,7 +5,7 @@ import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
 
-var line, renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
+var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
 var matLine, matLineBasic;
 var matLineDrawn;
@@ -41,8 +41,6 @@ var miniAxis = document.getElementById("miniAxis");
 // viewport
 var insetWidth;
 var insetHeight;
-var linepositions = [];
-var linecolors = [];
 
 //selection
 var pickedObjects = [];
@@ -86,6 +84,83 @@ let mouse = {
     }
 };
 
+var line = {
+    linepositions: [],
+    start: function () {
+        this.linepositions = []; //reset array
+        //draw line
+        context.beginPath();
+        context.lineWidth = app.lineWidth;
+        context.strokeStyle = app.lineColor;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.moveTo(mouse.cx, mouse.cy);
+        //Start
+        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+        vNow.unproject(camera);
+        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+    },
+    move: function () {
+        //Draw on canvas
+        context.lineTo(mouse.cx, mouse.cy);
+        context.stroke();
+        //Add line elements
+        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+        vNow.unproject(camera);
+        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+    },
+    end: function () {
+        //render line
+        context.lineTo(mouse.cx, mouse.cy);
+        context.stroke();
+        context.closePath();
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        //Close and add line to scene
+        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+        vNow.unproject(camera);
+        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+        //linecolors.push(206, 216, 247);
+        this.renderLine(this.linepositions);
+    },
+    renderLine: function (positions) {
+        var matLineDrawn = new LineMaterial({
+            color: new THREE.Color(app.lineColor),
+            linewidth: app.lineWidth, // in pixels
+            vertexColors: false,
+            wireframe: false,
+            depthWrite: true
+        });
+        materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
+        var geometry = new LineGeometry();
+        this.rejectPalm();
+        geometry.setPositions(positions);
+        var l = new Line2(geometry, matLineDrawn);
+        l.position.set(
+            l.geometry.boundingSphere.center.x,
+            l.geometry.boundingSphere.center.y,
+            l.geometry.boundingSphere.center.z
+        );
+        l.geometry.center();
+        l.needsUpdate = true;
+        l.computeLineDistances();
+        l.scale.set(1, 1, 1);
+        l.layers.set(1);
+        scene.add(l);
+        //Remove listener and clear arrays
+    },
+    mirror: function () {
+    },
+    rejectPalm: function () {
+        //rudimentary approach to palm rejection
+        //are too far apart and are artifacts of palm rejection failing
+        for (var i = 0; i < this.linepositions.length - 2; i = i + 2) {
+            if (this.linepositions.length[i] - this.linepositions.length[i + 2] > 0.1) {
+                this.linepositions.slice(i)
+            }
+        }
+    }
+}
+
 function updateminiAxisCamera() {
     miniAxisCamera.zoom = camera.zoom;
     miniAxisCamera.position.copy(camera.position);
@@ -102,104 +177,14 @@ function checkIfHelperObject(object) {
     } else { return false }
 }
 
-function redrawLine(color) {
-    // clear canvas
-    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-    context.strokeStyle = color;
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.lineWidth = 30;
-    context.beginPath();
-    for (var i = 0; i < paths.length; ++i) {
-        var path = paths[i];
-        if (path.length < 1)
-            continue;
-        context.moveTo(path[0][0], path[0][1]);
-        for (var j = 1; j < path.length; ++j)
-            context.lineTo(path[j][0], path[j][1]);
-    }
-    context.stroke();
-}
-
 function drawStart() {
-    //draw line
-    context.beginPath();
-    context.lineWidth = app.lineWidth;
-    context.strokeStyle = app.lineColor;
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.moveTo(mouse.cx, mouse.cy);
-    //Start
-    var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-    vNow.unproject(camera);
-    linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    //linecolors.push(random255(), random255(), random255());
-    //linecolors.push(206, 216, 247);
+    line.start();
 }
 function drawMove() {
-    //Draw on canvas
-    context.lineTo(mouse.cx, mouse.cy);
-    context.stroke();
-    //Add line elements
-    var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-    vNow.unproject(camera);
-    linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    //linecolors.push(random255(), random255(), random255());
-    //linecolors.push(206, 216, 247);
+    line.move();
 }
-
 function drawEnd() {
-    //render line
-    context.lineTo(mouse.cx, mouse.cy);
-    context.stroke();
-    context.closePath();
-    context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-    //Close and add line to scene
-    var matLineDrawn = new LineMaterial({
-        color: new THREE.Color(app.lineColor),
-        linewidth: app.lineWidth, // in pixels
-        vertexColors: false,
-        wireframe: false,
-        //resolution set later,
-        depthWrite: true
-    });
-    materials.push(matLineDrawn);
-    var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-    vNow.unproject(camera);
-    linepositions.push(vNow.x, vNow.y, vNow.z);
-    mirrorAxis(app.mirrorX, app.mirrorY, app.mirrorZ, vNow.x, vNow.y, vNow.z)
-    //linecolors.push(206, 216, 247);
-    var geometry = new LineGeometry();
-
-    //rudimentary approach to palm rejection
-    //are too far apart and are artifacts of palm rejection failing
-    for (var i = 0; i < linepositions.length - 2; i = i + 2) {
-        if (linepositions.length[i] - linepositions.length[i + 2] > 0.1) {
-            linepositions.slice(i)
-        }
-    }
-
-    geometry.setPositions(linepositions);
-    //geometry.setColors(linecolors);
-    line = new Line2(geometry, matLineDrawn);
-    //recentering geometry around a central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-    drawMirrored(app.mirrorX)
-    //Remove listener and clear arrays
-    linepositions = [];
-    linecolors = [];
+    line.end();
 }
 
 function eraseStart() {
@@ -229,106 +214,13 @@ function eraseEnd() {
 }
 
 function selectStart() {
-    if (!transforming) {
-        paths.push([mouse.cx, mouse.cy]);
-        raycaster = new THREE.Raycaster();
-        raycaster.layers.set(1);
-        raycaster.params.Line.threshold = 0.01;
-        app.selection.array = [];
-    }
-    //Setting the first raycast at start point seems to be causing problems,
-    //turning it off for now
-    /*raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-    var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-    if (intersectObject && !checkIfHelperObject(intersectObject)) {
-        toggleDash(intersectObject, true);
-        tempArray.push(intersectObject);
-    }*/
+    app.selection.start();
 }
 function selectMove() {
-    if (!transforming) {
-        paths[paths.length - 1].push([mouse.cx, mouse.cy]);
-        //This is to render line transparency,
-        //we are redrawing the line every frame
-        redrawLine('rgba(255, 255, 255, 0.15)');
-    }
-
-    if (somethingSelected === false) {
-        raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-        var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-        //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
-        if (intersectObject && !checkIfHelperObject(intersectObject) && app.selection.array.indexOf(intersectObject) < 0) {
-            toggleDash(intersectObject, true);
-            app.selection.array.push(intersectObject);
-        }
-    }
+    app.selection.move();
 }
 function selectEnd() {
-
-    if (!transforming) {
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        paths = [];
-    }
-
-    //If tempArray is empty and we are not transforming, we deselect
-    if (app.selection.array.length == 0 && !transforming) {
-        app.selection.deselect();
-    }
-    //If tempArray has one selected object, 
-    //we attach the controls only to that object
-    else if (app.selection.array.length == 1) {
-        somethingSelected = true;
-        transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.attach(app.selection.array[0]);
-        scene.add(transformControls);
-        transformControls.addEventListener("mouseDown", function () {
-            transforming = true;
-        });
-        transformControls.addEventListener("mouseUp", function () {
-            transforming = false;
-        });
-
-    }
-    //If tempArray has several selected objects,
-    //we group them together and attach transform controls to the group
-    else if (app.selection.array.length > 1) {
-        somethingSelected = true;
-        app.selection.group = new THREE.Group();
-        scene.add(app.selection.group);
-        //Add all the selected elements to the temporary groups
-        app.selection.array.forEach(element => {
-            toggleDash(element, true)
-            app.selection.group.add(element);
-        })
-        //Attach controls to the temporary group
-        transformControls = new TransformControls(camera, drawingCanvas);
-        transformControls.attach(app.selection.group);
-        scene.add(transformControls);
-        //Calculate center between the elements of the group
-        transformControls.position.set(
-            computeGroupCenter().x,
-            computeGroupCenter().y,
-            computeGroupCenter().z
-        );
-        transformControls.addEventListener("mouseDown", function () {
-            transforming = true;
-        });
-        transformControls.addEventListener("mouseUp", function () {
-            transforming = false;
-        });
-    }
-}
-
-function computeGroupCenter() {
-    var center = new THREE.Vector3();
-    var children = app.selection.group.children;
-    var count = children.length;
-    for (var i = 0; i < count; i++) {
-        center.add(children[i].position);
-    }
-    center.divideScalar(count);
-    return center;
+    app.selection.end();
 }
 
 function toggleDash(object, bool) {
@@ -420,12 +312,116 @@ function init() {
 
     app.selection = {
         array: [],
+        current: [],
+        selecting: [],
+        somethingSelected: false,
         group: undefined,
+        start: function () {
+            if (!transforming) {
+                paths.push([mouse.cx, mouse.cy]);
+                raycaster = new THREE.Raycaster();
+                raycaster.layers.set(1);
+                raycaster.params.Line.threshold = 0.01;
+            }
+            //Setting the first raycast at start point seems to be causing problems,
+            //turning it off for now
+            /*raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+            var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+            if (intersectObject && !checkIfHelperObject(intersectObject)) {
+                toggleDash(intersectObject, true);
+                tempArray.push(intersectObject);
+            }*/
+        },
+        move: function () {
+            if (!transforming) {
+                paths[paths.length - 1].push([mouse.cx, mouse.cy]);
+                //This is to render line transparency,
+                //we are redrawing the line every frame
+                this.redrawLine('rgba(255, 255, 255, 0.15)');
+            }
+            //If nothing is already selected we add to the selection 
+            if (this.current.length === 0) {
+                raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+                var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+                //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
+                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                    toggleDash(intersectObject, true);
+                    this.selecting.push(intersectObject);
+                }
+            }
+        },
+        end: function () {
+            if (!transforming) {
+                context.closePath();
+                context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+                paths = [];
+            }
+            //If selecting array is empty and we are not transforming: it means we selected nothing and we deselect
+            if (this.selecting.length == 0 && !transforming) {
+                this.deselect();
+            }
+            //If tempArray has one selected object, 
+            //we attach the controls only to that object
+            //and push that object into the current array
+            else if (this.selecting.length == 1) {
+                //somethingSelected = true;
+                transformControls = new TransformControls(camera, drawingCanvas);
+                transformControls.attach(this.selecting[0]);
+                this.current.push(this.selecting[0]);
+                scene.add(transformControls);
+                transformControls.addEventListener("mouseDown", function () {
+                    transforming = true;
+                });
+                transformControls.addEventListener("mouseUp", function () {
+                    transforming = false;
+                });
+                this.selecting = []; //reset
+            }
+            //If selecting has several selected objects,
+            //we group them together and attach transform controls to the group
+            //and push them to the group array
+            else if (this.selecting.length > 1) {
+                this.group = new THREE.Group();
+                scene.add(this.group);
+                //Add all the selected elements to the temporary groups
+                this.selecting.forEach(element => {
+                    toggleDash(element, true)
+                    this.group.add(element);
+                })
+                //Attach controls to the temporary group
+                transformControls = new TransformControls(camera, drawingCanvas);
+                transformControls.attach(this.group);
+                scene.add(transformControls);
+                //Calculate center between the elements of the group
+                function computeGroupCenter() {
+                    var center = new THREE.Vector3();
+                    var children = app.selection.group.children;
+                    var count = children.length;
+                    for (var i = 0; i < count; i++) {
+                        center.add(children[i].position);
+                    }
+                    center.divideScalar(count);
+                    return center;
+                }
+                transformControls.position.set(
+                    computeGroupCenter().x,
+                    computeGroupCenter().y,
+                    computeGroupCenter().z
+                );
+                transformControls.addEventListener("mouseDown", function () {
+                    transforming = true;
+                });
+                transformControls.addEventListener("mouseUp", function () {
+                    transforming = false;
+                });
+                this.selecting = []; //reset
+            }
+        },
         duplicate: function () {
-            //console.log('duplicate')
-            if (this.array.length > 1) {
+            //it's a group
+            if (this.current.length > 1) {
                 var duplicateArray = [];
-                this.array.forEach(object => {
+                this.current.forEach(object => {
                     var duplicate = object.clone();
                     var duplicateMaterial = object.material.clone();
                     duplicate.material = duplicateMaterial;
@@ -434,19 +430,19 @@ function init() {
                 //deselect current group
                 this.deselect();
 
-                this.array = duplicateArray;
+                this.current = duplicateArray;
 
-                somethingSelected = true;
-                app.selection.group = new THREE.Group();
-                scene.add(app.selection.group);
+                //somethingSelected = true;
+                this.group = new THREE.Group();
+                scene.add(this.group);
                 //Add all the selected elements to the temporary groups
-                app.selection.array.forEach(element => {
+                this.current.forEach(element => {
                     toggleDash(element, true)
-                    app.selection.group.add(element);
+                    this.group.add(element);
                 })
                 //Attach controls to the temporary group
                 transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(app.selection.group);
+                transformControls.attach(this.group);
                 scene.add(transformControls);
                 //Calculate center between the elements of the group
                 transformControls.position.set(
@@ -460,16 +456,17 @@ function init() {
                 transformControls.addEventListener("mouseUp", function () {
                     transforming = false;
                 });
-                app.selection.group.position.set(
-                    app.selection.group.position.x + 0.1,
-                    app.selection.group.position.y,
-                    app.selection.group.position.z
+                this.group.position.set(
+                    this.group.position.x + 0.1,
+                    this.group.position.y,
+                    this.group.position.z
                 )
-            } else if (this.array.length == 1) {
-                var duplicate = this.array[0].clone();
-                var duplicateMaterial = this.array[0].material.clone();
+            }
+            //it's a single objet
+            else if (this.current.length == 1) {
+                var duplicate = this.current[0].clone();
+                var duplicateMaterial = this.current[0].material.clone();
                 duplicate.material = duplicateMaterial;
-
                 //deselect current object
                 this.deselect();
                 //We move the duplicate a tiny bit
@@ -480,10 +477,10 @@ function init() {
                     duplicate.position.z
                 )
                 //And select the new one
-                app.selection.array.push(duplicate);
-                toggleDash(this.array[0], true);
+                this.current.push(duplicate);
+                toggleDash(this.current[0], true);
                 transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(app.selection.array[0]);
+                transformControls.attach(this.current[0]);
                 scene.add(transformControls);
                 transformControls.addEventListener("mouseDown", function () {
                     transforming = true;
@@ -496,10 +493,10 @@ function init() {
         },
         deselect: function () {
             //Ungroup if we have a group selection
-            if (typeof app.selection.group !== 'undefined') {
+            if (typeof this.group !== 'undefined') {
                 var ungroupArray = [];
-                for (var i = 0; i < app.selection.group.children.length; i++) {
-                    var object = app.selection.group.children[i]
+                for (var i = 0; i < this.group.children.length; i++) {
+                    var object = this.group.children[i]
                     var position = new THREE.Vector3();
                     position = object.getWorldPosition(position);
                     object.position.copy(position);
@@ -516,19 +513,36 @@ function init() {
                     ungroupArray.push(object);
                 }
                 ungroupArray.forEach(object => scene.add(object))
-                //tempArray = [];
+                this.current = [];
+                this.group = undefined;
                 transformControls.detach();
                 transforming = false;
-                scene.remove(app.selection.group);
+                scene.remove(this.group);
             }
-            //This is _extremely_ wasteful but it will work for now
-            scene.children.forEach(object => {
-                if (!checkIfHelperObject(object)) {
-                    toggleDash(object, false)
-                }
-            })
-            somethingSelected = false;
+            else if (this.current.length == 1) {
+                //console.log(this.array)
+                toggleDash(this.current[0], false);
+            }
+            this.current = [];
             transformControls.detach();
+        },
+        redrawLine: function (color) {
+            // clear canvas
+            context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            context.strokeStyle = color;
+            context.lineCap = 'round';
+            context.lineJoin = 'round';
+            context.lineWidth = 30;
+            context.beginPath();
+            for (var i = 0; i < paths.length; ++i) {
+                var path = paths[i];
+                if (path.length < 1)
+                    continue;
+                context.moveTo(path[0][0], path[0][1]);
+                for (var j = 1; j < path.length; ++j)
+                    context.lineTo(path[j][0], path[j][1]);
+            }
+            context.stroke();
         }
     }
 
@@ -680,82 +694,82 @@ function onTapStart(event) {
   }
 });*/
 
-function drawTestLines() {
-    var positions = [];
-    var colors = [];
-    // Position and THREE.Color Data
-    positions.push(0.1, 0.1, 0.1);
-    positions.push(0.4, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        //color: 0xffffff,
-        linewidth: app.lineWidth, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-    var positions = [];
-    var colors = [];
-    // Position and THREE.Color Data
-    positions.push(0.4, 0, 0);
-    positions.push(0, 0.4, 0.4);
-    colors.push(255, 0, 0);
-    colors.push(255, 0, 0);
-    // Line2 ( LineGeometry, LineMaterial )
-    var geometry = new LineGeometry();
-    //geometry.setDrawRange( 0, 100);
-    //geometry.maxInstancedCount = 100;
-    geometry.setPositions(
-        positions,
-        new THREE.Float32BufferAttribute(positions, 3)
-    );
-    geometry.setColors(colors);
-    matLine = new LineMaterial({
-        color: 0xffffff,
-        linewidth: app.lineWidth, // in pixels
-        vertexColors: true,
-        //resolution:  // to be set by renderer, eventually
-        depthWrite: false
-    });
-    materials.push(matLine);
-    line = new Line2(geometry, matLine);
-    //Recentering geometry around the central point
-    line.position.set(
-        line.geometry.boundingSphere.center.x,
-        line.geometry.boundingSphere.center.y,
-        line.geometry.boundingSphere.center.z
-    );
-    line.geometry.center();
-    line.needsUpdate = true;
-    line.computeLineDistances();
-    line.scale.set(1, 1, 1);
-    line.layers.set(1);
-    scene.add(line);
-}
+// function drawTestLines() {
+//     var positions = [];
+//     var colors = [];
+//     // Position and THREE.Color Data
+//     positions.push(0.1, 0.1, 0.1);
+//     positions.push(0.4, 0.4, 0.4);
+//     colors.push(255, 0, 0);
+//     colors.push(255, 0, 0);
+//     // Line2 ( LineGeometry, LineMaterial )
+//     var geometry = new LineGeometry();
+//     //geometry.setDrawRange( 0, 100);
+//     //geometry.maxInstancedCount = 100;
+//     geometry.setPositions(
+//         positions,
+//         new THREE.Float32BufferAttribute(positions, 3)
+//     );
+//     geometry.setColors(colors);
+//     matLine = new LineMaterial({
+//         //color: 0xffffff,
+//         linewidth: app.lineWidth, // in pixels
+//         vertexColors: true,
+//         //resolution:  // to be set by renderer, eventually
+//         depthWrite: false
+//     });
+//     materials.push(matLine);
+//     var line = new Line2(geometry, matLine);
+//     //Recentering geometry around the central point
+//     line.position.set(
+//         line.geometry.boundingSphere.center.x,
+//         line.geometry.boundingSphere.center.y,
+//         line.geometry.boundingSphere.center.z
+//     );
+//     line.geometry.center();
+//     line.needsUpdate = true;
+//     line.computeLineDistances();
+//     line.scale.set(1, 1, 1);
+//     line.layers.set(1);
+//     scene.add(line);
+//     var positions = [];
+//     var colors = [];
+//     // Position and THREE.Color Data
+//     positions.push(0.4, 0, 0);
+//     positions.push(0, 0.4, 0.4);
+//     colors.push(255, 0, 0);
+//     colors.push(255, 0, 0);
+//     // Line2 ( LineGeometry, LineMaterial )
+//     var geometry = new LineGeometry();
+//     //geometry.setDrawRange( 0, 100);
+//     //geometry.maxInstancedCount = 100;
+//     geometry.setPositions(
+//         positions,
+//         new THREE.Float32BufferAttribute(positions, 3)
+//     );
+//     geometry.setColors(colors);
+//     matLine = new LineMaterial({
+//         color: 0xffffff,
+//         linewidth: app.lineWidth, // in pixels
+//         vertexColors: true,
+//         //resolution:  // to be set by renderer, eventually
+//         depthWrite: false
+//     });
+//     materials.push(matLine);
+//     line = new Line2(geometry, matLine);
+//     //Recentering geometry around the central point
+//     line.position.set(
+//         line.geometry.boundingSphere.center.x,
+//         line.geometry.boundingSphere.center.y,
+//         line.geometry.boundingSphere.center.z
+//     );
+//     line.geometry.center();
+//     line.needsUpdate = true;
+//     line.computeLineDistances();
+//     line.scale.set(1, 1, 1);
+//     line.layers.set(1);
+//     scene.add(line);
+// }
 
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
@@ -926,7 +940,7 @@ function drawMirrored(xBool) {
         var geometry = new LineGeometry();
         geometry.setPositions(mirroredLinePositions);
         geometry.setColors(linecolors);
-        line = new Line2(geometry, matLineDrawn);
+        var line = new Line2(geometry, matLineDrawn);
         //recentering geometry around a central point
         line.position.set(
             line.geometry.boundingSphere.center.x,
