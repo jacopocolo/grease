@@ -177,6 +177,17 @@ function checkIfHelperObject(object) {
     } else { return false }
 }
 
+function computeGroupCenter() {
+    var center = new THREE.Vector3();
+    var children = app.selection.group.children;
+    var count = children.length;
+    for (var i = 0; i < count; i++) {
+        center.add(children[i].position);
+    }
+    center.divideScalar(count);
+    return center;
+}
+
 function drawStart() {
     line.start();
 }
@@ -387,22 +398,13 @@ function init() {
                 this.selecting.forEach(element => {
                     toggleDash(element, true)
                     this.group.add(element);
+                    this.current.push(element); //we also add it to the current selection in case we need it for duplication
                 })
                 //Attach controls to the temporary group
                 transformControls = new TransformControls(camera, drawingCanvas);
                 transformControls.attach(this.group);
                 scene.add(transformControls);
                 //Calculate center between the elements of the group
-                function computeGroupCenter() {
-                    var center = new THREE.Vector3();
-                    var children = app.selection.group.children;
-                    var count = children.length;
-                    for (var i = 0; i < count; i++) {
-                        center.add(children[i].position);
-                    }
-                    center.divideScalar(count);
-                    return center;
-                }
                 transformControls.position.set(
                     computeGroupCenter().x,
                     computeGroupCenter().y,
@@ -420,6 +422,7 @@ function init() {
         duplicate: function () {
             //it's a group
             if (this.current.length > 1) {
+                console.log(this.current)
                 var duplicateArray = [];
                 this.current.forEach(object => {
                     var duplicate = object.clone();
@@ -429,9 +432,7 @@ function init() {
                 })
                 //deselect current group
                 this.deselect();
-
                 this.current = duplicateArray;
-
                 //somethingSelected = true;
                 this.group = new THREE.Group();
                 scene.add(this.group);
@@ -457,7 +458,7 @@ function init() {
                     transforming = false;
                 });
                 this.group.position.set(
-                    this.group.position.x + 0.1,
+                    this.group.position.x + 0.2,
                     this.group.position.y,
                     this.group.position.z
                 )
