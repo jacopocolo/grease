@@ -106,6 +106,15 @@ var line = {
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
         //linecolors.push(206, 216, 247);
         this.renderLine(this.linepositions);
+        if (app.mirrorX) {
+            this.renderMirroredLine(this.linepositions, 'x');
+        }
+        if (app.mirrorY) {
+            this.renderMirroredLine(this.linepositions, 'y');
+        }
+        if (app.mirrorZ) {
+            this.renderMirroredLine(this.linepositions, 'z');
+        }
     },
     renderLine: function (positions) {
         var matLineDrawn = new LineMaterial({
@@ -132,6 +141,26 @@ var line = {
         l.layers.set(1);
         scene.add(l);
         //Remove listener and clear arrays
+    },
+    renderMirroredLine: function (positions, axis) {
+        var startingPos; //0 for x, 1 for y, 2 for z
+        switch (axis) {
+            case "x":
+                startingPos = 0;
+                break;
+            case "y":
+                startingPos = 1;
+                break;
+            case "z":
+                startingPos = 2;
+                break;
+            default:
+                return
+        }
+        for (var i = startingPos; i <= positions.length; i = i + 3) {
+            positions[i] = -positions[i]
+        }
+        this.renderLine(positions);
     },
     mirror: function () {
     },
@@ -497,7 +526,7 @@ function init() {
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", onTapStart, false);
-    //drawingCanvas.addEventListener("mousedown", onTapStart, false);
+    drawingCanvas.addEventListener("mousedown", onTapStart, false);
 }
 
 function onWindowResize() {
@@ -623,9 +652,9 @@ function onTapStart(event) {
         app.selection.start();
     }
     drawingCanvas.addEventListener("touchmove", onTapMove, false);
-    //drawingCanvas.addEventListener("mousemove", onTapMove, false);
+    drawingCanvas.addEventListener("mousemove", onTapMove, false);
     drawingCanvas.addEventListener("touchend", onTapEnd, false);
-    //drawingCanvas.addEventListener("mouseup", onTapEnd, false);
+    drawingCanvas.addEventListener("mouseup", onTapEnd, false);
 }
 
 //UTILS
