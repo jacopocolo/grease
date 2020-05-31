@@ -23,6 +23,7 @@ Select:
   - https://threejs.org/examples/misc_boxselection.html
   - https://github.com/mrdoob/three.js/issues/6336#issuecomment-626628464
   - https://github.com/mrdoob/three.js/issues/6336
+- Tapping on another object if something is selected should swap selection
 
 Camera controls:
 ~~- Fine tune speed~~

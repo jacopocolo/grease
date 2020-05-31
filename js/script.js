@@ -276,17 +276,17 @@ function init() {
                 try {
                     raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                     var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+                    if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                        this.deselect();
+                        toggleDash(intersectObject, true);
+                        this.selecting.push(intersectObject);
+                    }
                 } catch (err) {
                     //if there's an error here, it just means that the raycaster found nothing
-                }
-                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
-                    toggleDash(intersectObject, true);
-                    this.selecting.push(intersectObject);
                 }
             }
         },
         move: function () {
-            console.log('move');
             if (!transforming) {
                 paths[paths.length - 1].push([mouse.cx, mouse.cy]);
                 //This is to render line transparency,
@@ -305,6 +305,9 @@ function init() {
             }
         },
         end: function () {
+
+            console.log(app.selection.current)
+
             if (!transforming) {
                 context.closePath();
                 context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -318,6 +321,7 @@ function init() {
             //we attach the controls only to that object
             //and push that object into the current array
             else if (this.selecting.length == 1) {
+                console.log('this.selecting.length == 1')
                 //somethingSelected = true;
                 transformControls = new TransformControls(camera, drawingCanvas);
                 transformControls.attach(this.selecting[0]);
@@ -493,7 +497,7 @@ function init() {
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", onTapStart, false);
-    drawingCanvas.addEventListener("mousedown", onTapStart, false);
+    //drawingCanvas.addEventListener("mousedown", onTapStart, false);
 }
 
 function onWindowResize() {
@@ -619,9 +623,9 @@ function onTapStart(event) {
         app.selection.start();
     }
     drawingCanvas.addEventListener("touchmove", onTapMove, false);
-    drawingCanvas.addEventListener("mousemove", onTapMove, false);
+    //drawingCanvas.addEventListener("mousemove", onTapMove, false);
     drawingCanvas.addEventListener("touchend", onTapEnd, false);
-    drawingCanvas.addEventListener("mouseup", onTapEnd, false);
+    //drawingCanvas.addEventListener("mouseup", onTapEnd, false);
 }
 
 //UTILS
