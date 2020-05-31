@@ -104,16 +104,20 @@ var line = {
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        //linecolors.push(206, 216, 247);
         this.renderLine(this.linepositions);
-        if (app.mirrorX) {
-            this.renderMirroredLine(this.linepositions, 'x');
-        }
-        if (app.mirrorY) {
-            this.renderMirroredLine(this.linepositions, 'y');
-        }
-        if (app.mirrorZ) {
-            this.renderMirroredLine(this.linepositions, 'z');
+        console.log(app.mirror)
+        switch (app.mirror) {
+            case "x":
+                this.renderMirroredLine(this.linepositions, 'x');
+                break;
+            case "y":
+                this.renderMirroredLine(this.linepositions, 'y');
+                break;
+            case "z":
+                this.renderMirroredLine(this.linepositions, 'z');
+                break;
+            default:
+                return
         }
     },
     renderLine: function (positions) {
@@ -162,8 +166,6 @@ var line = {
         }
         this.renderLine(positions);
     },
-    mirror: function () {
-    },
     rejectPalm: function () {
         //rudimentary approach to palm rejection
         //are too far apart and are artifacts of palm rejection failing
@@ -178,7 +180,7 @@ var line = {
 var eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = 0.0001;
+        raycaster.params.Line.threshold = 0.1;
         raycaster.layers.set(1);
         paths.push([mouse.cx, mouse.cy]);
     },

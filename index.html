@@ -44,11 +44,11 @@
                 <label for="lockRotation">Lock</label></span>
         </div>
         <div id="mirror" v-if="selectedTool == 'draw'">Mirror:
-            <input type="checkbox" id="mirrorX" v-model="mirrorX">
+            <input type="radio" id="mirrorX" value="x" name="mirror" v-model="mirror">
             <label for="mirrorX">X</label>
-            <input type="checkbox" id="mirrorY" v-model="mirrorY">
+            <input type="radio" id="mirrorY" value="y" name="mirror" v-model="mirror">
             <label for="john">Y</label>
-            <input type="checkbox" id="mirrorZ" v-model="mirrorZ">
+            <input type="radio" id="mirrorZ" value="z" name="mirror" v-model="mirror">
             <label for="mirrorZ">Z</label>
         </div>
 
@@ -129,9 +129,7 @@
             selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
             linesNeedThemeUpdate: false,
             controlsLocked: false,
-            mirrorX: false,
-            mirrorY: false,
-            mirrorZ: false,
+            mirror: false,
             autoRotate: false,
             selection: undefined, //to be filled from init
         },
@@ -151,6 +149,23 @@
         }
 
     })
+</script>
+<script>
+    //Allow dechecking of radio buttons
+    var mirrorRadios = document.getElementsByName('mirror');
+    var setCheck;
+    var x = 0;
+    for (x = 0; x < mirrorRadios.length; x++) {
+        mirrorRadios[x].onclick = function () {
+            if (setCheck != this) {
+                setCheck = this;
+            } else {
+                this.checked = false;
+                app.mirror = false;
+                setCheck = null;
+            }
+        };
+    }
 </script>
 
 </html>
