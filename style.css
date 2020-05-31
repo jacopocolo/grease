@@ -148,14 +148,73 @@ margin: 0px;
 #transformationSelection, #lineSelection, #themeSelection {
   position: absolute;
   top: 10px;
-  background-color: black;
-  padding: 16px;
+  /* background-color: black; */
+  /* padding: 16px; */
   color: white;
   z-index: 5;
 }
 
 #transformationSelection, #lineSelection {
   left: 10px;
+}
+
+#lineWidth {
+  background-color: black;
+  display: block;
+  width: 100px;
+  height: 44px;
+  border-radius: 22px;
+  padding: 2px 16px;
+}
+
+#lineWidthSliderLabel {
+  position: relative;
+  /* left: 80px; */
+  bottom: 15px;
+  pointer-events: none;
+  /* margin-right: 8px; */
+}
+
+#lineWidthSlider {
+  -webkit-appearance: none;  /* Override default CSS styles */
+  appearance: none;
+  width: 40px; /* Full-width */
+  height: 40px; /* Specified height */
+  background: #333; /* Grey background */
+  outline: none; /* Remove outline */
+  border-radius: 40px;
+}
+
+#lineWidthSlider::slider-thumb {
+  display: none;
+  visibility: hidden;
+}
+
+#lineWidthSlider::-moz-range-thumb {
+  display: none;
+  visibility: hidden;
+}
+
+#lineWidthSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  background-color: #fff;
+  height: 10px;
+  width: 20px;
+  border: none;
+  border-radius: 20px;
+}
+
+#indicator {
+  position: relative;
+  height: 1px;
+  width: 1px;
+  right: 16px;
+  bottom: 16px;
+  transform-origin: center;
+  display: inline-block;
+  border-radius: 40px;
+  background-color: #000;
+  align-items: center;
 }
 
 #themeSelection {
