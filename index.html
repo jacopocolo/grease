@@ -13,7 +13,7 @@
         content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/inobounce/0.2.0/inobounce.min.js"
         integrity="sha256-Fc0S35M2Uo4ZMUBJy7ZWT+fkxv5Vpk8k1+cToMBUze4=" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script> -->
     <script src="js/script.js" type="module" defer></script>
     <script src="js/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="/reset.css" />
@@ -55,7 +55,7 @@
         <div id="lineSelection" v-if="selectedTool == 'draw'">
             <!-- <label for="lineColor">Color:</label>
             <input type="text" id="lineColor" name="lineColor" v-model="lineColor"> -->
-            <div id="lineWidth">
+            <div id="lineWidth" v-on:mousedown="lineWidthStartDrag()" v-on:touchstart="lineWidthStartDrag()">
                 <span v-if="!lineWidthDragging" class="lineWidthLabel">Width</span><span v-else
                     class="lineWidthLabel">Drag</span>
                 <div id="lineWidthBg">
@@ -122,74 +122,9 @@
     // });
 </script>
 <script>
-    var app = new Vue({
-        el: '#app',
-        data: {
-            selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
-            selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
-            isAGroupSelected: false, //Transform tools must be restricted if true
-            lineColor: 'rgb(255, 0, 0)', //Rgb value
-            lineWidth: 20, //Default 1
-            selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
-            linesNeedThemeUpdate: false,
-            controlsLocked: false,
-            mirror: false,
-            autoRotate: false,
-            selection: undefined, //to be filled from init
-            lineWidthDragging: false,
-            startX: 0,
-            x: 'no',
-            y: 'no'
-        },
-        watch: {
-            selectedTheme: function () {
-                app.linesNeedThemeUpdate = true;
-            },
-            selectedTool: function () {
-                //on tool change we always deselect
-                app.selection.deselect();
-            },
-            lineWidth: function () {
-                if (this.lineWidth < 3) {
-                    this.lineWidth = 3;
-                } else if (this.lineWidth > 40) {
-                    this.lineWidth = 40;
-                }
-            }
-        },
-        methods: {
-            duplicateSelected: function () {
-                app.selection.duplicate()
-            },
-            lineWidthStartDrag() {
-                this.lineWidthDragging = true;
-                this.x = this.y = 0;
-                this.startX = event.pageX;
-            },
-            lineWidthStopDrag() {
-                this.lineWidthDragging = false;
-                this.x = this.y = 'no';
-            },
-            lineWidthdonDrag(event) {
-                console.log(event.offsetX)
-                if (this.lineWidthDragging) {
-                    this.x = event.pageX;
-                    this.y = event.pageY;
-                    this.lineWidth = this.lineWidth + -(this.startX - this.x) / 50;
-                }
-            }
-        },
-        mounted() {
-            lw = document.getElementById('lineWidth');
-            lw.addEventListener('mousedown', this.lineWidthStartDrag);
-            lw.addEventListener('touchstart', this.lineWidthStartDrag);
-
-            lw.addEventListener('mouseup', this.lineWidthStopDrag);
-            lw.addEventListener('mousemove', this.lineWidthdonDrag);
-            lw.addEventListener('touchend', this.lineWidthStopDrag);
-            lw.addEventListener('touchmove', this.lineWidthdonDrag);
-        }
-    })
+    // function lineWidthStartDrag() {
+    //     app.lineWidthStartDrag();
+    // }
 </script>
 <script>
     //Allow dechecking of radio buttons

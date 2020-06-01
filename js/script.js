@@ -4,6 +4,147 @@ import { TransformControls } from "https://threejs.org/examples/jsm/controls/Tra
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
+import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
+
+var app = new Vue({
+    el: '#app',
+    data: {
+        selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
+        selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
+        isAGroupSelected: false, //Transform tools must be restricted if true
+        lineColor: 'rgb(0, 0, 0)', //Rgb value
+        lineWidth: 20, //Default 1
+        lineWidthEl: undefined, //filled in mount()
+        selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
+        linesNeedThemeUpdate: false,
+        controlsLocked: false,
+        mirror: false,
+        autoRotate: false,
+        selection: undefined, //to be filled from init
+        lineWidthDragging: false,
+        startX: 0,
+        x: 'no',
+        y: 'no'
+    },
+    watch: {
+        selectedTheme: function () {
+            app.linesNeedThemeUpdate = true;
+        },
+        selectedTool: function () {
+            //on tool change we always deselect
+            app.selection.deselect();
+            //re-add event listeners after a switch
+            // if (app.selectedTool == 'draw') {
+            //     this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
+            //     this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
+            // }
+        },
+        lineWidth: function () {
+            if (this.lineWidth < 3) {
+                this.lineWidth = 3;
+            } else if (this.lineWidth > 40) {
+                this.lineWidth = 40;
+            }
+        }
+    },
+    methods: {
+        duplicateSelected: function () {
+            app.selection.duplicate()
+        },
+        lineWidthStartDrag() {
+            document.addEventListener('mouseup', this.lineWidthStopDrag);
+            document.addEventListener('mousemove', this.lineWidthdonDrag);
+            document.addEventListener('touchend', this.lineWidthStopDrag);
+            document.addEventListener('touchmove', this.lineWidthdonDrag);
+            drawingCanvas.removeEventListener("touchstart", this.onTapStart, false);
+            drawingCanvas.removeEventListener("mousedown", this.onTapStart, false);
+            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.removeEventListener("touchend", this.onTapEnd, false);
+            drawingCanvas.removeEventListener("mouseup", this.onTapEnd, false);
+            this.lineWidthDragging = true;
+            this.x = this.y = 0;
+            this.startX = event.pageX;
+        },
+        lineWidthdonDrag(event) {
+            if (this.lineWidthDragging) {
+                this.x = event.pageX;
+                this.y = event.pageY;
+                this.lineWidth = this.lineWidth + -(this.startX - this.x) / 50;
+            }
+        },
+        lineWidthStopDrag() {
+            this.lineWidthDragging = false;
+            this.x = this.y = 'no';
+            document.removeEventListener('mouseup', this.lineWidthStopDrag);
+            document.removeEventListener('mousemove', this.lineWidthdonDrag);
+            document.removeEventListener('touchend', this.lineWidthStopDrag);
+            document.removeEventListener('touchmove', this.lineWidthdonDrag);
+            drawingCanvas.addEventListener("touchstart", this.onTapStart, false);
+            drawingCanvas.addEventListener("mousedown", this.onTapStart, false);
+
+        },
+        //MOUSE HANDLERS
+        onTapMove: function (event) {
+            mouse.updateCoordinates(event);
+            //DRAW
+            if (this.selectedTool == "draw") {
+                line.move();
+            }
+            //ERASER
+            else if (this.selectedTool == "erase") {
+                eraser.move()
+            }
+            //SELECT
+            else if (this.selectedTool == "select") {
+                app.selection.move();
+            }
+        },
+        onTapEnd: function (event) {
+            //handler if it's a touch event
+            mouse.updateCoordinates(event);
+            //DRAW
+            if (this.selectedTool == "draw") {
+                line.end()
+            }
+            //ERASER
+            else if (this.selectedTool == "erase") {
+                eraser.end()
+            }
+            //SELECT
+            else if (this.selectedTool == "select") {
+                app.selection.end()
+            }
+            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
+        },
+        onTapStart: function (event) {
+            if (event.which == 3) return;
+            mouse.updateCoordinates(event);
+            //DRAW
+            if (this.selectedTool == "draw") {
+                line.start();
+            }
+            //ERASER
+            else if (this.selectedTool == "erase") {
+                eraser.start();
+            }
+            //SELECT
+            else if (this.selectedTool == "select") {
+                app.selection.start();
+            }
+            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
+        }
+    },
+    mounted() {
+        // this.lineWidthEl = document.getElementById('lineWidth');
+        // this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
+        // this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
+    }
+});
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
@@ -30,24 +171,6 @@ drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
-var themes = {
-    blueprint: {
-        backgroundColor: '',
-        mainColor: '',
-    },
-    light: {
-        backgroundColor: '',
-        mainColor: '',
-    },
-    dark: {
-        backgroundColor: '',
-        mainColor: '',
-    }
-}
-
-init();
-animate();
-
 let mouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
@@ -68,6 +191,9 @@ let mouse = {
         }
     }
 };
+
+init();
+animate();
 
 var line = {
     linepositions: [],
@@ -105,7 +231,6 @@ var line = {
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
         this.renderLine(this.linepositions);
-        console.log(app.mirror)
         switch (app.mirror) {
             case "x":
                 this.renderMirroredLine(this.linepositions, 'x');
@@ -176,7 +301,6 @@ var line = {
         }
     }
 }
-
 var eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
@@ -337,7 +461,6 @@ function init() {
         },
         end: function () {
 
-            console.log(app.selection.current)
 
             if (!transforming) {
                 context.closePath();
@@ -352,7 +475,6 @@ function init() {
             //we attach the controls only to that object
             //and push that object into the current array
             else if (this.selecting.length == 1) {
-                console.log('this.selecting.length == 1')
                 //somethingSelected = true;
                 transformControls = new TransformControls(camera, drawingCanvas);
                 transformControls.attach(this.selecting[0]);
@@ -400,7 +522,6 @@ function init() {
         duplicate: function () {
             //it's a group
             if (this.current.length > 1) {
-                console.log(this.current)
                 var duplicateArray = [];
                 this.current.forEach(object => {
                     var duplicate = object.clone();
@@ -527,8 +648,8 @@ function init() {
 
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
-    drawingCanvas.addEventListener("touchstart", onTapStart, false);
-    drawingCanvas.addEventListener("mousedown", onTapStart, false);
+    drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
+    drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
 }
 
 function onWindowResize() {
@@ -601,64 +722,6 @@ function animate() {
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
-//MOUSE HANDLERS
-
-function onTapMove(event) {
-    mouse.updateCoordinates(event);
-    //DRAW
-    if (selectedTool() == "draw") {
-        line.move();
-    }
-    //ERASER
-    else if (selectedTool() == "erase") {
-        eraser.move()
-    }
-    //SELECT
-    else if (selectedTool() == "select") {
-        app.selection.move();
-    }
-}
-
-function onTapEnd(event) {
-    //handler if it's a touch event
-    mouse.updateCoordinates(event);
-    //DRAW
-    if (selectedTool() == "draw") {
-        line.end()
-    }
-    //ERASER
-    else if (selectedTool() == "erase") {
-        eraser.end()
-    }
-    //SELECT
-    else if (selectedTool() == "select") {
-        app.selection.end()
-    }
-    drawingCanvas.removeEventListener("touchmove", onTapMove, false);
-    drawingCanvas.removeEventListener("mousemove", onTapMove, false);
-}
-
-function onTapStart(event) {
-    if (event.which == 3) return;
-    mouse.updateCoordinates(event);
-    //DRAW
-    if (selectedTool() == "draw") {
-        line.start();
-    }
-    //ERASER
-    else if (selectedTool() == "erase") {
-        eraser.start();
-    }
-    //SELECT
-    else if (selectedTool() == "select") {
-        app.selection.start();
-    }
-    drawingCanvas.addEventListener("touchmove", onTapMove, false);
-    drawingCanvas.addEventListener("mousemove", onTapMove, false);
-    drawingCanvas.addEventListener("touchend", onTapEnd, false);
-    drawingCanvas.addEventListener("mouseup", onTapEnd, false);
-}
-
 //UTILS
 function selectedTool() {
     return app.selectedTool;
@@ -684,10 +747,7 @@ function computeGroupCenter() {
 function toggleDash(object, bool) {
     var material = object.material;
     material.dashed = bool;
-
     var ratio = 1000;
-    console.log(material.linewidth / ratio)
-
     // dashed is implemented as a defines -- not as a uniform. this could be changed.
     // ... or THREE.LineDashedMaterial could be implemented as a separate material
     // temporary hack - renderer should do this eventually
