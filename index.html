@@ -55,12 +55,14 @@
         <div id="lineSelection" v-if="selectedTool == 'draw'">
             <!-- <label for="lineColor">Color:</label>
             <input type="text" id="lineColor" name="lineColor" v-model="lineColor"> -->
-            <span id="lineWidth">
-                <label id="lineWidthSliderLabel" for="lineWidth">Width</label>
-                <input type="range" id="lineWidthSlider" name="lineWidth" min="3" max="40" v-model="lineWidth">
-                <div id="indicator" v-bind:style="{ backgroundColor: lineColor, transform: 'scale('+lineWidth+')' }">
+            <div id="lineWidth">
+                <span v-if="!lineWidthDragging" class="lineWidthLabel">Width</span><span v-else
+                    class="lineWidthLabel">Drag</span>
+                <div id="lineWidthBg">
+                    <div id="indicator"
+                        v-bind:style="{ backgroundColor: lineColor, transform: 'scale('+lineWidth+')' }"></div>
                 </div>
-            </span>
+            </div>
         </div>
 
         <div id="transformationSelection" v-if="selectedTool === 'select'">
@@ -134,6 +136,10 @@
             mirror: false,
             autoRotate: false,
             selection: undefined, //to be filled from init
+            lineWidthDragging: false,
+            startX: 0,
+            x: 'no',
+            y: 'no'
         },
         watch: {
             selectedTheme: function () {
@@ -142,14 +148,47 @@
             selectedTool: function () {
                 //on tool change we always deselect
                 app.selection.deselect();
+            },
+            lineWidth: function () {
+                if (this.lineWidth < 3) {
+                    this.lineWidth = 3;
+                } else if (this.lineWidth > 40) {
+                    this.lineWidth = 40;
+                }
             }
         },
         methods: {
             duplicateSelected: function () {
                 app.selection.duplicate()
+            },
+            lineWidthStartDrag() {
+                this.lineWidthDragging = true;
+                this.x = this.y = 0;
+                this.startX = event.pageX;
+            },
+            lineWidthStopDrag() {
+                this.lineWidthDragging = false;
+                this.x = this.y = 'no';
+            },
+            lineWidthdonDrag(event) {
+                console.log(event.offsetX)
+                if (this.lineWidthDragging) {
+                    this.x = event.pageX;
+                    this.y = event.pageY;
+                    this.lineWidth = this.lineWidth + -(this.startX - this.x) / 50;
+                }
             }
-        }
+        },
+        mounted() {
+            lw = document.getElementById('lineWidth');
+            lw.addEventListener('mousedown', this.lineWidthStartDrag);
+            lw.addEventListener('touchstart', this.lineWidthStartDrag);
 
+            lw.addEventListener('mouseup', this.lineWidthStopDrag);
+            lw.addEventListener('mousemove', this.lineWidthdonDrag);
+            lw.addEventListener('touchend', this.lineWidthStopDrag);
+            lw.addEventListener('touchmove', this.lineWidthdonDrag);
+        }
     })
 </script>
 <script>
