@@ -12,8 +12,8 @@ var app = new Vue({
         selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
         selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
         isAGroupSelected: false, //Transform tools must be restricted if true
-        lineColor: 'rgb(0, 0, 0)', //Rgb value
-        lineWidth: 20, //Default 1
+        lineColor: 'rgb(255, 255, 255)', //Rgb value
+        lineWidth: 10, //Default 10
         lineWidthEl: undefined, //filled in mount()
         selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
         linesNeedThemeUpdate: false,
@@ -286,7 +286,7 @@ var line = {
             default:
                 return
         }
-        for (var i = startingPos; i <= positions.length; i = i + 3) {
+        for (var i = startingPos; i < positions.length; i = i + 3) {
             positions[i] = -positions[i]
         }
         this.renderLine(positions);
@@ -364,7 +364,7 @@ function init() {
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
     miniAxisRenderer.setClearColor(0x000000, 1);
-    miniAxisRenderer.setSize(300, 300);
+    miniAxisRenderer.setSize(250, 250);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
@@ -717,7 +717,7 @@ function animate() {
     }
 
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    miniAxisRenderer.setViewport(0, 0, 300, 300);
+    miniAxisRenderer.setViewport(0, 0, 250, 250);
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
@@ -952,4 +952,21 @@ function drawMirrored(xBool) {
 
         mirroredLinePositions = [];
     }
+}
+
+//Allow dechecking of radio buttons
+var mirrorRadios = document.getElementsByName('mirror');
+var setCheck;
+var x = 0;
+for (x = 0; x < mirrorRadios.length; x++) {
+    mirrorRadios[x].onclick = function () {
+        console.log('clicked')
+        if (setCheck != this) {
+            setCheck = this;
+        } else {
+            this.checked = false;
+            app.mirror = false;
+            setCheck = null;
+        }
+    };
 }

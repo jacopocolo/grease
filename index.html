@@ -43,19 +43,27 @@
                 <input type="checkbox" id="lockRotation" v-model="controlsLocked">
                 <label for="lockRotation">Lock</label></span>
         </div>
-        <div id="mirror" v-if="selectedTool == 'draw'">Mirror:
-            <input type="radio" id="mirrorX" value="x" name="mirror" v-model="mirror">
-            <label for="mirrorX">X</label>
-            <input type="radio" id="mirrorY" value="y" name="mirror" v-model="mirror">
-            <label for="john">Y</label>
-            <input type="radio" id="mirrorZ" value="z" name="mirror" v-model="mirror">
-            <label for="mirrorZ">Z</label>
+        <div id="mirror" class="button" v-if="selectedTool == 'draw'">Mirror
+            <div class="radio-mirror-item radio-mirrorX">
+                <input type="radio" id="mirrorX" value="x" name="mirror" v-model="mirror">
+                <label for="mirrorX"></label>
+            </div>
+
+            <div class="radio-mirror-item radio-mirrorY">
+                <input type="radio" id="mirrorY" value="y" name="mirror" v-model="mirror">
+                <label for="mirrorY"></label>
+            </div>
+            <div class="radio-mirror-item radio-mirrorZ">
+                <input type="radio" id="mirrorZ" value="z" name="mirror" v-model="mirror">
+                <label for="mirrorZ"></label>
+            </div>
         </div>
 
         <div id="lineSelection" v-if="selectedTool == 'draw'">
             <!-- <label for="lineColor">Color:</label>
             <input type="text" id="lineColor" name="lineColor" v-model="lineColor"> -->
-            <div id="lineWidth" v-on:mousedown="lineWidthStartDrag()" v-on:touchstart="lineWidthStartDrag()">
+            <div id="lineWidth" class="button" v-on:mousedown="lineWidthStartDrag()"
+                v-on:touchstart="lineWidthStartDrag()">
                 <span v-if="!lineWidthDragging" class="lineWidthLabel">Width</span><span v-else
                     class="lineWidthLabel">Drag</span>
                 <div id="lineWidthBg">
@@ -120,28 +128,6 @@
     // $(function () {
     //     window.onresize();
     // });
-</script>
-<script>
-    // function lineWidthStartDrag() {
-    //     app.lineWidthStartDrag();
-    // }
-</script>
-<script>
-    //Allow dechecking of radio buttons
-    var mirrorRadios = document.getElementsByName('mirror');
-    var setCheck;
-    var x = 0;
-    for (x = 0; x < mirrorRadios.length; x++) {
-        mirrorRadios[x].onclick = function () {
-            if (setCheck != this) {
-                setCheck = this;
-            } else {
-                this.checked = false;
-                app.mirror = false;
-                setCheck = null;
-            }
-        };
-    }
 </script>
 
 </html>
