@@ -28,17 +28,15 @@
             <div id="handle">
             </div>
             <div id="toolSelection">
-                <span class="toolsButton" v-bind:class="[selectedTool == 'draw' ?'selected' : '']">
-                    <img src="img/draw.svg" height="32" width="32"><input type="radio" id="toolDraw" name="tools"
-                        value="draw" v-model="selectedTool" checked /><label for="toolDraw"></label>
-                </span><span class="toolsButton" v-bind:class="[selectedTool == 'erase' ?'selected' : '']">
-                    <img src=" img/erase.svg" height="32" width="32">
+                <span>
+                    <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" checked /><label
+                        for="toolDraw"><img src="img/draw.svg" height="32" width="32"></label>
+                </span><span>
                     <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
-                        for="toolEraser"></label>
-                </span><span class="toolsButton" v-bind:class="[selectedTool == 'select' ?'selected' : '']">
-                    <img src=" img/select.svg" height="32" width="32">
+                        for="toolEraser"><img src=" img/erase.svg" height="32" width="32"></label>
+                </span><span>
                     <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool" /><label
-                        for="toolSelect"></label>
+                        for="toolSelect"><img src=" img/select.svg" height="32" width="32"></label>
                 </span>
             </div>
             <span class="miniAxisButton">
