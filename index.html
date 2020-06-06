@@ -29,14 +29,14 @@
             </div>
             <div id="toolSelection">
                 <span>
-                    <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" checked /><label
+                    <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
                         for="toolDraw"><img src="img/draw.svg" height="32" width="32"></label>
                 </span><span>
                     <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
                         for="toolEraser"><img src=" img/erase.svg" height="32" width="32"></label>
                 </span><span>
-                    <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool" /><label
-                        for="toolSelect"><img src=" img/select.svg" height="32" width="32"></label>
+                    <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool"
+                        checked /><label for="toolSelect"><img src=" img/select.svg" height="32" width="32"></label>
                 </span>
             </div>
             <span class="miniAxisButton">
@@ -76,18 +76,24 @@
         <div id="transformationSelection" v-if="selectedTool === 'select'">
             <span>
                 <input type="radio" id="translate" name="transformations" value="translate"
-                    v-model="selectedTransformation" checked /><label for="translate">Translate</label>
+                    v-model="selectedTransformation" checked /><label for="translate"><img src="img/move.svg"
+                        height="32" width="32">Move</label>
             </span>
             <span>
                 <input type="radio" id="rotate" name="transformations" value="rotate"
-                    v-model="selectedTransformation" /><label for="rotate">Rotate</label>
+                    v-model="selectedTransformation" /><label for="rotate"
+                    v-bind:class="[typeof selection.group == 'undefined' ? '' : 'disabled']"><img src="img/rotate.svg"
+                        height="32" width="32">Rotate</label>
             </span>
             <span>
                 <input type="radio" id="scale" name="transformations" value="scale"
-                    v-model="selectedTransformation" /><label for="scale">Scale</label>
+                    v-model="selectedTransformation" /><label for="scale"
+                    v-bind:class="[typeof selection.group == 'undefined' ? '' : 'disabled']"><img src="img/scale.svg"
+                        height="32" width="32">Scale</label>
             </span>
         </div>
-        <div v-if="selectedTool === 'select'" id="duplicate" class="button" v-on:click="duplicateSelected">Duplicate
+        <div v-if="selectedTool === 'select'" id="duplicate" class="button"
+            v-bind:class="[selection.current.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
         </div>
 
         <div id="themeSelection">
