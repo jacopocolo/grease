@@ -501,6 +501,7 @@ function init() {
                     this.current.push(element); //we also add it to the current selection in case we need it for duplication
                 })
                 //Attach controls to the temporary group
+                app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
                 transformControls = new TransformControls(camera, drawingCanvas);
                 transformControls.attach(this.group);
                 scene.add(transformControls);
