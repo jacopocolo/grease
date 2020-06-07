@@ -4,7 +4,7 @@ import { TransformControls } from "https://threejs.org/examples/jsm/controls/Tra
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
-import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
+//import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
 import { OBJLoader } from 'https://threejs.org/examples/jsm/loaders/OBJLoader.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
 
@@ -975,24 +975,19 @@ for (x = 0; x < mirrorRadios.length; x++) {
 }
 
 
-function exportGLTF(input) {
-    var gltfExporter = new GLTFExporter();
+function saveFile(input) {
+    console.log(input.children)
+    var output;
+    try {
+        output = JSON.stringify(input.children[3]);
+    }
+    catch (err) {
+        console.log(err);
+    }
 
-    var options = {
-    };
-    gltfExporter.parse(input, function (result) {
-
-        console.log(result);
-
-        if (result instanceof ArrayBuffer) {
-            saveArrayBuffer(result, 'scene.glb');
-        } else {
-            var output = JSON.stringify(result, null, 2);
-            console.log(output);
-            saveString(output, 'scene.gltf');
-        }
-
-    }, options);
+    //var output = input.children.toString();
+    console.log(output);
+    saveString(output, 'scene.json');
 }
 
 var link = document.createElement('a');
@@ -1000,11 +995,9 @@ link.style.display = 'none';
 document.body.appendChild(link); // Firefox workaround, see #6594
 
 function save(blob, filename) {
-
     link.href = URL.createObjectURL(blob);
     link.download = filename;
     link.click();
-
     // URL.revokeObjectURL( url ); breaks Firefox...
 
 }
@@ -1013,11 +1006,8 @@ function saveString(text, filename) {
     save(new Blob([text], { type: 'text/plain' }), filename);
 }
 
-function saveArrayBuffer(buffer, filename) {
-    save(new Blob([buffer], { type: 'application/octet-stream' }), filename);
-}
 
-document.getElementById("Save").addEventListener("click", () => { exportGLTF(scene) });
+document.getElementById("Save").addEventListener("click", () => { saveFile(scene) });
 
 
 function loadGLTF() {
@@ -1036,24 +1026,21 @@ function loadGLTF() {
 
     function receivedText(e) {
         if (e) {
-            console.log(e);
             // let lines = e;
             // var newArr = JSON.parse(lines);
             //console.log(e);
+            scene.add(JSON.parse(e));
+            // var loader = new OBJLoader();
 
-            var loader = new OBJLoader();
+            // loader.load(window.URL.createObjectURL(e), function (object) {
+            //     var imported = object;
+            //     scene.add(object)
 
-            loader.load(window.URL.createObjectURL(e), function (gltf) {
-                var imported = gltf.scene;
+            // }, undefined, function (error) {
 
-                scene.add(imported)
-                console.log(scene);
+            //     console.error(error);
 
-            }, undefined, function (error) {
-
-                console.error(error);
-
-            });
+            // });
 
         }
     }
