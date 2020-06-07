@@ -323,3 +323,10 @@ margin: 0px;
   pointer-events: none;
   opacity: 0.6;
 }
+
+#saveLoad {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  z-index: 5;
+}

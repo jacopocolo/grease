@@ -96,7 +96,7 @@
             v-bind:class="[selection.current.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
         </div>
 
-        <div id="themeSelection">
+        <!--<div id="themeSelection">
             <span>
                 <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
                     checked /><label for="blueprintTheme">Blueprint</label>
@@ -115,6 +115,9 @@
             <input type="checkbox" id="autoRotate" v-model="autoRotate">
             <label for="autoRotate">Autorotate</label>
         </div>
+    -->
+
+        <div id="saveLoad"><button id="Save">Save</button><button id="Load">Load</button></div>
 
     </div>
 </body>

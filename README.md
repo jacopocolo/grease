@@ -31,6 +31,30 @@ Camera controls:
 - Lock controls
 - Reset camera?
 
+Undo redo:
+(Basic version)
+- Draw a line / Erase a line
+  - Store line UUID / Erase object with that UUID
+- Erase a line / Restore a line
+  - Store object / Add object to scene
+- Select a line / Deselect a line
+  - Store line UUID /  
+- Select a group / Deselect a group
+- Deselect a line / Reselect a line
+- Deselect a group / Reselect a group
+- Move a line / Return line to previous position
+- Rotate a line / Return a line to previous rotation
+- Scale a line / Scale a line to original scale
+- Move a group / Return the group to its previous position
+- Duplicate line / Delete line
+- Duplicate group / Delete group
+
+(Maybe)
+- Set line width / Return line width to previous position
+- 
+
+https://github.com/mrdoob/three.js/pull/7337/files
+
 Other features
 - Export a gif --> https://threesjs-to-gif.glitch.me/
 - Might be worth trying an implementation with LineMesh (see: https://jsfiddle.net/jacopocolo/ygj6195e/62/)

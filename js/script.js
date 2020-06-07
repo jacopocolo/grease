@@ -4,6 +4,8 @@ import { TransformControls } from "https://threejs.org/examples/jsm/controls/Tra
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
+import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
+import { OBJLoader } from 'https://threejs.org/examples/jsm/loaders/OBJLoader.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
 
 var app = new Vue({
@@ -971,3 +973,91 @@ for (x = 0; x < mirrorRadios.length; x++) {
         }
     };
 }
+
+
+function exportGLTF(input) {
+    var gltfExporter = new GLTFExporter();
+
+    var options = {
+    };
+    gltfExporter.parse(input, function (result) {
+
+        console.log(result);
+
+        if (result instanceof ArrayBuffer) {
+            saveArrayBuffer(result, 'scene.glb');
+        } else {
+            var output = JSON.stringify(result, null, 2);
+            console.log(output);
+            saveString(output, 'scene.gltf');
+        }
+
+    }, options);
+}
+
+var link = document.createElement('a');
+link.style.display = 'none';
+document.body.appendChild(link); // Firefox workaround, see #6594
+
+function save(blob, filename) {
+
+    link.href = URL.createObjectURL(blob);
+    link.download = filename;
+    link.click();
+
+    // URL.revokeObjectURL( url ); breaks Firefox...
+
+}
+
+function saveString(text, filename) {
+    save(new Blob([text], { type: 'text/plain' }), filename);
+}
+
+function saveArrayBuffer(buffer, filename) {
+    save(new Blob([buffer], { type: 'application/octet-stream' }), filename);
+}
+
+document.getElementById("Save").addEventListener("click", () => { exportGLTF(scene) });
+
+
+function loadGLTF() {
+    var input, file, fr;
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.onchange = e => {
+        var file = e.target.files[0];
+        //file = input.files[0];
+        fr.onload = receivedText(file);
+    }
+    input.click();
+
+    fr = new FileReader();
+    //fr.readAsText(file);
+
+    function receivedText(e) {
+        if (e) {
+            console.log(e);
+            // let lines = e;
+            // var newArr = JSON.parse(lines);
+            //console.log(e);
+
+            var loader = new OBJLoader();
+
+            loader.load(window.URL.createObjectURL(e), function (gltf) {
+                var imported = gltf.scene;
+
+                scene.add(imported)
+                console.log(scene);
+
+            }, undefined, function (error) {
+
+                console.error(error);
+
+            });
+
+        }
+    }
+
+}
+
+document.getElementById("Load").addEventListener("click", loadGLTF);
