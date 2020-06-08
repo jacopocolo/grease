@@ -175,6 +175,12 @@ drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
+let blueprint = {
+    lines: [],
+};
+
+// {id: '', geometry: [], material: {color: '', linewidth: ''}, position: {}, rotation: {}, scale: {} }
+
 let mouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
@@ -234,7 +240,7 @@ var line = {
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        this.renderLine(this.linepositions);
+        this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
         switch (app.mirror) {
             case "x":
                 this.renderMirroredLine(this.linepositions, 'x');
@@ -249,17 +255,17 @@ var line = {
                 return
         }
     },
-    renderLine: function (positions) {
+    renderLine: function (positions, lineColor, lineWidth) {
         var matLineDrawn = new LineMaterial({
-            color: new THREE.Color(app.lineColor),
-            linewidth: app.lineWidth, // in pixels
+            color: new THREE.Color(lineColor),
+            linewidth: lineWidth, // in pixels
             vertexColors: false,
             wireframe: false,
             depthWrite: true
         });
         materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
         var geometry = new LineGeometry();
-        this.rejectPalm();
+        var positions = this.rejectPalm(positions);
         geometry.setPositions(positions);
         var l = new Line2(geometry, matLineDrawn);
         l.position.set(
@@ -272,6 +278,17 @@ var line = {
         l.computeLineDistances();
         l.scale.set(1, 1, 1);
         l.layers.set(1);
+
+        var blueprintLine = {
+            uuid: l.uuid, geometry: [...positions], material: { color: app.lineColor, lineWidth: app.lineWidth },
+            position: {
+                x: l.geometry.boundingSphere.center.x,
+                y: l.geometry.boundingSphere.center.y,
+                z: l.geometry.boundingSphere.center.z
+            },
+            rotation: { x: 0, y: 0, z: 0 },
+            scale: { x: 1, y: 0, z: 0 },
+        };
         scene.add(l);
         //Remove listener and clear arrays
     },
@@ -293,16 +310,19 @@ var line = {
         for (var i = startingPos; i < positions.length; i = i + 3) {
             positions[i] = -positions[i]
         }
-        this.renderLine(positions);
+        this.renderLine(positions, app.lineColor, app.lineWidth);
     },
-    rejectPalm: function () {
+    rejectPalm: function (positions) {
         //rudimentary approach to palm rejection
-        //are too far apart and are artifacts of palm rejection failing
-        for (var i = 0; i < this.linepositions.length - 2; i = i + 2) {
-            if (this.linepositions.length[i] - this.linepositions.length[i + 2] > 0.1) {
-                this.linepositions.slice(i)
+        //if two points are are too far apart
+        //they are artifacts of palm rejection failing
+        var arr = positions;
+        for (var i = 0; i < arr.length - 2; i = i + 2) {
+            if (arr.length[i] - arr.length[i + 2] > 0.1) {
+                arr = arr.slice(i)
             }
         }
+        return arr
     }
 }
 var eraser = {
@@ -318,11 +338,17 @@ var eraser = {
         //we are redrawing the line every frame
         this.redrawLine('rgba(255,20,147, 0.15)');
 
-        raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-        var object = raycaster.intersectObjects(scene.children)[0].object;
-        if (checkIfHelperObject(object)) {
-        } else {
-            scene.remove(object);
+        try {
+            raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+            var object = raycaster.intersectObjects(scene.children)[0].object;
+            if (checkIfHelperObject(object)) {
+            } else {
+                scene.remove(object);
+                console.log(object.uuid)
+                this.removeFromBlueprint(object.uuid);
+            }
+        } catch (err) {
+            //if there's an error here, it just means that the raycaster found nothing
         }
     },
     end: function () {
@@ -347,6 +373,10 @@ var eraser = {
                 context.lineTo(path[j][0], path[j][1]);
         }
         context.stroke();
+    },
+    removeFromBlueprint: function (uuid) {
+        var indexOfElementToRemove = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(uuid)
+        blueprint.lines.splice(indexOfElementToRemove, 1)
     }
 }
 
@@ -987,100 +1017,37 @@ for (x = 0; x < mirrorRadios.length; x++) {
     };
 }
 
-
-function exportGLTF(input) {
-    var gltfExporter = new GLTFExporter();
-    var options = {
-    };
-    gltfExporter.parse(input, function (result) {
-        if (result instanceof ArrayBuffer) {
-            saveArrayBuffer(result, 'scene.glb');
-        } else {
-            var output = JSON.stringify(result, null, 2);
-            console.log(output);
-            saveString(output, 'scene.gltf');
-        }
-    }, options);
+function save() {
+    function download(content, fileName, contentType) {
+        var a = document.createElement("a");
+        var file = new Blob([content], { type: contentType });
+        a.href = URL.createObjectURL(file);
+        a.download = fileName;
+        a.click();
+    }
+    download(JSON.stringify(blueprint), 'blueprint.json', 'json');
 }
 
-var link = document.createElement('a');
-link.style.display = 'none';
-document.body.appendChild(link); // Firefox workaround, see #6594
+document.getElementById("Save").addEventListener("click", save);
 
-function save(blob, filename) {
-    link.href = URL.createObjectURL(blob);
-    link.download = filename;
-    link.click();
-    // URL.revokeObjectURL( url ); breaks Firefox...
-}
-
-function saveString(text, filename) {
-    save(new Blob([text], { type: 'text/plain' }), filename);
-}
-
-function saveArrayBuffer(buffer, filename) {
-    save(new Blob([buffer], { type: 'application/octet-stream' }), filename);
-}
-
-// var exporter = new ColladaExporter();
-
-// function exportCollada() {
-
-//     var result = exporter.parse(scene);
-
-//     saveString(result.data, 'scene.dae');
-
-//     result.textures.forEach(tex => {
-//         saveArrayBuffer(tex.data, `${tex.name}.${tex.ext}`);
-//     });
-
-// }
-
-document.getElementById("Save").addEventListener("click", () => { exportGLTF(scene) });
-
-var loader = new GLTFLoader();
-
-function loadGLTF() {
+function load() {
     var input, file, fr;
     var input = document.createElement('input');
     input.type = 'file';
     input.onchange = e => {
-        var file = e.target.files[0];
-        //file = input.files[0];
-        fr.onload = receivedText(file);
-    }
-    input.click();
-
-    fr = new FileReader();
-    //fr.readAsText(file);
-
-    function receivedText(e) {
-        if (e) {
-            loader.load(
-                // resource URL
-                URL.createObjectURL(e),
-                // called when the resource is loaded
-                function (gltf) {
-                    scene.add(gltf.scene);
-                    gltf.animations; // Array<THREE.AnimationClip>
-                    gltf.scene; // THREE.Group
-                    gltf.scenes; // Array<THREE.Group>
-                    gltf.cameras; // Array<THREE.Camera>
-                    gltf.asset; // Object
-                },
-                // called while loading is progressing
-                function (xhr) {
-                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
-                    console.log(scene);
-                },
-                // called when loading has errors
-                function (error) {
-                    console.log('An error happened');
-                }
-            );
+        var selectedFile = event.target.files[0];
+        const fileReader = new FileReader();
+        fileReader.readAsText(selectedFile, "UTF-8");
+        fileReader.onload = () => {
+            var data = JSON.parse(fileReader.result);
+            data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth) })
+            console.log(scene);
+        }
+        fileReader.onerror = (error) => {
+            console.log(error);
         }
     }
-
+    input.click();
 }
 
-document.getElementById("Load").addEventListener("click", loadGLTF);
+document.getElementById("Load").addEventListener("click", load);
