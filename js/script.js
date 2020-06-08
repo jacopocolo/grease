@@ -1,11 +1,13 @@
-import * as THREE from "https://threejs.org/build/three.module.js";
+import * as THREE from "/js/vendor/three.module.js";
 import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
-//import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
-import { OBJLoader } from 'https://threejs.org/examples/jsm/loaders/OBJLoader.js';
+import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
+// import { ColladaExporter } from 'https://threejs.org/examples/jsm/exporters/ColladaExporter.js';
+// import { OBJLoader } from 'https://threejs.org/examples/jsm/loaders/OBJLoader.js';
+import { GLTFLoader } from 'https://threejs.org/examples/jsm/loaders/GLTFLoader.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
 
 var app = new Vue({
@@ -649,6 +651,17 @@ function init() {
         }
     }
 
+    //Small line for testing exporters
+    var material = new THREE.LineBasicMaterial({
+        color: 0x00ffff
+    });
+    var points = [];
+    points.push(new THREE.Vector3(0, 0, 0));
+    points.push(new THREE.Vector3(5, 5, 5));
+    var geometry = new THREE.BufferGeometry().setFromPoints(points);
+    var line = new THREE.Line(geometry, material);
+    scene.add(line);
+
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
@@ -975,19 +988,19 @@ for (x = 0; x < mirrorRadios.length; x++) {
 }
 
 
-function saveFile(input) {
-    console.log(input.children)
-    var output;
-    try {
-        output = JSON.stringify(input.children[3]);
-    }
-    catch (err) {
-        console.log(err);
-    }
-
-    //var output = input.children.toString();
-    console.log(output);
-    saveString(output, 'scene.json');
+function exportGLTF(input) {
+    var gltfExporter = new GLTFExporter();
+    var options = {
+    };
+    gltfExporter.parse(input, function (result) {
+        if (result instanceof ArrayBuffer) {
+            saveArrayBuffer(result, 'scene.glb');
+        } else {
+            var output = JSON.stringify(result, null, 2);
+            console.log(output);
+            saveString(output, 'scene.gltf');
+        }
+    }, options);
 }
 
 var link = document.createElement('a');
@@ -999,16 +1012,33 @@ function save(blob, filename) {
     link.download = filename;
     link.click();
     // URL.revokeObjectURL( url ); breaks Firefox...
-
 }
 
 function saveString(text, filename) {
     save(new Blob([text], { type: 'text/plain' }), filename);
 }
 
+function saveArrayBuffer(buffer, filename) {
+    save(new Blob([buffer], { type: 'application/octet-stream' }), filename);
+}
 
-document.getElementById("Save").addEventListener("click", () => { saveFile(scene) });
+// var exporter = new ColladaExporter();
 
+// function exportCollada() {
+
+//     var result = exporter.parse(scene);
+
+//     saveString(result.data, 'scene.dae');
+
+//     result.textures.forEach(tex => {
+//         saveArrayBuffer(tex.data, `${tex.name}.${tex.ext}`);
+//     });
+
+// }
+
+document.getElementById("Save").addEventListener("click", () => { exportGLTF(scene) });
+
+var loader = new GLTFLoader();
 
 function loadGLTF() {
     var input, file, fr;
@@ -1026,22 +1056,28 @@ function loadGLTF() {
 
     function receivedText(e) {
         if (e) {
-            // let lines = e;
-            // var newArr = JSON.parse(lines);
-            //console.log(e);
-            scene.add(JSON.parse(e));
-            // var loader = new OBJLoader();
-
-            // loader.load(window.URL.createObjectURL(e), function (object) {
-            //     var imported = object;
-            //     scene.add(object)
-
-            // }, undefined, function (error) {
-
-            //     console.error(error);
-
-            // });
-
+            loader.load(
+                // resource URL
+                URL.createObjectURL(e),
+                // called when the resource is loaded
+                function (gltf) {
+                    scene.add(gltf.scene);
+                    gltf.animations; // Array<THREE.AnimationClip>
+                    gltf.scene; // THREE.Group
+                    gltf.scenes; // Array<THREE.Group>
+                    gltf.cameras; // Array<THREE.Camera>
+                    gltf.asset; // Object
+                },
+                // called while loading is progressing
+                function (xhr) {
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                    console.log(scene);
+                },
+                // called when loading has errors
+                function (error) {
+                    console.log('An error happened');
+                }
+            );
         }
     }
 
