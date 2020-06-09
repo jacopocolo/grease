@@ -290,7 +290,6 @@ var line = {
         var positions = this.rejectPalm(positions);
         geometry.setPositions(positions);
         var l = new Line2(geometry, matLineDrawn);
-
         if (position) {
             l.position.set(position.x, position.y, position.z);
         } else {
@@ -302,11 +301,9 @@ var line = {
         }
         if (quaternion) {
             // l.quaternion.normalize();
-            console.log(quaternion);
             l.applyQuaternion(quaternion)
             l.updateMatrix();
         }
-
         l.geometry.center();
         l.needsUpdate = true;
         l.computeLineDistances();
@@ -317,16 +314,15 @@ var line = {
         }
         l.layers.set(1);
 
+        var lposition = l.getWorldPosition(lposition);
+        var lquaternion = l.getWorldQuaternion(lquaternion);
+        var lscale = l.getWorldScale(lscale);
         //Create line object and add it to the blueprint
         var blueprintLine = {
             uuid: l.uuid, geometry: [...positions], material: { color: app.lineColor, lineWidth: app.lineWidth },
-            position: {
-                x: l.geometry.boundingSphere.center.x,
-                y: l.geometry.boundingSphere.center.y,
-                z: l.geometry.boundingSphere.center.z
-            },
-            quaternion: { x: 0, y: 0, z: 0 },
-            scale: { x: 1, y: 0, z: 0 },
+            position: lposition,
+            quaternion: lquaternion,
+            scale: lscale,
         };
         blueprint.lines.push(blueprintLine);
 
@@ -679,9 +675,9 @@ function init() {
                     //Rotation definitly doesn't work. It's difficult to work with because
                     //it requires me to reset the rotation center in the center of the tempgroup
                     //which is a mess so I'll see if I can live without it
-                    /*var quaternion = new THREE.Quaternion();
-                    quaternion = children.getWorldQuaternion(quaternion);
-                    children.quaternion.copy(quaternion);*/
+                    // var quaternion = new THREE.Quaternion();
+                    // quaternion = children.getWorldQuaternion(quaternion);
+                    // children.applyQuaternion(quaternion);
                     object.needsUpdate = true;
                     if (!checkIfHelperObject(object)) {
                         toggleDash(object, false)
