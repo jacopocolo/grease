@@ -175,11 +175,33 @@ drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
+//Blueprint is an object that holds a minimal version of the THREEjs scene
+//It contains all the positions of the lines that are drawn on canvas
+//Their width, colors, positions, rotation and scale
+//Lines are deleted if they are deleted from the scene
+//Lines positions, rotation and scale are updated when they 
+//It is used to produce JSON files that can be saved and restored (redrawn)
+//It's also used to produce export files that only contain lines geometry as
+//Line2 don't export well using the native THREE exporters
 let blueprint = {
     lines: [],
+    removeFromBlueprint: function (object) {
+        var indexOfElementToRemove = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(object.uuid)
+        blueprint.lines.splice(indexOfElementToRemove, 1)
+    },
+    updateBlueprintLine: function (object) {
+        var indexOfObjectToUpdate = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(object.uuid);
+        var position = object.getWorldPosition(position);
+        console.log(position);
+        blueprint.lines[indexOfObjectToUpdate].position = position;
+        var quaternion = object.getWorldQuaternion(quaternion);
+        console.log(quaternion);
+        blueprint.lines[indexOfObjectToUpdate].quaternion = quaternion;
+        var scale = object.getWorldScale(scale);
+        console.log(scale);
+        blueprint.lines[indexOfObjectToUpdate].scale = scale;
+    },
 };
-
-// {id: '', geometry: [], material: {color: '', linewidth: ''}, position: {}, rotation: {}, scale: {} }
 
 let mouse = {
     tx: 0, //x coord for threejs
@@ -255,7 +277,7 @@ var line = {
                 return
         }
     },
-    renderLine: function (positions, lineColor, lineWidth) {
+    renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
         var matLineDrawn = new LineMaterial({
             color: new THREE.Color(lineColor),
             linewidth: lineWidth, // in pixels
@@ -268,17 +290,34 @@ var line = {
         var positions = this.rejectPalm(positions);
         geometry.setPositions(positions);
         var l = new Line2(geometry, matLineDrawn);
-        l.position.set(
-            l.geometry.boundingSphere.center.x,
-            l.geometry.boundingSphere.center.y,
-            l.geometry.boundingSphere.center.z
-        );
+
+        if (position) {
+            l.position.set(position.x, position.y, position.z);
+        } else {
+            l.position.set(
+                l.geometry.boundingSphere.center.x,
+                l.geometry.boundingSphere.center.y,
+                l.geometry.boundingSphere.center.z
+            );
+        }
+        if (quaternion) {
+            // l.quaternion.normalize();
+            console.log(quaternion);
+            l.applyQuaternion(quaternion)
+            l.updateMatrix();
+        }
+
         l.geometry.center();
         l.needsUpdate = true;
         l.computeLineDistances();
-        l.scale.set(1, 1, 1);
+        if (scale) {
+            l.scale.set(scale.x, scale.y, scale.z)
+        } else {
+            l.scale.set(1, 1, 1);
+        }
         l.layers.set(1);
 
+        //Create line object and add it to the blueprint
         var blueprintLine = {
             uuid: l.uuid, geometry: [...positions], material: { color: app.lineColor, lineWidth: app.lineWidth },
             position: {
@@ -286,9 +325,11 @@ var line = {
                 y: l.geometry.boundingSphere.center.y,
                 z: l.geometry.boundingSphere.center.z
             },
-            rotation: { x: 0, y: 0, z: 0 },
+            quaternion: { x: 0, y: 0, z: 0 },
             scale: { x: 1, y: 0, z: 0 },
         };
+        blueprint.lines.push(blueprintLine);
+
         scene.add(l);
         //Remove listener and clear arrays
     },
@@ -325,6 +366,7 @@ var line = {
         return arr
     }
 }
+
 var eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
@@ -343,9 +385,11 @@ var eraser = {
             var object = raycaster.intersectObjects(scene.children)[0].object;
             if (checkIfHelperObject(object)) {
             } else {
+                blueprint.removeFromBlueprint(object);
                 scene.remove(object);
-                console.log(object.uuid)
-                this.removeFromBlueprint(object.uuid);
+                object.dispose();
+                object.material.dispose();
+                object.geometry.dispose();
             }
         } catch (err) {
             //if there's an error here, it just means that the raycaster found nothing
@@ -374,10 +418,6 @@ var eraser = {
         }
         context.stroke();
     },
-    removeFromBlueprint: function (uuid) {
-        var indexOfElementToRemove = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(uuid)
-        blueprint.lines.splice(indexOfElementToRemove, 1)
-    }
 }
 
 //selection is defined inside init
@@ -635,6 +675,7 @@ function init() {
                     var position = new THREE.Vector3();
                     position = object.getWorldPosition(position);
                     object.position.copy(position);
+                    updateBlueprintLine(object);
                     //Rotation definitly doesn't work. It's difficult to work with because
                     //it requires me to reset the rotation center in the center of the tempgroup
                     //which is a mess so I'll see if I can live without it
@@ -655,8 +696,9 @@ function init() {
                 scene.remove(this.group);
             }
             else if (this.current.length == 1) {
-                //console.log(this.array)
-                toggleDash(this.current[0], false);
+                var object = this.current[0];
+                blueprint.updateBlueprintLine(object);
+                toggleDash(object, false);
             }
             this.current = [];
             transformControls.detach();
@@ -955,58 +997,12 @@ function repositionCamera() {
     }
 };
 
-var mirroredLinePositions = [];
-
-function mirrorAxis(xBool, yBool, zBool, x, y, z) {
-    if (xBool) {
-        mirroredLinePositions.push(-x, y, z);
-    }
-    if (yBool) {
-        //fill in later
-    }
-    if (zBool) {
-        //fill in later
-    }
-}
-
-function drawMirrored(xBool) {
-    if (xBool) {
-        var matLineDrawn = new LineMaterial({
-            color: 0xffffff,
-            linewidth: app.lineWidth, // in pixels
-            vertexColors: true,
-            //resolution set later,
-            depthWrite: true
-        });
-        materials.push(matLineDrawn);
-        var geometry = new LineGeometry();
-        geometry.setPositions(mirroredLinePositions);
-        geometry.setColors(linecolors);
-        var line = new Line2(geometry, matLineDrawn);
-        //recentering geometry around a central point
-        line.position.set(
-            line.geometry.boundingSphere.center.x,
-            line.geometry.boundingSphere.center.y,
-            line.geometry.boundingSphere.center.z
-        );
-        line.geometry.center();
-        line.needsUpdate = true;
-        line.computeLineDistances();
-        line.scale.set(1, 1, 1);
-        line.layers.set(1);
-        scene.add(line);
-
-        mirroredLinePositions = [];
-    }
-}
-
 //Allow dechecking of radio buttons
 var mirrorRadios = document.getElementsByName('mirror');
 var setCheck;
 var x = 0;
 for (x = 0; x < mirrorRadios.length; x++) {
     mirrorRadios[x].onclick = function () {
-        console.log('clicked')
         if (setCheck != this) {
             setCheck = this;
         } else {
@@ -1017,6 +1013,7 @@ for (x = 0; x < mirrorRadios.length; x++) {
     };
 }
 
+//SAVE AND LOAD
 function save() {
     function download(content, fileName, contentType) {
         var a = document.createElement("a");
@@ -1027,21 +1024,21 @@ function save() {
     }
     download(JSON.stringify(blueprint), 'blueprint.json', 'json');
 }
-
 document.getElementById("Save").addEventListener("click", save);
 
 function load() {
     var input, file, fr;
     var input = document.createElement('input');
+    input.style.display = 'none';
     input.type = 'file';
-    input.onchange = e => {
+    document.body.appendChild(input);
+    input.onchange = event => {
         var selectedFile = event.target.files[0];
         const fileReader = new FileReader();
         fileReader.readAsText(selectedFile, "UTF-8");
         fileReader.onload = () => {
             var data = JSON.parse(fileReader.result);
-            data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth) })
-            console.log(scene);
+            data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth, obj.position, obj.quaternion, obj.scale) })
         }
         fileReader.onerror = (error) => {
             console.log(error);
@@ -1049,5 +1046,4 @@ function load() {
     }
     input.click();
 }
-
 document.getElementById("Load").addEventListener("click", load);
