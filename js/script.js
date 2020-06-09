@@ -319,7 +319,7 @@ var line = {
         var lscale = l.getWorldScale(lscale);
         //Create line object and add it to the blueprint
         var blueprintLine = {
-            uuid: l.uuid, geometry: [...positions], material: { color: app.lineColor, lineWidth: app.lineWidth },
+            uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
             position: lposition,
             quaternion: lquaternion,
             scale: lscale,
@@ -671,20 +671,22 @@ function init() {
                     var position = new THREE.Vector3();
                     position = object.getWorldPosition(position);
                     object.position.copy(position);
-                    updateBlueprintLine(object);
                     //Rotation definitly doesn't work. It's difficult to work with because
                     //it requires me to reset the rotation center in the center of the tempgroup
                     //which is a mess so I'll see if I can live without it
                     // var quaternion = new THREE.Quaternion();
-                    // quaternion = children.getWorldQuaternion(quaternion);
-                    // children.applyQuaternion(quaternion);
-                    object.needsUpdate = true;
+                    // quaternion = object.getWorldQuaternion(quaternion);
+                    // object.applyQuaternion(quaternion);
+                    // object.updateMatrix();
                     if (!checkIfHelperObject(object)) {
                         toggleDash(object, false)
                     }
                     ungroupArray.push(object);
                 }
-                ungroupArray.forEach(object => scene.add(object))
+                ungroupArray.forEach(object => {
+                    scene.add(object);
+                    blueprint.updateBlueprintLine(object);
+                })
                 this.current = [];
                 this.group = undefined;
                 transformControls.detach();
