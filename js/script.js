@@ -175,6 +175,7 @@ let gifLength = 60;
 let gifBufferCanvas;
 let gifBufferCtx;
 let gifBufferImage;
+let bufferRenderer;
 
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
@@ -433,7 +434,7 @@ function init() {
         preserveDrawingBuffer: false
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 1); //transparent so the background shows through
+    renderer.setClearColor(0x000000, 0); //transparent so the background shows through
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
     renderer.domElement.id = 'threeJsCanvas';
@@ -736,10 +737,13 @@ function init() {
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
     drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
 
-    gifBufferCanvas = document.createElement("CANVAS");
-    gifBufferCanvas.width = window.innerWidth / 4;
-    gifBufferCanvas.height = window.innerHeight / 4;
-    gifBufferCtx = gifBufferCanvas.getContext("2d");
+    //EXTRA RENDERER ONLY FOR MAKING GIFS
+    bufferRenderer = new THREE.WebGLRenderer({
+        antialias: true,
+    });
+    bufferRenderer.setPixelRatio(window.devicePixelRatio);
+    bufferRenderer.setClearColor(0x000000, 0);
+    bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
 }
 
 function onWindowResize() {
@@ -809,30 +813,25 @@ function animate() {
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     miniAxisRenderer.setViewport(0, 0, 250, 250);
     renderer.render(scene, camera);
-    miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
-
-
     if (makingGif) {
         if (count < gifLength) {
-            var imgData = document.getElementById('threeJsCanvas').toDataURL();
-            gifBufferImage = new Image();
-            gifBufferImage.onload = function () {
-                gifBufferCtx.drawImage(gifBufferImage, 0, 0, window.innerWidth / 4, window.innerHeight / 4);
-            };
-            gifBufferImage.src = imgData;
             app.autoRotate = true;
-            gif.addFrame(gifBufferCanvas, {
+            controls.autoRotateSpeed = 30.0;
+            bufferRenderer.render(scene, camera)
+            gif.addFrame(bufferRenderer.domElement, {
                 copy: true,
-                delay: 50,
+                delay: 60
             });
             count = count + 1;
         } else {
             gif.render();
             app.autoRotate = false;
+            controls.autoRotateSpeed = 30.0;
             makingGif = false;
             count = 0;
         }
     }
+    miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
 //UTILS
@@ -1077,7 +1076,7 @@ function makeGif() {
     makingGif = true;
 
     gif = new GIF({
-        workers: 2,
+        workers: 10,
         quality: 10,
         workerScript: 'js/vendor/gif.worker.js'
     });
@@ -1089,6 +1088,8 @@ function makeGif() {
         img.style.position = 'absolute';
         img.style.top = '10px';
         img.style.right = '10px';
+        img.style.width = window.innerWidth / 3;
+        img.style.height = window.innerHeight / 3;
         img.style.border = '1px solid white';
         document.body.appendChild(img);
         console.log("rendered");
