@@ -165,8 +165,16 @@ var raycastObject;
 
 var insetWidth;
 var insetHeight;
-
 var linesNeedThemeUpdate = false;
+
+//GIF MAKING VARS
+let gif;
+let makingGif = false;
+let count = 0;
+let gifLength = 60;
+let gifBufferCanvas;
+let gifBufferCtx;
+let gifBufferImage;
 
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
@@ -223,9 +231,6 @@ let mouse = {
         }
     }
 };
-
-init();
-animate();
 
 var line = {
     linepositions: [],
@@ -418,15 +423,20 @@ var eraser = {
 
 //selection is defined inside init
 
+init();
+animate();
+
 function init() {
     renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: true
+        alpha: true,
+        preserveDrawingBuffer: false
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0); //transparent so the background shows through
+    renderer.setClearColor(0x000000, 1); //transparent so the background shows through
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
+    renderer.domElement.id = 'threeJsCanvas';
 
     miniAxisRenderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -474,7 +484,7 @@ function init() {
     controls.minDistance = 1;
     controls.maxDistance = 3;
     controls.rotateSpeed = 0.5;
-    controls.autoRotateSpeed = 5.0;
+    controls.autoRotateSpeed = 30.0;
     camera.zoom = 900;
     controls.zoomEnabled = false;
     controls.panEnabled = false;
@@ -721,21 +731,15 @@ function init() {
         }
     }
 
-    //Small line for testing exporters
-    var material = new THREE.LineBasicMaterial({
-        color: 0x00ffff
-    });
-    var points = [];
-    points.push(new THREE.Vector3(0, 0, 0));
-    points.push(new THREE.Vector3(5, 5, 5));
-    var geometry = new THREE.BufferGeometry().setFromPoints(points);
-    var line = new THREE.Line(geometry, material);
-    scene.add(line);
-
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
     drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
+
+    gifBufferCanvas = document.createElement("CANVAS");
+    gifBufferCanvas.width = window.innerWidth / 4;
+    gifBufferCanvas.height = window.innerHeight / 4;
+    gifBufferCtx = gifBufferCanvas.getContext("2d");
 }
 
 function onWindowResize() {
@@ -806,6 +810,29 @@ function animate() {
     miniAxisRenderer.setViewport(0, 0, 250, 250);
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
+
+
+    if (makingGif) {
+        if (count < gifLength) {
+            var imgData = document.getElementById('threeJsCanvas').toDataURL();
+            gifBufferImage = new Image();
+            gifBufferImage.onload = function () {
+                gifBufferCtx.drawImage(gifBufferImage, 0, 0, window.innerWidth / 4, window.innerHeight / 4);
+            };
+            gifBufferImage.src = imgData;
+            app.autoRotate = true;
+            gif.addFrame(gifBufferCanvas, {
+                copy: true,
+                delay: 50,
+            });
+            count = count + 1;
+        } else {
+            gif.render();
+            app.autoRotate = false;
+            makingGif = false;
+            count = 0;
+        }
+    }
 }
 
 //UTILS
@@ -1045,3 +1072,28 @@ function load() {
     input.click();
 }
 document.getElementById("Load").addEventListener("click", load);
+
+function makeGif() {
+    makingGif = true;
+
+    gif = new GIF({
+        workers: 2,
+        quality: 10,
+        workerScript: 'js/vendor/gif.worker.js'
+    });
+
+    gif.on("finished", function (blob) {
+        var img = new Image();
+        img.src = URL.createObjectURL(blob);
+        img.style.zIndex = 5;
+        img.style.position = 'absolute';
+        img.style.top = '10px';
+        img.style.right = '10px';
+        img.style.border = '1px solid white';
+        document.body.appendChild(img);
+        console.log("rendered");
+        app.autoRotate = false;
+    });
+}
+
+document.getElementById("makeGif").addEventListener("click", makeGif);

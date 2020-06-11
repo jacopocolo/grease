@@ -330,3 +330,10 @@ margin: 0px;
   right: 10px;
   z-index: 5;
 }
+
+#share {
+  position: absolute;
+  bottom: 10px;
+  right: 150px;
+  z-index: 5;
+}

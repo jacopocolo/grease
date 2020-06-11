@@ -55,6 +55,9 @@ Undo redo:
 
 https://github.com/mrdoob/three.js/pull/7337/files
 
+Save/Load/Export
+- https://raw.githubusercontent.com/josdirksen/learning-threejs/master/chapter-08/04-load-save-json-scene.html
+
 Other features
 - Export a gif --> https://threesjs-to-gif.glitch.me/
 - Might be worth trying an implementation with LineMesh (see: https://jsfiddle.net/jacopocolo/ygj6195e/62/)
