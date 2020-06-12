@@ -289,6 +289,7 @@ var line = {
             linewidth: lineWidth, // in pixels
             vertexColors: false,
             wireframe: false,
+            side: THREE.DoubleSide,
             depthWrite: true
         });
         materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
