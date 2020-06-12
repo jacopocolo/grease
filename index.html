@@ -45,19 +45,12 @@
                 <label for="lockRotation">Lock</label></span>
         </div>
         <div id="mirror" class="button" v-if="selectedTool == 'draw'">Mirror
-            <div class="radio-mirror-item radio-mirrorX">
-                <input type="radio" id="mirrorX" value="x" name="mirror" v-model="mirror">
-                <label for="mirrorX"></label>
-            </div>
-
-            <div class="radio-mirror-item radio-mirrorY">
-                <input type="radio" id="mirrorY" value="y" name="mirror" v-model="mirror">
-                <label for="mirrorY"></label>
-            </div>
-            <div class="radio-mirror-item radio-mirrorZ">
-                <input type="radio" id="mirrorZ" value="z" name="mirror" v-model="mirror">
-                <label for="mirrorZ"></label>
-            </div>
+            <input type="checkbox" id="mirrorX" v-model="mirrorX">
+            <label for="mirrorX">X</label>
+            <input type="checkbox" id="mirrorY" v-model="mirrorY">
+            <label for="john">Y</label>
+            <input type="checkbox" id="mirrorZ" v-model="mirrorZ">
+            <label for="mirrorZ">Z</label>
         </div>
 
         <div id="lineSelection" v-if="selectedTool == 'draw'">
@@ -69,7 +62,8 @@
                     class="lineWidthLabel">Drag</span>
                 <div id="lineWidthBg">
                     <div id="indicator"
-                        v-bind:style="{ backgroundColor: lineColor, transform: 'scale('+lineWidth+')' }"></div>
+                        v-bind:style="{ backgroundColor: lineColor, transform: 'scale('+lineWidth+')' }">
+                    </div>
                 </div>
             </div>
         </div>

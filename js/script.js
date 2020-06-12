@@ -22,9 +22,12 @@ var app = new Vue({
         selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
         linesNeedThemeUpdate: false,
         controlsLocked: false,
-        mirror: false,
+        mirrorX: false,
+        mirrorY: false,
+        mirrorZ: false,
         autoRotate: false,
         selection: undefined, //to be filled from init
+        //elements for the linewidth adjust element
         lineWidthDragging: false,
         startX: 0,
         x: 'no',
@@ -35,6 +38,7 @@ var app = new Vue({
             app.linesNeedThemeUpdate = true;
         },
         selectedTool: function () {
+            mirror.needsUpdate = true;
             //on tool change we always deselect
             app.selection.deselect();
             //re-add event listeners after a switch
@@ -49,7 +53,10 @@ var app = new Vue({
             } else if (this.lineWidth > 40) {
                 this.lineWidth = 40;
             }
-        }
+        },
+        mirrorX: function () { mirror.needsUpdate = true; },
+        mirrorY: function () { mirror.needsUpdate = true; },
+        mirrorZ: function () { mirror.needsUpdate = true; },
     },
     methods: {
         duplicateSelected: function () {
@@ -233,7 +240,7 @@ let mouse = {
     }
 };
 
-var line = {
+let line = {
     linepositions: [],
     start: function () {
         this.linepositions = []; //reset array
@@ -269,19 +276,20 @@ var line = {
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
         this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
-        switch (app.mirror) {
-            case "x":
-                this.renderMirroredLine(this.linepositions, 'x');
-                break;
-            case "y":
-                this.renderMirroredLine(this.linepositions, 'y');
-                break;
-            case "z":
-                this.renderMirroredLine(this.linepositions, 'z');
-                break;
-            default:
-                return
-        }
+        mirror.needsUpdate = true;
+        // switch (app.mirror) {
+        //     case "x":
+        //         this.renderMirroredLine(this.linepositions, 'x');
+        //         break;
+        //     case "y":
+        //         this.renderMirroredLine(this.linepositions, 'y');
+        //         break;
+        //     case "z":
+        //         this.renderMirroredLine(this.linepositions, 'z');
+        //         break;
+        //     default:
+        //         return
+        // }
     },
     renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
         var matLineDrawn = new LineMaterial({
@@ -370,7 +378,7 @@ var line = {
     }
 }
 
-var eraser = {
+let eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
         raycaster.params.Line.threshold = 0.1;
@@ -402,6 +410,7 @@ var eraser = {
         context.closePath();
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         paths = []
+        mirror.needsUpdate = true;
     },
     redrawLine: function (color) {
         // clear canvas
@@ -424,6 +433,96 @@ var eraser = {
 }
 
 //selection is defined inside init
+
+let mirror = {
+    needsUpdate: false,
+    update: function () {
+        if (this.needsUpdate) {
+            if (app.mirrorX) {
+                this.renderMirrorX()
+            } else {
+                scene.remove(this.mirrorXgroup);
+            }
+            if (app.mirrorY) {
+                this.renderMirrorY()
+            } else {
+                scene.remove(this.mirrorYgroup);
+            }
+            if (app.mirrorZ) {
+                this.renderMirrorZ()
+            } else {
+                scene.remove(this.mirrorZgroup);
+            }
+        }
+    },
+    mirrorXgroup: undefined,
+    renderMirrorX: function () {
+        scene.remove(this.mirrorXgroup);
+        this.mirrorXgroup = new THREE.Group();
+        scene.children.forEach(object => {
+            if (object.layers.mask == 2 || object.layers.mask == 3) {
+                this.mirrorXgroup.add(object.clone());
+            }
+        })
+        scene.add(this.mirrorXgroup);
+        this.mirrorXgroup.layers.set(3);
+        this.mirrorXgroup.scale.set(-1, 1, 1)
+        this.needsUpdate = false;
+    },
+    mirrorYgroup: undefined,
+    renderMirrorY: function () {
+        scene.remove(this.mirrorYgroup);
+        this.mirrorYgroup = new THREE.Group();
+        scene.children.forEach(object => {
+            if (object.layers.mask == 2 || object.layers.mask == 3) {
+                this.mirrorYgroup.add(object.clone());
+            }
+        })
+        scene.add(this.mirrorYgroup);
+        this.mirrorYgroup.layers.set(3);
+        this.mirrorYgroup.scale.set(1, -1, 1)
+        this.needsUpdate = false;
+    },
+    mirrorZgroup: undefined,
+    renderMirrorZ: function () {
+        scene.remove(this.mirrorZgroup);
+        this.mirrorZgroup = new THREE.Group();
+        scene.children.forEach(object => {
+            if (object.layers.mask == 2 || object.layers.mask == 3) {
+                this.mirrorZgroup.add(object.clone());
+            }
+        })
+        scene.add(this.mirrorZgroup);
+        this.mirrorZgroup.layers.set(3);
+        this.mirrorZgroup.scale.set(1, -1, 1)
+        this.needsUpdate = false;
+    }
+}
+
+// function mirrorModifier() {
+//     if (app.selectedTool == 'draw' || app.selectedTool == 'erase') {
+//         if (mirrorNeedsUpdate == true) {
+//             if (app.mirror == 'x') {
+//                 scene.remove(mirrorX);
+//                 mirrorX = new THREE.Group();
+//                 scene.children.forEach(object => {
+//                     if (object.layers.mask == 2) {
+//                         mirrorX.add(object.clone());
+//                     }
+//                 })
+//                 scene.add(mirrorX);
+//                 console.log(scene)
+//                 mirrorX.scale.set(-1, 1, 1)
+//                 mirrorNeedsUpdate = false;
+//             } else {
+//                 scene.remove(mirrorX);
+//                 mirrorNeedsUpdate = false;
+//             }
+//         }
+//     } else {
+//         scene.remove(mirrorX);
+//     }
+// }
 
 init();
 animate();
@@ -670,6 +769,7 @@ function init() {
                 });
                 transformControls.addEventListener("mouseUp", function () {
                     transforming = false;
+                    mirror.needsUpdate = true;
                 });
                 scene.add(duplicate);
             }
@@ -760,7 +860,7 @@ function onWindowResize() {
 function animate() {
     updateminiAxisCamera();
     requestAnimationFrame(animate);
-
+    mirror.update();
     //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
@@ -1023,20 +1123,20 @@ function repositionCamera() {
 };
 
 //Allow dechecking of radio buttons
-var mirrorRadios = document.getElementsByName('mirror');
-var setCheck;
-var x = 0;
-for (x = 0; x < mirrorRadios.length; x++) {
-    mirrorRadios[x].onclick = function () {
-        if (setCheck != this) {
-            setCheck = this;
-        } else {
-            this.checked = false;
-            app.mirror = false;
-            setCheck = null;
-        }
-    };
-}
+// var mirrorRadios = document.getElementsByName('mirror');
+// var setCheck;
+// var x = 0;
+// for (x = 0; x < mirrorRadios.length; x++) {
+//     mirrorRadios[x].onclick = function () {
+//         if (setCheck != this) {
+//             setCheck = this;
+//         } else {
+//             this.checked = false;
+//             app.mirror = false;
+//             setCheck = null;
+//         }
+//     };
+// }
 
 //SAVE AND LOAD
 function save() {
