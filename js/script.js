@@ -41,11 +41,6 @@ var app = new Vue({
             mirror.needsUpdate = true;
             //on tool change we always deselect
             app.selection.deselect();
-            //re-add event listeners after a switch
-            // if (app.selectedTool == 'draw') {
-            //     this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
-            //     this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
-            // }
         },
         lineWidth: function () {
             if (this.lineWidth < 3) {
@@ -436,86 +431,70 @@ let eraser = {
 
 let mirror = {
     needsUpdate: false,
-    mirrorXgroup: undefined,
-    // renderMirrorX: function () {
-    //     scene.remove(this.mirrorXgroup);
-    //     console.log(scene)
-    //     this.mirrorXgroup = new THREE.Group();
-    //     this.mirrorXgroup.name = 'mirrorX'
-    //     scene.add(this.mirrorXgroup);
-    //     scene.children.forEach(object => {
-    //         if (object.layers.mask == 2 || object.layers.mask == 3) {
-    //             this.mirrorXgroup.add(object.clone());
-    //         }
-    //     })
-    //     this.mirrorXgroup.layers.set(3);
-    //     this.mirrorXgroup.scale.set(-1, 1, 1)
-    //     this.needsUpdate = false;
-    // },
-    mirrorYgroup: undefined,
-    // renderMirrorY: function () {
-    //     scene.remove(this.mirrorYgroup);
-    //     this.mirrorYgroup = new THREE.Group();
-    //     scene.children.forEach(object => {
-    //         if (object.layers.mask == 2 || object.layers.mask == 8) {
-    //             this.mirrorYgroup.add(object.clone());
-    //             console.log(object)
-    //         }
-    //     })
-    //     this.mirrorYgroup.layers.set(3);
-    //     this.mirrorYgroup.scale.set(1, -1, 1);
-    //     this.mirrorYgroup.name = 'mirrorY'
-    //     scene.add(this.mirrorYgroup);
-    //     this.needsUpdate = false;
-    // },
-    mirrorZgroup: undefined,
-    // renderMirrorZ: function () {
-    //     scene.remove(this.mirrorZgroup);
-    //     this.mirrorZgroup = new THREE.Group();
-    //     scene.add(this.mirrorZgroup);
-    //     scene.children.forEach(object => {
-    //         if (object.layers.mask == 2 || object.layers.mask == 3) {
-    //             this.mirrorZgroup.add(object.clone());
-    //         }
-    //     })
-    //     this.mirrorZgroup.layers.set(3);
-    //     this.mirrorZgroup.scale.set(1, -1, 1)
-    //     this.needsUpdate = false;
-    // },
-    renderMirror: function (group, vector3) {
-        console.log(vector3)
-        scene.remove(group);
-        group = new THREE.Group();
-        scene.add(group);
+    mirrorGroup: new THREE.Group(),
+    mirrorXgroup: new THREE.Group(),
+    mirrorYgroup: new THREE.Group(),
+    mirrorZgroup: new THREE.Group(),
+    renderMirror: function (axis, group, vector3) {
+        group.visible = true;
+        //lazy way to check if the group needs initializing
+        if (group.name == '') {
+            scene.add(group);
+            group.scale.set(vector3.x, vector3.y, vector3.z)
+            group.name = 'mirror' + axis;
+            camera.layers.enable(2);
+        }
+        //iterate through the scene
         scene.children.forEach(object => {
-            if (object.layers.mask == 2 || object.layers.mask == 8) {
-                group.add(object.clone());
+            if (object.layers.mask == 2) {
+                //We are checking if there are objects in the scene
+                //that don't exist in the group by comparing geometries
+                if (group.children.map(function (e) { return e.geometry.uuid; }).indexOf(object.geometry.uuid) == -1) {
+                    var clone = object.clone();
+                    clone.layers.set(2);
+                    group.add(clone);
+                }
             }
         })
-        group.layers.set(3);
-        group.scale.set(vector3.x, vector3.y, vector3.z)
-        this.needsUpdate = false;
-        console.log(scene);
     },
     update: function () {
         if (this.needsUpdate) {
             if (app.mirrorX) {
-                this.renderMirror(this.mirrorXgroup, new THREE.Vector3(-1, 1, 1))
+                this.renderMirror('x', this.mirrorXgroup, new THREE.Vector3(-1, 1, 1))
             } else {
-                scene.remove(this.mirrorXgroup);
+                if (this.mirrorXgroup.name) {
+                    this.mirrorXgroup.visible = false;
+                }
             }
             if (app.mirrorY) {
-                this.renderMirror(this.mirrorYgroup, new THREE.Vector3(1, -1, 1))
+                this.renderMirror('y', this.mirrorYgroup, new THREE.Vector3(1, -1, 1))
             } else {
-                scene.remove(this.mirrorYgroup);
+                if (this.mirrorYgroup.name) {
+                    this.mirrorYgroup.visible = false;
+                }
             }
+
             if (app.mirrorZ) {
-                this.renderMirror(this.mirrorZgroup, new THREE.Vector3(1, 1, -1))
+                this.renderMirror('z', this.mirrorZgroup, new THREE.Vector3(1, 1, -1))
             } else {
-                scene.remove(this.mirrorZgroup);
+                if (this.mirrorZgroup.name) {
+                    this.mirrorZgroup.visible = false;
+                }
             }
+            this.needsUpdate = false;
         }
     },
+    update: {
+        added: function (object) {
+            mirrorGroup.add(object.clone());
+        },
+        erased: function (object) {
+            var indexOfElementToRemove = mirrorGroup.children.map(function (e) { return e.geometry.uuid; }).indexOf(object.geometry.uuid)
+            mirrorGroup.remove(group.children[indexOfElementToRemove]);
+        },
+        moved: function (object) {
+        }
+    }
 }
 
 init();
