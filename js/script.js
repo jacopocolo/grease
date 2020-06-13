@@ -436,93 +436,87 @@ let eraser = {
 
 let mirror = {
     needsUpdate: false,
+    mirrorXgroup: undefined,
+    // renderMirrorX: function () {
+    //     scene.remove(this.mirrorXgroup);
+    //     console.log(scene)
+    //     this.mirrorXgroup = new THREE.Group();
+    //     this.mirrorXgroup.name = 'mirrorX'
+    //     scene.add(this.mirrorXgroup);
+    //     scene.children.forEach(object => {
+    //         if (object.layers.mask == 2 || object.layers.mask == 3) {
+    //             this.mirrorXgroup.add(object.clone());
+    //         }
+    //     })
+    //     this.mirrorXgroup.layers.set(3);
+    //     this.mirrorXgroup.scale.set(-1, 1, 1)
+    //     this.needsUpdate = false;
+    // },
+    mirrorYgroup: undefined,
+    // renderMirrorY: function () {
+    //     scene.remove(this.mirrorYgroup);
+    //     this.mirrorYgroup = new THREE.Group();
+    //     scene.children.forEach(object => {
+    //         if (object.layers.mask == 2 || object.layers.mask == 8) {
+    //             this.mirrorYgroup.add(object.clone());
+    //             console.log(object)
+    //         }
+    //     })
+    //     this.mirrorYgroup.layers.set(3);
+    //     this.mirrorYgroup.scale.set(1, -1, 1);
+    //     this.mirrorYgroup.name = 'mirrorY'
+    //     scene.add(this.mirrorYgroup);
+    //     this.needsUpdate = false;
+    // },
+    mirrorZgroup: undefined,
+    // renderMirrorZ: function () {
+    //     scene.remove(this.mirrorZgroup);
+    //     this.mirrorZgroup = new THREE.Group();
+    //     scene.add(this.mirrorZgroup);
+    //     scene.children.forEach(object => {
+    //         if (object.layers.mask == 2 || object.layers.mask == 3) {
+    //             this.mirrorZgroup.add(object.clone());
+    //         }
+    //     })
+    //     this.mirrorZgroup.layers.set(3);
+    //     this.mirrorZgroup.scale.set(1, -1, 1)
+    //     this.needsUpdate = false;
+    // },
+    renderMirror: function (group, vector3) {
+        console.log(vector3)
+        scene.remove(group);
+        group = new THREE.Group();
+        scene.add(group);
+        scene.children.forEach(object => {
+            if (object.layers.mask == 2 || object.layers.mask == 8) {
+                group.add(object.clone());
+            }
+        })
+        group.layers.set(3);
+        group.scale.set(vector3.x, vector3.y, vector3.z)
+        this.needsUpdate = false;
+        console.log(scene);
+    },
     update: function () {
         if (this.needsUpdate) {
             if (app.mirrorX) {
-                this.renderMirrorX()
+                this.renderMirror(this.mirrorXgroup, new THREE.Vector3(-1, 1, 1))
             } else {
                 scene.remove(this.mirrorXgroup);
             }
             if (app.mirrorY) {
-                this.renderMirrorY()
+                this.renderMirror(this.mirrorYgroup, new THREE.Vector3(1, -1, 1))
             } else {
                 scene.remove(this.mirrorYgroup);
             }
             if (app.mirrorZ) {
-                this.renderMirrorZ()
+                this.renderMirror(this.mirrorZgroup, new THREE.Vector3(1, 1, -1))
             } else {
                 scene.remove(this.mirrorZgroup);
             }
         }
     },
-    mirrorXgroup: undefined,
-    renderMirrorX: function () {
-        scene.remove(this.mirrorXgroup);
-        this.mirrorXgroup = new THREE.Group();
-        scene.children.forEach(object => {
-            if (object.layers.mask == 2 || object.layers.mask == 3) {
-                this.mirrorXgroup.add(object.clone());
-            }
-        })
-        scene.add(this.mirrorXgroup);
-        this.mirrorXgroup.layers.set(3);
-        this.mirrorXgroup.scale.set(-1, 1, 1)
-        this.needsUpdate = false;
-    },
-    mirrorYgroup: undefined,
-    renderMirrorY: function () {
-        scene.remove(this.mirrorYgroup);
-        this.mirrorYgroup = new THREE.Group();
-        scene.children.forEach(object => {
-            if (object.layers.mask == 2 || object.layers.mask == 3) {
-                this.mirrorYgroup.add(object.clone());
-            }
-        })
-        scene.add(this.mirrorYgroup);
-        this.mirrorYgroup.layers.set(3);
-        this.mirrorYgroup.scale.set(1, -1, 1)
-        this.needsUpdate = false;
-    },
-    mirrorZgroup: undefined,
-    renderMirrorZ: function () {
-        scene.remove(this.mirrorZgroup);
-        this.mirrorZgroup = new THREE.Group();
-        scene.children.forEach(object => {
-            if (object.layers.mask == 2 || object.layers.mask == 3) {
-                this.mirrorZgroup.add(object.clone());
-            }
-        })
-        scene.add(this.mirrorZgroup);
-        this.mirrorZgroup.layers.set(3);
-        this.mirrorZgroup.scale.set(1, -1, 1)
-        this.needsUpdate = false;
-    }
 }
-
-// function mirrorModifier() {
-//     if (app.selectedTool == 'draw' || app.selectedTool == 'erase') {
-//         if (mirrorNeedsUpdate == true) {
-//             if (app.mirror == 'x') {
-//                 scene.remove(mirrorX);
-//                 mirrorX = new THREE.Group();
-//                 scene.children.forEach(object => {
-//                     if (object.layers.mask == 2) {
-//                         mirrorX.add(object.clone());
-//                     }
-//                 })
-//                 scene.add(mirrorX);
-//                 console.log(scene)
-//                 mirrorX.scale.set(-1, 1, 1)
-//                 mirrorNeedsUpdate = false;
-//             } else {
-//                 scene.remove(mirrorX);
-//                 mirrorNeedsUpdate = false;
-//             }
-//         }
-//     } else {
-//         scene.remove(mirrorX);
-//     }
-// }
 
 init();
 animate();
