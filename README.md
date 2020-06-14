@@ -49,6 +49,9 @@ Undo redo:
 - Duplicate line / Delete line
 - Duplicate group / Delete group
 
+Raycaster
+- Both eraser and select raycaster should be improved. The raycaster should fire multiple times between each mouseMove. Some elements today are not caught by the movement if the movement is too fast — mouseMove only fires every so often. 
+
 (Maybe)
 - Set line width / Return line width to previous position
 - 

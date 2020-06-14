@@ -423,7 +423,245 @@ var eraser = {
     },
 }
 
-//selection is defined inside init
+//Selection is defined inside of the app so the UI has access to the state of the selection
+app.selection = {
+    array: [],
+    current: [],
+    selecting: [],
+    somethingSelected: false,
+    group: undefined,
+    start: function () {
+        if (!transforming) {
+            paths.push([mouse.cx, mouse.cy]);
+            raycaster = new THREE.Raycaster();
+            raycaster.layers.set(1);
+            raycaster.params.Line.threshold = 1;
+            try {
+                raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+                var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                    this.deselect();
+                    toggleDash(intersectObject, true);
+                    this.selecting.push(intersectObject);
+                }
+            } catch (err) {
+                //if there's an error here, it just means that the raycaster found nothing
+            }
+        }
+    },
+    move: function () {
+        if (!transforming) {
+            paths[paths.length - 1].push([mouse.cx, mouse.cy]);
+            //This is to render line transparency,
+            //we are redrawing the line every frame
+            this.redrawLine('rgba(255, 255, 255, 0.15)');
+        }
+        //If nothing is already selected we add to the selection 
+        if (this.current.length === 0) {
+            try {
+                raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+                var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
+                //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
+                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                    toggleDash(intersectObject, true);
+                    this.selecting.push(intersectObject);
+                }
+            } catch (err) {
+                //if there's an error here, it just means that the raycaster found nothing  
+            }
+        }
+    },
+    end: function () {
+
+
+        if (!transforming) {
+            context.closePath();
+            context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            paths = [];
+        }
+        //If selecting array is empty and we are not transforming: it means we selected nothing and we deselect
+        if (this.selecting.length == 0 && !transforming) {
+            this.deselect();
+        }
+        //If tempArray has one selected object, 
+        //we attach the controls only to that object
+        //and push that object into the current array
+        else if (this.selecting.length == 1) {
+            //somethingSelected = true;
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(this.selecting[0]);
+            this.current.push(this.selecting[0]);
+            scene.add(transformControls);
+            transformControls.addEventListener("mouseDown", function () {
+                transforming = true;
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                transforming = false;
+            });
+            this.selecting = []; //reset
+        }
+        //If selecting has several selected objects,
+        //we group them together and attach transform controls to the group
+        //and push them to the group array
+        else if (this.selecting.length > 1) {
+            this.group = new THREE.Group();
+            scene.add(this.group);
+            //Add all the selected elements to the temporary groups
+            this.selecting.forEach(element => {
+                toggleDash(element, true)
+                this.group.add(element);
+                this.current.push(element); //we also add it to the current selection in case we need it for duplication
+            })
+            //Attach controls to the temporary group
+            app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(this.group);
+            scene.add(transformControls);
+            //Calculate center between the elements of the group
+            transformControls.position.set(
+                computeGroupCenter().x,
+                computeGroupCenter().y,
+                computeGroupCenter().z
+            );
+            transformControls.addEventListener("mouseDown", function () {
+                transforming = true;
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                transforming = false;
+            });
+            this.selecting = []; //reset
+        }
+    },
+    duplicate: function () {
+        //it's a group
+        if (this.current.length > 1) {
+            var duplicateArray = [];
+            this.current.forEach(object => {
+                var duplicate = object.clone();
+                var duplicateMaterial = object.material.clone();
+                duplicate.material = duplicateMaterial;
+                duplicateArray.push(duplicate);
+            })
+            //deselect current group
+            this.deselect();
+            this.current = duplicateArray;
+            //somethingSelected = true;
+            this.group = new THREE.Group();
+            scene.add(this.group);
+            //Add all the selected elements to the temporary groups
+            this.current.forEach(element => {
+                toggleDash(element, true)
+                this.group.add(element);
+            })
+            //Attach controls to the temporary group
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(this.group);
+            scene.add(transformControls);
+            //Calculate center between the elements of the group
+            transformControls.position.set(
+                computeGroupCenter().x,
+                computeGroupCenter().y,
+                computeGroupCenter().z
+            );
+            transformControls.addEventListener("mouseDown", function () {
+                transforming = true;
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                transforming = false;
+            });
+            this.group.position.set(
+                this.group.position.x + 0.2,
+                this.group.position.y,
+                this.group.position.z
+            )
+        }
+        //it's a single objet
+        else if (this.current.length == 1) {
+            var duplicate = this.current[0].clone();
+            var duplicateMaterial = this.current[0].material.clone();
+            duplicate.material = duplicateMaterial;
+            //deselect current object
+            this.deselect();
+            //We move the duplicate a tiny bit
+            //This needs to be adjusted based on camera position?
+            duplicate.position.set(
+                duplicate.position.x + 0.1,
+                duplicate.position.y,
+                duplicate.position.z
+            )
+            //And select the new one
+            this.current.push(duplicate);
+            toggleDash(this.current[0], true);
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(this.current[0]);
+            scene.add(transformControls);
+            transformControls.addEventListener("mouseDown", function () {
+                transforming = true;
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                transforming = false;
+            });
+            scene.add(duplicate);
+        }
+    },
+    deselect: function () {
+        //Ungroup if we have a group selection
+        if (typeof this.group !== 'undefined') {
+            var ungroupArray = [];
+            for (var i = 0; i < this.group.children.length; i++) {
+                var object = this.group.children[i]
+                var position = new THREE.Vector3();
+                position = object.getWorldPosition(position);
+                object.position.copy(position);
+                //Rotation definitly doesn't work. It's difficult to work with because
+                //it requires me to reset the rotation center in the center of the tempgroup
+                //which is a mess so I'll see if I can live without it
+                // var quaternion = new THREE.Quaternion();
+                // quaternion = object.getWorldQuaternion(quaternion);
+                // object.applyQuaternion(quaternion);
+                // object.updateMatrix();
+                if (!checkIfHelperObject(object)) {
+                    toggleDash(object, false)
+                }
+                ungroupArray.push(object);
+            }
+            ungroupArray.forEach(object => {
+                scene.add(object);
+                blueprint.updateBlueprintLine(object);
+            })
+            this.current = [];
+            this.group = undefined;
+            transformControls.detach();
+            transforming = false;
+            scene.remove(this.group);
+        }
+        else if (this.current.length == 1) {
+            var object = this.current[0];
+            blueprint.updateBlueprintLine(object);
+            toggleDash(object, false);
+        }
+        this.current = [];
+        transformControls.detach();
+    },
+    redrawLine: function (color) {
+        // clear canvas
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        context.strokeStyle = color;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 30;
+        context.beginPath();
+        for (var i = 0; i < paths.length; ++i) {
+            var path = paths[i];
+            if (path.length < 1)
+                continue;
+            context.moveTo(path[0][0], path[0][1]);
+            for (var j = 1; j < path.length; ++j)
+                context.lineTo(path[j][0], path[j][1]);
+        }
+        context.stroke();
+    }
+}
 
 init();
 animate();
@@ -497,241 +735,6 @@ function init() {
     miniAxisCamera.zoom = 75;
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
-
-    app.selection = {
-        array: [],
-        current: [],
-        selecting: [],
-        somethingSelected: false,
-        group: undefined,
-        start: function () {
-            if (!transforming) {
-                paths.push([mouse.cx, mouse.cy]);
-                raycaster = new THREE.Raycaster();
-                raycaster.layers.set(1);
-                raycaster.params.Line.threshold = 0.01;
-                try {
-                    raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                    var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                    if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
-                        this.deselect();
-                        toggleDash(intersectObject, true);
-                        this.selecting.push(intersectObject);
-                    }
-                } catch (err) {
-                    //if there's an error here, it just means that the raycaster found nothing
-                }
-            }
-        },
-        move: function () {
-            if (!transforming) {
-                paths[paths.length - 1].push([mouse.cx, mouse.cy]);
-                //This is to render line transparency,
-                //we are redrawing the line every frame
-                this.redrawLine('rgba(255, 255, 255, 0.15)');
-            }
-            //If nothing is already selected we add to the selection 
-            if (this.current.length === 0) {
-                raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
-                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
-                    toggleDash(intersectObject, true);
-                    this.selecting.push(intersectObject);
-                }
-            }
-        },
-        end: function () {
-
-
-            if (!transforming) {
-                context.closePath();
-                context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-                paths = [];
-            }
-            //If selecting array is empty and we are not transforming: it means we selected nothing and we deselect
-            if (this.selecting.length == 0 && !transforming) {
-                this.deselect();
-            }
-            //If tempArray has one selected object, 
-            //we attach the controls only to that object
-            //and push that object into the current array
-            else if (this.selecting.length == 1) {
-                //somethingSelected = true;
-                transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(this.selecting[0]);
-                this.current.push(this.selecting[0]);
-                scene.add(transformControls);
-                transformControls.addEventListener("mouseDown", function () {
-                    transforming = true;
-                });
-                transformControls.addEventListener("mouseUp", function () {
-                    transforming = false;
-                });
-                this.selecting = []; //reset
-            }
-            //If selecting has several selected objects,
-            //we group them together and attach transform controls to the group
-            //and push them to the group array
-            else if (this.selecting.length > 1) {
-                this.group = new THREE.Group();
-                scene.add(this.group);
-                //Add all the selected elements to the temporary groups
-                this.selecting.forEach(element => {
-                    toggleDash(element, true)
-                    this.group.add(element);
-                    this.current.push(element); //we also add it to the current selection in case we need it for duplication
-                })
-                //Attach controls to the temporary group
-                app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
-                transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(this.group);
-                scene.add(transformControls);
-                //Calculate center between the elements of the group
-                transformControls.position.set(
-                    computeGroupCenter().x,
-                    computeGroupCenter().y,
-                    computeGroupCenter().z
-                );
-                transformControls.addEventListener("mouseDown", function () {
-                    transforming = true;
-                });
-                transformControls.addEventListener("mouseUp", function () {
-                    transforming = false;
-                });
-                this.selecting = []; //reset
-            }
-        },
-        duplicate: function () {
-            //it's a group
-            if (this.current.length > 1) {
-                var duplicateArray = [];
-                this.current.forEach(object => {
-                    var duplicate = object.clone();
-                    var duplicateMaterial = object.material.clone();
-                    duplicate.material = duplicateMaterial;
-                    duplicateArray.push(duplicate);
-                })
-                //deselect current group
-                this.deselect();
-                this.current = duplicateArray;
-                //somethingSelected = true;
-                this.group = new THREE.Group();
-                scene.add(this.group);
-                //Add all the selected elements to the temporary groups
-                this.current.forEach(element => {
-                    toggleDash(element, true)
-                    this.group.add(element);
-                })
-                //Attach controls to the temporary group
-                transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(this.group);
-                scene.add(transformControls);
-                //Calculate center between the elements of the group
-                transformControls.position.set(
-                    computeGroupCenter().x,
-                    computeGroupCenter().y,
-                    computeGroupCenter().z
-                );
-                transformControls.addEventListener("mouseDown", function () {
-                    transforming = true;
-                });
-                transformControls.addEventListener("mouseUp", function () {
-                    transforming = false;
-                });
-                this.group.position.set(
-                    this.group.position.x + 0.2,
-                    this.group.position.y,
-                    this.group.position.z
-                )
-            }
-            //it's a single objet
-            else if (this.current.length == 1) {
-                var duplicate = this.current[0].clone();
-                var duplicateMaterial = this.current[0].material.clone();
-                duplicate.material = duplicateMaterial;
-                //deselect current object
-                this.deselect();
-                //We move the duplicate a tiny bit
-                //This needs to be adjusted based on camera position?
-                duplicate.position.set(
-                    duplicate.position.x + 0.1,
-                    duplicate.position.y,
-                    duplicate.position.z
-                )
-                //And select the new one
-                this.current.push(duplicate);
-                toggleDash(this.current[0], true);
-                transformControls = new TransformControls(camera, drawingCanvas);
-                transformControls.attach(this.current[0]);
-                scene.add(transformControls);
-                transformControls.addEventListener("mouseDown", function () {
-                    transforming = true;
-                });
-                transformControls.addEventListener("mouseUp", function () {
-                    transforming = false;
-                });
-                scene.add(duplicate);
-            }
-        },
-        deselect: function () {
-            //Ungroup if we have a group selection
-            if (typeof this.group !== 'undefined') {
-                var ungroupArray = [];
-                for (var i = 0; i < this.group.children.length; i++) {
-                    var object = this.group.children[i]
-                    var position = new THREE.Vector3();
-                    position = object.getWorldPosition(position);
-                    object.position.copy(position);
-                    //Rotation definitly doesn't work. It's difficult to work with because
-                    //it requires me to reset the rotation center in the center of the tempgroup
-                    //which is a mess so I'll see if I can live without it
-                    // var quaternion = new THREE.Quaternion();
-                    // quaternion = object.getWorldQuaternion(quaternion);
-                    // object.applyQuaternion(quaternion);
-                    // object.updateMatrix();
-                    if (!checkIfHelperObject(object)) {
-                        toggleDash(object, false)
-                    }
-                    ungroupArray.push(object);
-                }
-                ungroupArray.forEach(object => {
-                    scene.add(object);
-                    blueprint.updateBlueprintLine(object);
-                })
-                this.current = [];
-                this.group = undefined;
-                transformControls.detach();
-                transforming = false;
-                scene.remove(this.group);
-            }
-            else if (this.current.length == 1) {
-                var object = this.current[0];
-                blueprint.updateBlueprintLine(object);
-                toggleDash(object, false);
-            }
-            this.current = [];
-            transformControls.detach();
-        },
-        redrawLine: function (color) {
-            // clear canvas
-            context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-            context.strokeStyle = color;
-            context.lineCap = 'round';
-            context.lineJoin = 'round';
-            context.lineWidth = 30;
-            context.beginPath();
-            for (var i = 0; i < paths.length; ++i) {
-                var path = paths[i];
-                if (path.length < 1)
-                    continue;
-                context.moveTo(path[0][0], path[0][1]);
-                for (var j = 1; j < path.length; ++j)
-                    context.lineTo(path[j][0], path[j][1]);
-            }
-            context.stroke();
-        }
-    }
 
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
