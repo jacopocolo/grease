@@ -269,19 +269,19 @@ var line = {
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
         this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
-        switch (app.mirror) {
-            case "x":
-                this.renderMirroredLine(this.linepositions, 'x');
-                break;
-            case "y":
-                this.renderMirroredLine(this.linepositions, 'y');
-                break;
-            case "z":
-                this.renderMirroredLine(this.linepositions, 'z');
-                break;
-            default:
-                return
-        }
+        // switch (app.mirror) {
+        //     case "x":
+        //         this.renderMirroredLine(this.linepositions, 'x');
+        //         break;
+        //     case "y":
+        //         this.renderMirroredLine(this.linepositions, 'y');
+        //         break;
+        //     case "z":
+        //         this.renderMirroredLine(this.linepositions, 'z');
+        //         break;
+        //     default:
+        //         return
+        // }
     },
     renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
         var matLineDrawn = new LineMaterial({
@@ -331,9 +331,28 @@ var line = {
             quaternion: lquaternion,
             scale: lscale,
         };
-        blueprint.lines.push(blueprintLine);
 
+        // var blueprintLine = {
+        //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
+        //     position: lposition,
+        //     quaternion: lquaternion,
+        //     scale: lscale,
+        //     //An idea for handling mirror somewhat decently in the save format.
+        //     //we store the UUID of the original line, if that original line exists
+        //     //we clone and apply the mirror so the two lines maintain the same geometry
+        //     //otherwise we draw it from scratch with a new geometry 
+        //     mirrorOf: l.uuid
+        //     mirrorAxis: 'x'
+        // };
+
+        blueprint.lines.push(blueprintLine);
         scene.add(l);
+        if (app.mirror == 'x') {
+            let lmirrored = l.clone();
+            lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
+            lmirrored.scale.set(-1, 1, 1);
+            scene.add(lmirrored);
+        }
         //Remove listener and clear arrays
     },
     renderMirroredLine: function (positions, axis) {
@@ -390,9 +409,21 @@ var eraser = {
             } else {
                 blueprint.removeFromBlueprint(object);
                 scene.remove(object);
+
+                if (app.mirror == 'x') {
+                    //This deletes mirror objects as well
+                    scene.children.forEach(sceneObj => {
+                        if (sceneObj.geometry.uuid === object.geometry.uuid) {
+                            console.log(sceneObj);
+                            scene.remove(sceneObj);
+                            sceneObj.material.dispose();
+                            sceneObj.geometry.dispose();
+                        }
+                    })
+                }
+
                 object.dispose();
-                object.material.dispose();
-                object.geometry.dispose();
+
             }
         } catch (err) {
             //if there's an error here, it just means that the raycaster found nothing
