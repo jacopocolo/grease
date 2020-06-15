@@ -56,6 +56,15 @@ Raycaster
 - Set line width / Return line width to previous position
 - 
 
+Mirroring:
+There are several options, each with their own downsides.
+- Just mirror the lines. Draw them independently and be done with it.
+  - Pro: very simple. Con: lines don't know anything about each other and they need to be moved and selected indendently
+- Mirror everything all the time.
+  - Pro: you always have a perferct mirror. You only need to handle a fraction of the geometry. It's the way Blender handles it BUT Blender allows you to have multiple "objects" each mirrored independently if you want. Con: there's no "in between". A object is either totally symmetric or you have to draw everything.
+- Mirror "session". Start mirroring and press done when done. While mirroring we mirror everything, once done we "write" the lines and they become independent.
+  - Pro: more flexibility. Con: harder to implement, more difficult UX.
+
 https://github.com/mrdoob/three.js/pull/7337/files
 
 Save/Load/Export
