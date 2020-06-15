@@ -496,6 +496,15 @@ app.selection = {
                 if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
                     toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
+                    if (app.mirror == 'x') {
+                        //This selects mirror objects as well
+                        scene.children.forEach(sceneObj => {
+                            //check if same geometry but different object
+                            if (sceneObj.geometry.uuid === intersectObject.geometry.uuid && sceneObj.uuid != intersectObject.uuid) {
+                                this.selecting.push(sceneObj);
+                            }
+                        })
+                    }
                 }
             } catch (err) {
                 //if there's an error here, it just means that the raycaster found nothing  
