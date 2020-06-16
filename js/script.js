@@ -233,7 +233,7 @@ let mouse = {
     }
 };
 
-var line = {
+let line = {
     linepositions: [],
     start: function () {
         this.linepositions = []; //reset array
@@ -389,7 +389,7 @@ var line = {
     }
 }
 
-var eraser = {
+let eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
         raycaster.params.Line.threshold = 0.1;
@@ -496,15 +496,15 @@ app.selection = {
                 if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
                     toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
-                    if (app.mirror == 'x') {
-                        //This selects mirror objects as well
-                        scene.children.forEach(sceneObj => {
-                            //check if same geometry but different object
-                            if (sceneObj.geometry.uuid === intersectObject.geometry.uuid && sceneObj.uuid != intersectObject.uuid) {
-                                this.selecting.push(sceneObj);
-                            }
-                        })
-                    }
+                    // if (app.mirror == 'x') {
+                    //     //This selects mirror objects as well
+                    //     scene.children.forEach(sceneObj => {
+                    //         //check if same geometry but different object
+                    //         if (sceneObj.geometry.uuid === intersectObject.geometry.uuid && sceneObj.uuid != intersectObject.uuid) {
+                    //             this.selecting.push(sceneObj);
+                    //         }
+                    //     })
+                    // }
                 }
             } catch (err) {
                 //if there's an error here, it just means that the raycaster found nothing  
@@ -534,6 +534,9 @@ app.selection = {
             scene.add(transformControls);
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
+            });
+            transformControls.addEventListener("change", function (event) {
+                console.log(event)
             });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
@@ -667,7 +670,8 @@ app.selection = {
             }
             ungroupArray.forEach(object => {
                 scene.add(object);
-                blueprint.updateBlueprintLine(object);
+                mirror.updateMirroredObject(object);
+                //blueprint.updateBlueprintLine(object);
             })
             this.current = [];
             this.group = undefined;
@@ -677,7 +681,8 @@ app.selection = {
         }
         else if (this.current.length == 1) {
             var object = this.current[0];
-            blueprint.updateBlueprintLine(object);
+            mirror.updateMirroredObject(object);
+            //blueprint.updateBlueprintLine(object);
             toggleDash(object, false);
         }
         this.current = [];
@@ -700,6 +705,26 @@ app.selection = {
                 context.lineTo(path[j][0], path[j][1]);
         }
         context.stroke();
+    }
+}
+
+let mirror = {
+    updateMirroredObject: function (object) {
+        if (app.mirror == 'x') {
+            //This selects mirror objects as well
+            scene.children.forEach(sceneObj => {
+                //check if same geometry but different object
+                if ((object.layers.mask == 2 && sceneObj.uuid != object.uuid) && (sceneObj.geometry && sceneObj.geometry.uuid == object.geometry.uuid)) {
+                    var position = object.getWorldPosition(position);
+                    sceneObj.position.set(-position.x, position.y, position.z)
+                    var quaternion = object.getWorldQuaternion(quaternion);
+                    sceneObj.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
+                    var scale = object.getWorldScale(scale);
+                    sceneObj.scale.set(-scale.x, scale.y, scale.z)
+                    //blueprint.updateBlueprintLine(sceneObj);
+                }
+            })
+        }
     }
 }
 
