@@ -536,7 +536,7 @@ app.selection = {
                 transforming = true;
             });
             transformControls.addEventListener("change", function (event) {
-                console.log(event)
+                mirror.updateMirroredObject(app.selection.current[0]);
             });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
@@ -568,6 +568,12 @@ app.selection = {
             );
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
+            });
+            transformControls.addEventListener("change", function (event) {
+                //console.log(app.selection.group)
+                app.selection.group.children.forEach(object => {
+                    mirror.updateMirroredObject(object);
+                })
             });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
