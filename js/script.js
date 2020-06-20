@@ -325,12 +325,12 @@ let line = {
         var lquaternion = l.getWorldQuaternion(lquaternion);
         var lscale = l.getWorldScale(lscale);
         //Create line object and add it to the blueprint
-        var blueprintLine = {
-            uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-            position: lposition,
-            quaternion: lquaternion,
-            scale: lscale,
-        };
+        // var blueprintLine = {
+        //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
+        //     position: lposition,
+        //     quaternion: lquaternion,
+        //     scale: lscale,
+        // };
 
         // var blueprintLine = {
         //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
@@ -345,14 +345,43 @@ let line = {
         //     mirrorAxis: 'x'
         // };
 
-        blueprint.lines.push(blueprintLine);
+        //blueprint.lines.push(blueprintLine);
         scene.add(l);
-        if (app.mirror == 'x') {
-            let lmirrored = l.clone();
-            lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-            lmirrored.scale.set(-1, 1, 1);
-            scene.add(lmirrored);
+        let lmirrored;
+        switch (app.mirror) {
+            case "x":
+                lmirrored = l.clone();
+                // lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
+                // lmirrored.scale.set(-1, 1, 1);
+                lmirrored.applyMatrix4(new THREE.Matrix4().makeScale(1, 1, -1));
+                lmirrored.updateMatrix();
+                lmirrored.userData = { mirrorOnAxis: app.mirror };
+                scene.add(lmirrored);
+                break;
+            case "y":
+                lmirrored = l.clone();
+                lmirrored.position.set(l.position.x, -l.position.y, l.position.z)
+                lmirrored.scale.set(1, -1, 1);
+                lmirrored.userData = { mirrorOnAxis: app.mirror };
+                scene.add(lmirrored);
+                break;
+            case "z":
+                lmirrored = l.clone();
+                lmirrored.position.set(l.position.x, l.position.y, -l.position.z)
+                lmirrored.scale.set(1, 1, -1);
+                lmirrored.userData = { mirrorOnAxis: app.mirror };
+                scene.add(lmirrored);
+                break;
+            default:
+                return
         }
+        // if (app.mirror == 'x') {
+        //     let lmirrored = l.clone();
+        //     lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
+        //     lmirrored.scale.set(-1, 1, 1);
+        //     lmirrored.userData = { mirroredAxis: app.mirror };
+        //     scene.add(lmirrored);
+        // }
         //Remove listener and clear arrays
     },
     renderMirroredLine: function (positions, axis) {
@@ -407,20 +436,16 @@ let eraser = {
             var object = raycaster.intersectObjects(scene.children)[0].object;
             if (checkIfHelperObject(object)) {
             } else {
-                blueprint.removeFromBlueprint(object);
+                //blueprint.removeFromBlueprint(object);
                 scene.remove(object);
 
-                if (app.mirror == 'x') {
-                    //This deletes mirror objects as well
-                    scene.children.forEach(sceneObj => {
-                        if (sceneObj.geometry.uuid === object.geometry.uuid) {
-                            console.log(sceneObj);
-                            scene.remove(sceneObj);
-                            sceneObj.material.dispose();
-                            sceneObj.geometry.dispose();
-                        }
-                    })
-                }
+                scene.children.forEach(sceneObj => {
+                    if (sceneObj.geometry.uuid === object.geometry.uuid) {
+                        scene.remove(sceneObj);
+                        sceneObj.material.dispose();
+                        sceneObj.geometry.dispose();
+                    }
+                })
 
                 object.dispose();
 
@@ -455,6 +480,10 @@ let eraser = {
 }
 
 //Selection is defined inside of the app so the UI has access to the state of the selection
+//The selection could be refactored significantly using:
+//userData (object.userData.selected = true/false)
+//scene.getObjectById
+//and hopefully https://github.com/mrdoob/three.js/issues/6336#issuecomment-626628464
 app.selection = {
     array: [],
     current: [],
@@ -470,7 +499,9 @@ app.selection = {
             try {
                 raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                if (intersectObject.geometry.type == "LineGeometry"
+                    && this.selecting.indexOf(intersectObject) < 0
+                ) {
                     this.deselect();
                     toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
@@ -481,6 +512,7 @@ app.selection = {
         }
     },
     move: function () {
+        //If we are not transforming
         if (!transforming) {
             paths[paths.length - 1].push([mouse.cx, mouse.cy]);
             //This is to render line transparency,
@@ -493,18 +525,10 @@ app.selection = {
                 raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
                 //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
-                if (intersectObject && !checkIfHelperObject(intersectObject) && this.selecting.indexOf(intersectObject) < 0) {
+                if (intersectObject.geometry.type == "LineGeometry"
+                    && this.selecting.indexOf(intersectObject) < 0) {
                     toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
-                    // if (app.mirror == 'x') {
-                    //     //This selects mirror objects as well
-                    //     scene.children.forEach(sceneObj => {
-                    //         //check if same geometry but different object
-                    //         if (sceneObj.geometry.uuid === intersectObject.geometry.uuid && sceneObj.uuid != intersectObject.uuid) {
-                    //             this.selecting.push(sceneObj);
-                    //         }
-                    //     })
-                    // }
                 }
             } catch (err) {
                 //if there's an error here, it just means that the raycaster found nothing  
@@ -512,8 +536,6 @@ app.selection = {
         }
     },
     end: function () {
-
-
         if (!transforming) {
             context.closePath();
             context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -535,12 +557,11 @@ app.selection = {
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
-            transformControls.addEventListener("change", function (event) {
-                mirror.updateMirroredObject(app.selection.current[0]);
-            });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
             });
+            //this is bad code, I don't need to fire the whole function every time. I can just store the object somewhere and then update the position.
+            transformControls.addEventListener("change", function () { mirror.updateMirroredObject(app.selection.current[0]) });
             this.selecting = []; //reset
         }
         //If selecting has several selected objects,
@@ -571,9 +592,9 @@ app.selection = {
             });
             transformControls.addEventListener("change", function (event) {
                 //console.log(app.selection.group)
-                app.selection.group.children.forEach(object => {
-                    mirror.updateMirroredObject(object);
-                })
+                // app.selection.group.children.forEach(object => {
+                //     mirror.updateMirroredObject(object);
+                // })
             });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
@@ -662,13 +683,6 @@ app.selection = {
                 var position = new THREE.Vector3();
                 position = object.getWorldPosition(position);
                 object.position.copy(position);
-                //Rotation definitly doesn't work. It's difficult to work with because
-                //it requires me to reset the rotation center in the center of the tempgroup
-                //which is a mess so I'll see if I can live without it
-                // var quaternion = new THREE.Quaternion();
-                // quaternion = object.getWorldQuaternion(quaternion);
-                // object.applyQuaternion(quaternion);
-                // object.updateMatrix();
                 if (!checkIfHelperObject(object)) {
                     toggleDash(object, false)
                 }
@@ -687,12 +701,15 @@ app.selection = {
         }
         else if (this.current.length == 1) {
             var object = this.current[0];
-            mirror.updateMirroredObject(object);
+            //mirror.updateMirroredObject(object);
             //blueprint.updateBlueprintLine(object);
             toggleDash(object, false);
         }
-        this.current = [];
+        // transformControls.removeEventListener("change", mirror.updateMirroredObject(app.selection.current[0]));
         transformControls.detach();
+        transformControls.dispose();
+        this.current = [];
+
     },
     redrawLine: function (color) {
         // clear canvas
@@ -716,21 +733,34 @@ app.selection = {
 
 let mirror = {
     updateMirroredObject: function (object) {
-        if (app.mirror == 'x') {
-            //This selects mirror objects as well
-            scene.children.forEach(sceneObj => {
-                //check if same geometry but different object
-                if ((object.layers.mask == 2 && sceneObj.uuid != object.uuid) && (sceneObj.geometry && sceneObj.geometry.uuid == object.geometry.uuid)) {
-                    var position = object.getWorldPosition(position);
-                    sceneObj.position.set(-position.x, position.y, position.z)
-                    var quaternion = object.getWorldQuaternion(quaternion);
-                    sceneObj.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
-                    var scale = object.getWorldScale(scale);
-                    sceneObj.scale.set(-scale.x, scale.y, scale.z)
-                    //blueprint.updateBlueprintLine(sceneObj);
+        var position = object.getWorldPosition(position);
+        var quaternion = object.getWorldQuaternion(quaternion);
+        var scale = object.getWorldScale(scale);
+        scene.children.forEach(sceneObj => {
+            //Very complicated way to check if: same geometry but different object
+            if (sceneObj.geometry && sceneObj.geometry.uuid == object.geometry.uuid) {
+                switch (sceneObj.userData.mirrorOnAxis) {
+                    case "x":
+                        sceneObj.position.set(-position.x, position.y, position.z)
+                        sceneObj.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
+                        sceneObj.scale.set(-scale.x, scale.y, scale.z)
+                        break;
+                    case "y":
+                        sceneObj.position.set(position.x, -position.y, position.z)
+                        sceneObj.quaternion.set(quaternion.x, -quaternion.y, quaternion.z, -quaternion.w)
+                        sceneObj.scale.set(scale.x, -scale.y, scale.z)
+                        break;
+                    case "z":
+                        sceneObj.position.set(position.x, position.y, -position.z)
+                        sceneObj.quaternion.set(quaternion.x, quaternion.y, -quaternion.z, -quaternion.w)
+                        sceneObj.scale.set(scale.x, scale.y, -scale.z)
+                        break;
+                    default:
+                        return
                 }
-            })
-        }
+
+            }
+        })
     }
 }
 
