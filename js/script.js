@@ -5,9 +5,6 @@ import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
 import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
 import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
-// import { ColladaExporter } from 'https://threejs.org/examples/jsm/exporters/ColladaExporter.js';
-// import { OBJLoader } from 'https://threejs.org/examples/jsm/loaders/OBJLoader.js';
-import { GLTFLoader } from 'https://threejs.org/examples/jsm/loaders/GLTFLoader.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
 
 var app = new Vue({
@@ -172,9 +169,6 @@ let gif;
 let makingGif = false;
 let count = 0;
 let gifLength = 60;
-let gifBufferCanvas;
-let gifBufferCtx;
-let gifBufferImage;
 let bufferRenderer;
 
 var drawingCanvas = document.getElementById("drawingCanvas");
@@ -269,21 +263,109 @@ let line = {
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
         this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
-        // switch (app.mirror) {
-        //     case "x":
-        //         this.renderMirroredLine(this.linepositions, 'x');
-        //         break;
-        //     case "y":
-        //         this.renderMirroredLine(this.linepositions, 'y');
-        //         break;
-        //     case "z":
-        //         this.renderMirroredLine(this.linepositions, 'z');
-        //         break;
-        //     default:
-        //         return
-        // }
     },
-    renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
+    // renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
+    //     var matLineDrawn = new LineMaterial({
+    //         color: new THREE.Color(lineColor),
+    //         linewidth: lineWidth, // in pixels
+    //         vertexColors: false,
+    //         wireframe: false,
+    //         side: THREE.DoubleSide,
+    //         depthWrite: true
+    //     });
+    //     materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
+    //     var geometry = new LineGeometry();
+    //     var positions = this.rejectPalm(positions);
+    //     geometry.setPositions(positions);
+    //     var l = new Line2(geometry, matLineDrawn);
+    //     if (position) {
+    //         l.position.set(position.x, position.y, position.z);
+    //     } else {
+    //         l.position.set(
+    //             l.geometry.boundingSphere.center.x,
+    //             l.geometry.boundingSphere.center.y,
+    //             l.geometry.boundingSphere.center.z
+    //         );
+    //     }
+    //     if (quaternion) {
+    //         // l.quaternion.normalize();
+    //         l.applyQuaternion(quaternion)
+    //         l.updateMatrix();
+    //     }
+    //     l.geometry.center();
+    //     l.needsUpdate = true;
+    //     l.computeLineDistances();
+    //     if (scale) {
+    //         l.scale.set(scale.x, scale.y, scale.z)
+    //     } else {
+    //         l.scale.set(1, 1, 1);
+    //     }
+    //     l.layers.set(1);
+
+    //     var lposition = l.getWorldPosition(lposition);
+    //     var lquaternion = l.getWorldQuaternion(lquaternion);
+    //     var lscale = l.getWorldScale(lscale);
+    //     //Create line object and add it to the blueprint
+    //     // var blueprintLine = {
+    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
+    //     //     position: lposition,
+    //     //     quaternion: lquaternion,
+    //     //     scale: lscale,
+    //     // };
+
+    //     // var blueprintLine = {
+    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
+    //     //     position: lposition,
+    //     //     quaternion: lquaternion,
+    //     //     scale: lscale,
+    //     //     //An idea for handling mirror somewhat decently in the save format.
+    //     //     //we store the UUID of the original line, if that original line exists
+    //     //     //we clone and apply the mirror so the two lines maintain the same geometry
+    //     //     //otherwise we draw it from scratch with a new geometry 
+    //     //     mirrorOf: l.uuid
+    //     //     mirrorAxis: 'x'
+    //     // };
+
+    //     //blueprint.lines.push(blueprintLine);
+    //     scene.add(l);
+    //     let lmirrored;
+    //     switch (app.mirror) {
+    //         case "x":
+    //             lmirrored = l.clone();
+    //             // lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
+    //             // lmirrored.scale.set(-1, 1, 1);
+    //             lmirrored.applyMatrix4(new THREE.Matrix4().makeScale(1, 1, -1));
+    //             lmirrored.updateMatrix();
+    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
+    //             scene.add(lmirrored);
+    //             break;
+    //         case "y":
+    //             lmirrored = l.clone();
+    //             lmirrored.position.set(l.position.x, -l.position.y, l.position.z)
+    //             lmirrored.scale.set(1, -1, 1);
+    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
+    //             scene.add(lmirrored);
+    //             break;
+    //         case "z":
+    //             lmirrored = l.clone();
+    //             lmirrored.position.set(l.position.x, l.position.y, -l.position.z)
+    //             lmirrored.scale.set(1, 1, -1);
+    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
+    //             scene.add(lmirrored);
+    //             break;
+    //         default:
+    //             return
+    //     }
+    //     // if (app.mirror == 'x') {
+    //     //     let lmirrored = l.clone();
+    //     //     lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
+    //     //     lmirrored.scale.set(-1, 1, 1);
+    //     //     lmirrored.userData = { mirroredAxis: app.mirror };
+    //     //     scene.add(lmirrored);
+    //     // }
+    //     //Remove listener and clear arrays
+    // },
+    renderLine: function (positions, lineColor, lineWidth) {
         var matLineDrawn = new LineMaterial({
             color: new THREE.Color(lineColor),
             linewidth: lineWidth, // in pixels
@@ -296,93 +378,35 @@ let line = {
         var geometry = new LineGeometry();
         var positions = this.rejectPalm(positions);
         geometry.setPositions(positions);
+        geometry.userData = positions;
         var l = new Line2(geometry, matLineDrawn);
-        if (position) {
-            l.position.set(position.x, position.y, position.z);
-        } else {
-            l.position.set(
-                l.geometry.boundingSphere.center.x,
-                l.geometry.boundingSphere.center.y,
-                l.geometry.boundingSphere.center.z
-            );
-        }
-        if (quaternion) {
-            // l.quaternion.normalize();
-            l.applyQuaternion(quaternion)
-            l.updateMatrix();
-        }
+        l.position.set(
+            l.geometry.boundingSphere.center.x,
+            l.geometry.boundingSphere.center.y,
+            l.geometry.boundingSphere.center.z
+        );
         l.geometry.center();
         l.needsUpdate = true;
         l.computeLineDistances();
-        if (scale) {
-            l.scale.set(scale.x, scale.y, scale.z)
-        } else {
-            l.scale.set(1, 1, 1);
-        }
+        l.scale.set(1, 1, 1);
         l.layers.set(1);
-
         var lposition = l.getWorldPosition(lposition);
         var lquaternion = l.getWorldQuaternion(lquaternion);
         var lscale = l.getWorldScale(lscale);
-        //Create line object and add it to the blueprint
-        // var blueprintLine = {
-        //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-        //     position: lposition,
-        //     quaternion: lquaternion,
-        //     scale: lscale,
-        // };
-
-        // var blueprintLine = {
-        //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-        //     position: lposition,
-        //     quaternion: lquaternion,
-        //     scale: lscale,
-        //     //An idea for handling mirror somewhat decently in the save format.
-        //     //we store the UUID of the original line, if that original line exists
-        //     //we clone and apply the mirror so the two lines maintain the same geometry
-        //     //otherwise we draw it from scratch with a new geometry 
-        //     mirrorOf: l.uuid
-        //     mirrorAxis: 'x'
-        // };
-
-        //blueprint.lines.push(blueprintLine);
         scene.add(l);
-        let lmirrored;
         switch (app.mirror) {
             case "x":
-                lmirrored = l.clone();
-                // lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-                // lmirrored.scale.set(-1, 1, 1);
-                lmirrored.applyMatrix4(new THREE.Matrix4().makeScale(1, 1, -1));
-                lmirrored.updateMatrix();
-                lmirrored.userData = { mirrorOnAxis: app.mirror };
-                scene.add(lmirrored);
+                mirror.object(l, 'x')
                 break;
             case "y":
-                lmirrored = l.clone();
-                lmirrored.position.set(l.position.x, -l.position.y, l.position.z)
-                lmirrored.scale.set(1, -1, 1);
-                lmirrored.userData = { mirrorOnAxis: app.mirror };
-                scene.add(lmirrored);
+                mirror.object(l, 'y')
                 break;
             case "z":
-                lmirrored = l.clone();
-                lmirrored.position.set(l.position.x, l.position.y, -l.position.z)
-                lmirrored.scale.set(1, 1, -1);
-                lmirrored.userData = { mirrorOnAxis: app.mirror };
-                scene.add(lmirrored);
+                mirror.object(l, 'z')
                 break;
             default:
                 return
         }
-        // if (app.mirror == 'x') {
-        //     let lmirrored = l.clone();
-        //     lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-        //     lmirrored.scale.set(-1, 1, 1);
-        //     lmirrored.userData = { mirroredAxis: app.mirror };
-        //     scene.add(lmirrored);
-        // }
-        //Remove listener and clear arrays
     },
     renderMirroredLine: function (positions, axis) {
         var startingPos; //0 for x, 1 for y, 2 for z
@@ -438,15 +462,7 @@ let eraser = {
             } else {
                 //blueprint.removeFromBlueprint(object);
                 scene.remove(object);
-
-                scene.children.forEach(sceneObj => {
-                    if (sceneObj.geometry.uuid === object.geometry.uuid) {
-                        scene.remove(sceneObj);
-                        sceneObj.material.dispose();
-                        sceneObj.geometry.dispose();
-                    }
-                })
-
+                mirror.eraseMirrorOf(object);
                 object.dispose();
 
             }
@@ -479,11 +495,6 @@ let eraser = {
     },
 }
 
-//Selection is defined inside of the app so the UI has access to the state of the selection
-//The selection could be refactored significantly using:
-//userData (object.userData.selected = true/false)
-//scene.getObjectById
-//and hopefully https://github.com/mrdoob/three.js/issues/6336#issuecomment-626628464
 app.selection = {
     array: [],
     current: [],
@@ -501,9 +512,10 @@ app.selection = {
                 var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
                 if (intersectObject.geometry.type == "LineGeometry"
                     && this.selecting.indexOf(intersectObject) < 0
+                    && !intersectObject.material.dashed
                 ) {
                     this.deselect();
-                    toggleDash(intersectObject, true);
+                    this.toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
                 }
             } catch (err) {
@@ -524,10 +536,11 @@ app.selection = {
             try {
                 raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                //Check if the object exists, check if it's not an helper object, check if it's already in the tempArray
+                //Check if the object is a line, is not in the array already and it not a mirror
                 if (intersectObject.geometry.type == "LineGeometry"
-                    && this.selecting.indexOf(intersectObject) < 0) {
-                    toggleDash(intersectObject, true);
+                    && this.selecting.indexOf(intersectObject) < 0
+                    && !intersectObject.material.dashed) {
+                    this.toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
                 }
             } catch (err) {
@@ -557,11 +570,13 @@ app.selection = {
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
+            transformControls.addEventListener("change", function () {
+                if (transforming) { mirror.updateMirrorOf(transformControls.object) }
+            }
+            );
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
             });
-            //this is bad code, I don't need to fire the whole function every time. I can just store the object somewhere and then update the position.
-            transformControls.addEventListener("change", function () { mirror.updateMirroredObject(app.selection.current[0]) });
             this.selecting = []; //reset
         }
         //If selecting has several selected objects,
@@ -572,7 +587,7 @@ app.selection = {
             scene.add(this.group);
             //Add all the selected elements to the temporary groups
             this.selecting.forEach(element => {
-                toggleDash(element, true)
+                this.toggleDash(element, true)
                 this.group.add(element);
                 this.current.push(element); //we also add it to the current selection in case we need it for duplication
             })
@@ -590,11 +605,8 @@ app.selection = {
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
-            transformControls.addEventListener("change", function (event) {
-                //console.log(app.selection.group)
-                // app.selection.group.children.forEach(object => {
-                //     mirror.updateMirroredObject(object);
-                // })
+            transformControls.addEventListener("change", function () {
+                if (transforming) { mirror.updateMirrorOf(transformControls.object) }
             });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
@@ -620,7 +632,7 @@ app.selection = {
             scene.add(this.group);
             //Add all the selected elements to the temporary groups
             this.current.forEach(element => {
-                toggleDash(element, true)
+                this.toggleDash(element, true)
                 this.group.add(element);
             })
             //Attach controls to the temporary group
@@ -661,7 +673,7 @@ app.selection = {
             )
             //And select the new one
             this.current.push(duplicate);
-            toggleDash(this.current[0], true);
+            this.toggleDash(this.current[0], true);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.current[0]);
             scene.add(transformControls);
@@ -684,13 +696,12 @@ app.selection = {
                 position = object.getWorldPosition(position);
                 object.position.copy(position);
                 if (!checkIfHelperObject(object)) {
-                    toggleDash(object, false)
+                    this.toggleDash(object, false)
                 }
                 ungroupArray.push(object);
             }
             ungroupArray.forEach(object => {
                 scene.add(object);
-                mirror.updateMirroredObject(object);
                 //blueprint.updateBlueprintLine(object);
             })
             this.current = [];
@@ -701,15 +712,28 @@ app.selection = {
         }
         else if (this.current.length == 1) {
             var object = this.current[0];
-            //mirror.updateMirroredObject(object);
             //blueprint.updateBlueprintLine(object);
-            toggleDash(object, false);
+            this.toggleDash(object, false);
         }
-        // transformControls.removeEventListener("change", mirror.updateMirroredObject(app.selection.current[0]));
         transformControls.detach();
         transformControls.dispose();
         this.current = [];
 
+    },
+    toggleDash: function (object, bool) {
+        var material = object.material;
+        material.dashed = bool;
+        var ratio = 1000;
+        // dashed is implemented as a defines -- not as a uniform. this could be changed.
+        // ... or THREE.LineDashedMaterial could be implemented as a separate material
+        // temporary hack - renderer should do this eventually
+        if (bool) material.defines.USE_DASH = "";
+        else delete material.defines.USE_DASH;
+        material.dashSize = bool ? material.linewidth / ratio : 1000;
+        material.gapSize = bool ? material.linewidth / ratio : 1000;
+        //material.wireframe = bool;
+        material.dashScale = bool ? 1 : 1000;
+        material.needsUpdate = true;
     },
     redrawLine: function (color) {
         // clear canvas
@@ -732,35 +756,196 @@ app.selection = {
 }
 
 let mirror = {
-    updateMirroredObject: function (object) {
-        var position = object.getWorldPosition(position);
-        var quaternion = object.getWorldQuaternion(quaternion);
-        var scale = object.getWorldScale(scale);
-        scene.children.forEach(sceneObj => {
-            //Very complicated way to check if: same geometry but different object
-            if (sceneObj.geometry && sceneObj.geometry.uuid == object.geometry.uuid) {
-                switch (sceneObj.userData.mirrorOnAxis) {
-                    case "x":
-                        sceneObj.position.set(-position.x, position.y, position.z)
-                        sceneObj.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
-                        sceneObj.scale.set(-scale.x, scale.y, scale.z)
-                        break;
-                    case "y":
-                        sceneObj.position.set(position.x, -position.y, position.z)
-                        sceneObj.quaternion.set(quaternion.x, -quaternion.y, quaternion.z, -quaternion.w)
-                        sceneObj.scale.set(scale.x, -scale.y, scale.z)
-                        break;
-                    case "z":
-                        sceneObj.position.set(position.x, position.y, -position.z)
-                        sceneObj.quaternion.set(quaternion.x, quaternion.y, -quaternion.z, -quaternion.w)
-                        sceneObj.scale.set(scale.x, scale.y, -scale.z)
-                        break;
-                    default:
-                        return
-                }
-
+    updateMirrorOf: function (obj) {
+        if (obj.type === 'Group') {
+            obj.children.forEach(obj => {
+                mirror.updateMirrorOf(obj)
+            })
+        } else if (obj.userData.mirror) {
+            //let's check if there's a matching mirror object otherwise we do nothing
+            let mirroredObject = scene.getObjectByProperty('uuid', obj.userData.mirror);
+            var position = new THREE.Vector3();
+            obj.getWorldPosition(position);
+            var quaternion = new THREE.Quaternion();
+            obj.getWorldQuaternion(quaternion);
+            var scale = new THREE.Vector3();
+            obj.getWorldScale(scale);
+            switch (obj.userData.mirrorAxis) {
+                case "x":
+                    mirroredObject.position.set(-position.x, position.y, position.z)
+                    mirroredObject.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
+                    mirroredObject.scale.set(-scale.x, scale.y, scale.z)
+                    break;
+                case "y":
+                    mirroredObject.position.set(position.x, -position.y, position.z)
+                    mirroredObject.quaternion.set(quaternion.x, -quaternion.y, quaternion.z, -quaternion.w)
+                    mirroredObject.scale.set(scale.x, -scale.y, scale.z)
+                    break;
+                case "z":
+                    mirroredObject.position.set(position.x, position.y, -position.z)
+                    mirroredObject.quaternion.set(quaternion.x, quaternion.y, -quaternion.z, -quaternion.w)
+                    mirroredObject.scale.set(scale.x, scale.y, -scale.z)
+                    break;
+                default:
+                    return
             }
-        })
+        }
+    },
+    object: function (obj, axis) {
+        console.log(obj)
+        var clone = obj.clone();
+        clone.userData.mirror = obj.uuid;
+        clone.userData.mirrorAxis = axis;
+        obj.userData.mirror = clone.uuid;
+        obj.userData.mirrorAxis = axis;
+        switch (axis) {
+            case "x":
+                clone.applyMatrix(obj.matrixWorld.makeScale(-1, 1, 1));
+                break;
+            case "y":
+                clone.applyMatrix(obj.matrixWorld.makeScale(1, -1, 1));
+                break;
+            case "z":
+                clone.applyMatrix(obj.matrixWorld.makeScale(1, 1, -1));
+                break;
+            default:
+                return
+        }
+        scene.add(clone);
+    },
+    eraseMirrorOf: function (obj) {
+        if (obj.userData.mirror) {
+            let mirroredObject = scene.getObjectByProperty('uuid', obj.userData.mirror);
+            scene.remove(mirroredObject);
+        }
+    }
+}
+
+let exportTo = {
+    gltf: function () {
+        //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
+        var scene2 = new THREE.Scene();
+
+        function exportGLTF(input) {
+            var gltfExporter = new GLTFExporter();
+            var options = {
+            };
+            gltfExporter.parse(input, function (result) {
+                if (result instanceof ArrayBuffer) {
+                    saveArrayBuffer(result, 'scene.glb');
+                } else {
+                    var output = JSON.stringify(result, null, 2);
+                    // console.log(output);
+                    saveString(output, 'scene.gltf');
+                }
+            }, options);
+
+            scene2.traverse(object => {
+                if (!object.isMesh) return
+
+                console.log('dispose geometry!')
+                object.geometry.dispose()
+
+                if (object.material.isMaterial) {
+                    cleanMaterial(object.material)
+                } else {
+                    // an array of materials
+                    for (const material of object.material) cleanMaterial(material)
+                }
+            })
+            const cleanMaterial = material => {
+                console.log('dispose material!')
+                material.dispose()
+                // dispose textures
+                for (const key of Object.keys(material)) {
+                    const value = material[key]
+                    if (value && typeof value === 'object' && 'minFilter' in value) {
+                        console.log('dispose texture!')
+                        value.dispose()
+                    }
+                }
+            }
+            scene2.dispose();
+        }
+        var link = document.createElement('a');
+        link.style.display = 'none';
+        document.body.appendChild(link); // Firefox workaround, see #6594
+        function save(blob, filename) {
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            // URL.revokeObjectURL( url ); breaks Firefox...
+        }
+        function saveString(text, filename) {
+            save(new Blob([text], {
+                type: 'text/plain'
+            }), filename);
+        }
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([buffer], {
+                type: 'application/octet-stream'
+            }), filename);
+        }
+        function convertLine2toLine() {
+            var itemProcessed = 0;
+            scene.children.forEach(obj => {
+                if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+                    var material = new THREE.LineBasicMaterial({
+                        color: obj.material.color,
+                        linewidth: obj.material.linewidth
+                    });
+                    var geometry = new THREE.BufferGeometry();
+                    var vertices = new Float32Array(obj.geometry.userData);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    var convertedLine = new THREE.Line(geometry, material);
+                    var position = obj.getWorldPosition(position);
+                    var quaternion = obj.getWorldQuaternion(quaternion);
+                    var scale = obj.getWorldScale(scale);
+                    convertedLine.position.set(position.x, position.y, position.z)
+                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
+                    convertedLine.scale.set(scale.x, scale.y, scale.z)
+                    scene2.add(convertedLine);
+                    //scene.add(convertedLine);
+                    convertedLine.geometry.center();
+                }
+                itemProcessed = itemProcessed + 1;
+                if (itemProcessed === scene.children.length) {
+                    console.log(scene2);
+                    exportGLTF(scene2);
+                }
+            })
+        }
+        convertLine2toLine()
+    },
+    blueprint: function () {
+        //nothing yet
+    },
+    gif: function () {
+        makingGif = true;
+
+        gif = new GIF({
+            workers: 10,
+            quality: 10,
+            workerScript: 'js/vendor/gif.worker.js'
+        });
+
+        gif.on("finished", function (blob) {
+            var img = new Image();
+            img.src = URL.createObjectURL(blob);
+            img.style.zIndex = 5;
+            img.style.position = 'absolute';
+            img.style.top = '10px';
+            img.style.right = '10px';
+            img.style.width = window.innerWidth / 3;
+            img.style.height = window.innerHeight / 3;
+            img.style.border = '1px solid white';
+            document.body.appendChild(img);
+            console.log("rendered");
+            app.autoRotate = false;
+        });
+    },
+    image: function () {
+        //nothing yet
     }
 }
 
@@ -856,6 +1041,8 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 
     renderer.setSize(window.innerWidth, window.innerHeight);
+    drawingCanvas.width = window.innerWidth;
+    drawingCanvas.height = window.innerHeight;
 
     insetWidth = window.innerHeight / 4; // square
     insetHeight = window.innerHeight / 4;
@@ -939,10 +1126,6 @@ function animate() {
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
-//UTILS
-function selectedTool() {
-    return app.selectedTool;
-}
 
 function checkIfHelperObject(object) {
     if (object.type === "AxesHelper" || object.type === "GridHelper" || object.type === "Object3D") {
@@ -959,22 +1142,6 @@ function computeGroupCenter() {
     }
     center.divideScalar(count);
     return center;
-}
-
-function toggleDash(object, bool) {
-    var material = object.material;
-    material.dashed = bool;
-    var ratio = 1000;
-    // dashed is implemented as a defines -- not as a uniform. this could be changed.
-    // ... or THREE.LineDashedMaterial could be implemented as a separate material
-    // temporary hack - renderer should do this eventually
-    if (bool) material.defines.USE_DASH = "";
-    else delete material.defines.USE_DASH;
-    material.dashSize = bool ? material.linewidth / ratio : 1000;
-    material.gapSize = bool ? material.linewidth / ratio : 1000;
-    //material.wireframe = bool;
-    material.dashScale = bool ? 1 : 1000;
-    material.needsUpdate = true;
 }
 
 //CAMERA CONTROLS
@@ -1177,29 +1344,6 @@ function load() {
 }
 document.getElementById("Load").addEventListener("click", load);
 
-function makeGif() {
-    makingGif = true;
+document.getElementById("Export").addEventListener("click", exportTo.gltf);
 
-    gif = new GIF({
-        workers: 10,
-        quality: 10,
-        workerScript: 'js/vendor/gif.worker.js'
-    });
-
-    gif.on("finished", function (blob) {
-        var img = new Image();
-        img.src = URL.createObjectURL(blob);
-        img.style.zIndex = 5;
-        img.style.position = 'absolute';
-        img.style.top = '10px';
-        img.style.right = '10px';
-        img.style.width = window.innerWidth / 3;
-        img.style.height = window.innerHeight / 3;
-        img.style.border = '1px solid white';
-        document.body.appendChild(img);
-        console.log("rendered");
-        app.autoRotate = false;
-    });
-}
-
-document.getElementById("makeGif").addEventListener("click", makeGif);
+document.getElementById("makeGif").addEventListener("click", exportTo.gif);
