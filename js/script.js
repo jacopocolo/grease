@@ -500,6 +500,7 @@ app.selection = {
     current: [],
     selecting: [],
     somethingSelected: false,
+    helper: undefined,
     group: undefined,
     start: function () {
         if (!transforming) {
@@ -585,28 +586,39 @@ app.selection = {
         else if (this.selecting.length > 1) {
             this.group = new THREE.Group();
             scene.add(this.group);
+            this.helper = new THREE.BoxHelper(this.group, 0xff0000);
+            scene.add(this.helper);
             //Add all the selected elements to the temporary groups
             this.selecting.forEach(element => {
                 this.toggleDash(element, true)
                 this.group.add(element);
                 this.current.push(element); //we also add it to the current selection in case we need it for duplication
             })
+            this.helper.update();
+            //Almost there. The object move around when rotated but do keep their position
+            this.group.position.set(
+                this.helper.geometry.boundingSphere.center.x,
+                this.helper.geometry.boundingSphere.center.y,
+                this.helper.geometry.boundingSphere.center.z
+            )
+            this.group.children.forEach(obj => {
+                obj.translateX(-this.helper.geometry.boundingSphere.center.x);
+                obj.translateY(-this.helper.geometry.boundingSphere.center.y);
+                obj.translateZ(-this.helper.geometry.boundingSphere.center.z);
+            })
             //Attach controls to the temporary group
             app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.group);
             scene.add(transformControls);
-            //Calculate center between the elements of the group
-            transformControls.position.set(
-                this.computeGroupCenter().x,
-                this.computeGroupCenter().y,
-                this.computeGroupCenter().z
-            );
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
             transformControls.addEventListener("change", function () {
-                if (transforming) { mirror.updateMirrorOf(transformControls.object) }
+                if (transforming == true) {
+                    mirror.updateMirrorOf(transformControls.object);
+                }
+                app.selection.helper.update();
             });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
@@ -691,18 +703,41 @@ app.selection = {
         if (typeof this.group !== 'undefined') {
             var ungroupArray = [];
             for (var i = 0; i < this.group.children.length; i++) {
-                var object = this.group.children[i]
+                var object = this.group.children[i];
                 var position = new THREE.Vector3();
-                position = object.getWorldPosition(position);
-                object.position.copy(position);
-                if (!checkIfHelperObject(object)) {
-                    this.toggleDash(object, false)
+                object.getWorldPosition(position);
+                var quaternion = new THREE.Quaternion();
+                object.getWorldQuaternion(quaternion);
+                var scale = new THREE.Vector3();
+                object.getWorldScale(scale);
+                this.toggleDash(object, false)
+                var objectToUngroup = {
+                    obj: object,
+                    worldPosition: position,
+                    worldQuaternion: quaternion,
+                    worldScale: scale
                 }
-                ungroupArray.push(object);
+                ungroupArray.push(objectToUngroup);
             }
-            ungroupArray.forEach(object => {
-                scene.add(object);
-                //blueprint.updateBlueprintLine(object);
+            ungroupArray.forEach(objectToUngroup => {
+                let obj = objectToUngroup.obj
+                scene.add(obj);
+                obj.position.set(
+                    objectToUngroup.worldPosition.x,
+                    objectToUngroup.worldPosition.y,
+                    objectToUngroup.worldPosition.z
+                );
+                obj.quaternion.set(
+                    objectToUngroup.worldQuaternion.x,
+                    objectToUngroup.worldQuaternion.y,
+                    objectToUngroup.worldQuaternion.z,
+                    objectToUngroup.worldQuaternion.w
+                );
+                obj.scale.set(
+                    objectToUngroup.worldScale.x,
+                    objectToUngroup.worldScale.y,
+                    objectToUngroup.worldScale.z
+                );
             })
             this.current = [];
             this.group = undefined;
@@ -718,6 +753,7 @@ app.selection = {
         transformControls.detach();
         transformControls.dispose();
         this.current = [];
+        scene.remove(app.selection.helper);
 
     },
     toggleDash: function (object, bool) {
