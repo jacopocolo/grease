@@ -598,9 +598,9 @@ app.selection = {
             scene.add(transformControls);
             //Calculate center between the elements of the group
             transformControls.position.set(
-                computeGroupCenter().x,
-                computeGroupCenter().y,
-                computeGroupCenter().z
+                this.computeGroupCenter().x,
+                this.computeGroupCenter().y,
+                this.computeGroupCenter().z
             );
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
@@ -641,9 +641,9 @@ app.selection = {
             scene.add(transformControls);
             //Calculate center between the elements of the group
             transformControls.position.set(
-                computeGroupCenter().x,
-                computeGroupCenter().y,
-                computeGroupCenter().z
+                this.computeGroupCenter().x,
+                this.computeGroupCenter().y,
+                this.computeGroupCenter().z
             );
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
@@ -735,6 +735,16 @@ app.selection = {
         material.dashScale = bool ? 1 : 1000;
         material.needsUpdate = true;
     },
+    computeGroupCenter: function () {
+        var center = new THREE.Vector3();
+        var children = app.selection.group.children;
+        var count = children.length;
+        for (var i = 0; i < count; i++) {
+            center.add(children[i].position);
+        }
+        center.divideScalar(count);
+        return center;
+    },
     redrawLine: function (color) {
         // clear canvas
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
@@ -825,7 +835,6 @@ let exportTo = {
     gltf: function () {
         //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
         var scene2 = new THREE.Scene();
-
         function exportGLTF(input) {
             var gltfExporter = new GLTFExporter();
             var options = {
@@ -886,6 +895,7 @@ let exportTo = {
                 type: 'application/octet-stream'
             }), filename);
         }
+        //may need to scale up a bit
         function convertLine2toLine() {
             var itemProcessed = 0;
             scene.children.forEach(obj => {
@@ -905,12 +915,10 @@ let exportTo = {
                     convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
                     convertedLine.scale.set(scale.x, scale.y, scale.z)
                     scene2.add(convertedLine);
-                    //scene.add(convertedLine);
                     convertedLine.geometry.center();
                 }
                 itemProcessed = itemProcessed + 1;
                 if (itemProcessed === scene.children.length) {
-                    console.log(scene2);
                     exportGLTF(scene2);
                 }
             })
@@ -1133,24 +1141,12 @@ function checkIfHelperObject(object) {
     } else { return false }
 }
 
-function computeGroupCenter() {
-    var center = new THREE.Vector3();
-    var children = app.selection.group.children;
-    var count = children.length;
-    for (var i = 0; i < count; i++) {
-        center.add(children[i].position);
-    }
-    center.divideScalar(count);
-    return center;
-}
-
 //CAMERA CONTROLS
 function updateminiAxisCamera() {
     miniAxisCamera.zoom = camera.zoom;
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.quaternion.copy(camera.quaternion);
 }
-
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
     let handlesDistance = 0.6
@@ -1219,7 +1215,6 @@ function drawAxisHelperControls() {
     miniAxis.addEventListener("touchstart", repositionCamera, false);
     miniAxis.addEventListener("mousedown", repositionCamera, false);
 }
-
 let miniAxisMouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
@@ -1235,7 +1230,6 @@ let miniAxisMouse = {
         }
     }
 }
-
 function repositionCamera() {
     if (!app.controlsLocked) {
         miniAxisMouse.updateCoordinates(event);
@@ -1345,5 +1339,4 @@ function load() {
 document.getElementById("Load").addEventListener("click", load);
 
 document.getElementById("Export").addEventListener("click", exportTo.gltf);
-
 document.getElementById("makeGif").addEventListener("click", exportTo.gif);
