@@ -588,24 +588,27 @@ app.selection = {
             scene.add(this.group);
             this.helper = new THREE.BoxHelper(this.group, 0xff0000);
             scene.add(this.helper);
+            var center = new THREE.Vector3();
+            this.selecting.forEach(obj => {
+                center.add(obj.position);
+            })
+            center.divideScalar(this.selecting.length);
+            console.log(center);
+            this.group.position.set(center.x, center.y, center.z);
+
             //Add all the selected elements to the temporary groups
             this.selecting.forEach(element => {
                 this.toggleDash(element, true)
-                this.group.add(element);
+                this.group.attach(element);
                 this.current.push(element); //we also add it to the current selection in case we need it for duplication
             })
             this.helper.update();
             //Almost there. The object move around when rotated but do keep their position
-            this.group.position.set(
-                this.helper.geometry.boundingSphere.center.x,
-                this.helper.geometry.boundingSphere.center.y,
-                this.helper.geometry.boundingSphere.center.z
-            )
-            this.group.children.forEach(obj => {
-                obj.translateX(-this.helper.geometry.boundingSphere.center.x);
-                obj.translateY(-this.helper.geometry.boundingSphere.center.y);
-                obj.translateZ(-this.helper.geometry.boundingSphere.center.z);
-            })
+            // this.group.children.forEach(obj => {
+            //     obj.translateX(-this.helper.geometry.boundingSphere.center.x);
+            //     obj.translateY(-this.helper.geometry.boundingSphere.center.y);
+            //     obj.translateZ(-this.helper.geometry.boundingSphere.center.z);
+            // })
             //Attach controls to the temporary group
             app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
             transformControls = new TransformControls(camera, drawingCanvas);
@@ -948,7 +951,7 @@ let exportTo = {
                     var quaternion = obj.getWorldQuaternion(quaternion);
                     var scale = obj.getWorldScale(scale);
                     convertedLine.position.set(position.x, position.y, position.z)
-                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
+                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
                     convertedLine.scale.set(scale.x, scale.y, scale.z)
                     scene2.add(convertedLine);
                     convertedLine.geometry.center();
