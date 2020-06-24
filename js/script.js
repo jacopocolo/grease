@@ -588,27 +588,20 @@ app.selection = {
             scene.add(this.group);
             this.helper = new THREE.BoxHelper(this.group, 0xff0000);
             scene.add(this.helper);
+            //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
             var center = new THREE.Vector3();
             this.selecting.forEach(obj => {
                 center.add(obj.position);
             })
             center.divideScalar(this.selecting.length);
-            console.log(center);
             this.group.position.set(center.x, center.y, center.z);
-
             //Add all the selected elements to the temporary groups
             this.selecting.forEach(element => {
                 this.toggleDash(element, true)
-                this.group.attach(element);
+                this.group.attach(element); //attach and not add manages transform controls super well
                 this.current.push(element); //we also add it to the current selection in case we need it for duplication
             })
             this.helper.update();
-            //Almost there. The object move around when rotated but do keep their position
-            // this.group.children.forEach(obj => {
-            //     obj.translateX(-this.helper.geometry.boundingSphere.center.x);
-            //     obj.translateY(-this.helper.geometry.boundingSphere.center.y);
-            //     obj.translateZ(-this.helper.geometry.boundingSphere.center.z);
-            // })
             //Attach controls to the temporary group
             app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
             transformControls = new TransformControls(camera, drawingCanvas);
