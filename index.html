@@ -82,18 +82,13 @@
             </span>
             <span>
                 <input type="radio" id="rotate" name="transformations" value="rotate"
-                    v-model="selectedTransformation" /><label for="rotate"
-                    v-bind:class="[typeof selection.group == 'undefined' ? '' : '']"><img src="img/rotate.svg"
-                        height="32" width="32">Rotate</label>
-                <!-- <input type="radio" id="rotate" name="transformations" value="rotate"
                     v-model="selectedTransformation" /><label for="rotate"><img src="img/rotate.svg" height="32"
-                        width="32">Rotate</label> -->
+                        width="32">Rotate</label>
             </span>
             <span>
                 <input type="radio" id="scale" name="transformations" value="scale"
-                    v-model="selectedTransformation" /><label for="scale"
-                    v-bind:class="[typeof selection.group == 'undefined' ? '' : '']"><img src="img/scale.svg"
-                        height="32" width="32">Scale</label>
+                    v-model="selectedTransformation" /><label for="scale"><img src="img/scale.svg" height="32"
+                        width="32">Scale</label>
             </span>
         </div>
         <div v-if="selectedTool === 'select'" id="duplicate" class="button"
