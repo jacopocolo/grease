@@ -564,6 +564,8 @@ app.selection = {
         //and push that object into the current array
         else if (this.selecting.length == 1) {
             //somethingSelected = true;
+            this.helper = new THREE.BoxHelper(this.selecting[0], 0xff0000);
+            scene.add(this.helper);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.selecting[0]);
             this.current.push(this.selecting[0]);
@@ -572,7 +574,8 @@ app.selection = {
                 transforming = true;
             });
             transformControls.addEventListener("change", function () {
-                if (transforming) { mirror.updateMirrorOf(transformControls.object) }
+                if (transforming == true) { mirror.updateMirrorOf(transformControls.object) }
+                app.selection.helper.update();
             }
             );
             transformControls.addEventListener("mouseUp", function () {
