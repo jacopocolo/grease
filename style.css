@@ -1,9 +1,21 @@
+:root {
+  --bg-color: #022084;
+  --accent-color: #fecf12;
+  --accent-color-selected: #DAAE01;
+  --ui-bg-color: #000000;
+  --line-color-lightest: #FFFFFF;
+  --line-color-light: #D9E0F7;
+  --line-color-medium: #6386E3;
+  --line-color-dark: #4872DF;
+}
+
 body, html, #app { 
   width: 100%;
   height: 100%;
   /* position: fixed; */
   overflow: hidden;
-  font-family: monospace;
+  font-family: sans-serif;
+  font-size: 14px;
 }
 
 html {
@@ -21,19 +33,18 @@ margin: 0px;
 }
 
 .blueprint {
-  background-color: rgb(0, 32, 130);
+  background-color: var(--bg-color);
 }
 
-.light {
+/* .light {
   background-color: rgb(255,255,255);
 }
-
 .dark {
   background-color: rgb(7, 7, 7);
-}
+} */
 
 .controls {
-  background-color: #666;
+  background-color: var(--ui-bg-color);
   position: absolute;
   top: 0;
   right: 0;
@@ -50,7 +61,7 @@ margin: 0px;
   position: absolute;
   border-radius: 8px;
   left: 8px;
-  bottom: 41px;
+  bottom: 100px;
   z-index: 4;
   border-radius: 0px 0px 8px 8px;
 }
@@ -60,25 +71,23 @@ margin: 0px;
   z-index: 5;
 }
 
-#handle {
+.handle {
   width: 100%;
-  height: 44px;
-  background-color: rgba(0, 0, 0, 0.6);
-  border-radius: 8px 8px 0px 0px;
+  height: 30px;
+  background-color: var(--ui-bg-color);
+  border-radius: 6px 6px 0px 0px;
   z-index: 6;
+  padding: 13px;
   cursor: move;
+  box-sizing: border-box;
 }
 
-.miniAxisButton{
-  height: 20px;
-  width: auto;
-  background-color: black;
-  border-radius: 16px;
-  position: absolute;
-  right: 8px;
-  top: 100px;
-  color: white;
-  padding: 4px 8px;
+.handleLine {
+  height: 1px;
+  width: 30px;
+  background-color: var(--accent-color);
+  border-radius: 1px;
+  margin-bottom: 4px;
 }
 
 #undo {
@@ -89,9 +98,9 @@ margin: 0px;
 
 .button {
   z-index: 5;
-  background: #000; /* Grey background */
+  background: var(--ui-bg-color); /* Grey background */
   outline: none; /* Remove outline */
-  padding: 16px;
+  padding: 0px 16px;
   border-radius: 40px;
   box-sizing: border-box;
   color: white;
@@ -103,6 +112,22 @@ margin: 0px;
 #drawingCanvas {
   position: absolute;
    z-index: 2;
+}
+
+.toolbar {
+  background-color: var(--ui-bg-color);
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  z-index: 5;
+  width: 200px;
+  border-radius:6px;
+}
+
+#toolSelection {
+  background-color: var(--accent-color);
+  padding: 4px;
 }
 
 #toolSelection, #transformationSelection {
@@ -127,11 +152,16 @@ margin: 0px;
   text-align: center;
 }
 
+#transformationSelection {
+  background-color: var(--accent-color);
+}
+
 #transformationSelection span {
-  display: inline-block;
-  width: 100px;
+  display: grid;
+  width: 100%;
   box-sizing: border-box;
   text-align: center;
+  padding: 4px;
 }
 
 #toolSelection span img, #transformationSelection span img {
@@ -155,38 +185,28 @@ margin: 0px;
 }
 
 #toolSelection span label, #transformationSelection span label {
-  display: inline-block;
+  display: grid;
+  align-items: center;
   box-sizing: border-box;
-  padding: 6px 0px;
   width: 100%;
   height: 44px;
-  background-color: black;
   box-sizing: border-box;
  }
 
  #transformationSelection span label {
-   border-radius: 44px;
+   color: var(--ui-bg-color);
  }
 
  #toolSelection input[type="radio"]:checked + label, #transformationSelection input[type="radio"]:checked + label {
-  background-color: #333;
-}
-
-.selectBox {
-				border: 1px solid #55aaff;
-				background-color: rgba(75, 160, 255, 0.3);
-				position: fixed;
-        z-index: 9999;
+  background-color: var(--accent-color-selected);
+  border-radius: 6px;
+  font-weight: bold;
 }
 
 #transformationSelection, #lineSelection, #themeSelection {
-  position: absolute;
-  top: 10px;
-  color: white;
-  z-index: 5;
 }
 
-#transformationSelection, #lineSelection {
+#lineSelection {
   left: 10px;
 }
 
@@ -233,11 +253,6 @@ margin: 0px;
   right: 160px;
 }
 
-#mirror {
-  position: absolute;
-  top: 8px;
-  left: 126px;
-}
 
 .radio-mirror-item {
   display: inline-block;
@@ -246,7 +261,7 @@ margin: 0px;
 
 .radio-mirror-item label {
   position: relative;
-  color: black;
+  color: var(--ui-bg-color);
   margin-left: 8px;
 }
 
@@ -305,18 +320,17 @@ margin: 0px;
   bottom: 40px;
   right: 10px;
   width: 100px;
-  background-color: black;
+  background-color:var(--ui-bg-color);
   padding: 16px;
   z-index: 5;
 }
 
 #duplicate {
-  color: white;
-  background-color: black;
-  z-index: 5;
-  position: absolute;
-  top: 10px;
-  left: 350px;
+  display: grid;
+  align-content: center;
+  vertical-align: center;
+  text-align: center;
+  color: var(--accent-color);
 }
 
 .disabled {

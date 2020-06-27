@@ -55,5 +55,6 @@ function makeDragable(dragHandle, dragTarget) {
     }
 }
 
-makeDragable('#handle', '#miniAxis')
+makeDragable('#miniAxisHandle', '#miniAxis');
+makeDragable('#toolbarHandle', '#toolbar')
 

@@ -564,7 +564,7 @@ app.selection = {
         //and push that object into the current array
         else if (this.selecting.length == 1) {
             //somethingSelected = true;
-            this.helper = new THREE.BoxHelper(this.selecting[0], 0xff0000);
+            this.helper = new THREE.BoxHelper(this.selecting[0], 0xfecf12);
             scene.add(this.helper);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.selecting[0]);
@@ -589,7 +589,7 @@ app.selection = {
         else if (this.selecting.length > 1) {
             this.group = new THREE.Group();
             scene.add(this.group);
-            this.helper = new THREE.BoxHelper(this.group, 0xff0000);
+            this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
             scene.add(this.helper);
             //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
             var center = new THREE.Vector3();
@@ -606,7 +606,6 @@ app.selection = {
             })
             this.helper.update();
             //Attach controls to the temporary group
-            app.selectedTransformation = 'translate'; //temporary fix to the fact that transform and rotate don't work on groups
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.group);
             scene.add(transformControls);
@@ -1009,10 +1008,10 @@ function init() {
 
     miniAxisRenderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: false
+        alpha: true
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
-    miniAxisRenderer.setClearColor(0x000000, 1);
+    miniAxisRenderer.setClearColor(0x000000, 0.4);
     miniAxisRenderer.setSize(250, 250);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
