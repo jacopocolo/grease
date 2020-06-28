@@ -14,7 +14,7 @@ var app = new Vue({
         selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
         isAGroupSelected: false, //Transform tools must be restricted if true
         lineColor: 'rgb(255, 255, 255)', //Rgb value
-        lineWidth: 10, //Default 10
+        lineWidth: 3, //Default 10
         lineWidthEl: undefined, //filled in mount()
         selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
         linesNeedThemeUpdate: false,

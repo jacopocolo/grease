@@ -64,33 +64,87 @@
 
             <div class="lineTools" v-if="selectedTool == 'draw'">
                 <div id="lineSelection">
-                    <!-- <label for="lineColor">Color:</label>
-            <input type="text" id="lineColor" name="lineColor" v-model="lineColor"> -->
-                    <div id="lineWidth" class="button" v-on:mousedown="lineWidthStartDrag()"
-                        v-on:touchstart="lineWidthStartDrag()">
-                        <span v-if="!lineWidthDragging" class="lineWidthLabel">Width</span><span v-else
-                            class="lineWidthLabel">Drag</span>
-                        <div id="lineWidthBg">
-                            <div id="indicator"
-                                v-bind:style="{ backgroundColor: lineColor, transform: 'scale('+lineWidth+')' }"></div>
+                    <div id="lineWidth" class="button">
+                        <span class="toolbarLabel">Width</span>
+                        <div>
+                            <input type="radio" id="smallLineWidth" value="3" name="smallLineWidth" v-model="lineWidth">
+                            <label for="smallLineWidth">
+                                <span id="smallLineWidthIndicator"></span>
+                            </label>
                         </div>
+                        <div>
+                            <input type="radio" id="mediumLineWidth" value="10" name="mediumLineWidth"
+                                v-model="lineWidth">
+                            <label for="mediumLineWidth"><span id="mediumLineWidthIndicator"></span></label>
+                        </div>
+                        <div>
+                            <input type="radio" id="largeLineWidth" value="30" name="largeLineWidth"
+                                v-model="lineWidth">
+                            <label for="largeLineWidth"><span id="largeLineWidthIndicator"></span></label>
+                        </div>
+
                     </div>
                 </div>
 
-                <div id="mirror" class="button">Mirror
-                    <div class="radio-mirror-item radio-mirrorX">
-                        <input type="radio" id="mirrorX" value="x" name="mirror" v-model="mirror">
-                        <label for="mirrorX"></label>
+                <div id="lineColor" class="button">
+                    <span class="toolbarLabel">Color</span>
+                    <div>
+                        <input type="radio" id="lightestColor" value="rgb(255, 255, 255)" name="lightestColor"
+                            v-model="lineColor">
+                        <label for="lightestColor">
+                            <span class="colorSelector" id="lightestColorSelector"></span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="lightColor" value="rgb(217, 224, 247)" name="lightColor"
+                            v-model="lineColor">
+                        <label for="lightColor">
+                            <span class="colorSelector" id="lightColorSelector"></span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="mediumColor" value="rgb(99, 134, 227)" name="mediumColor"
+                            v-model="lineColor">
+                        <label for="mediumColor">
+                            <span class="colorSelector" id="mediumColorSelector"></span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" id="darkColor" value="rgb(72, 114, 223)" name="darkColor"
+                            v-model="lineColor">
+                        <label for="darkColor">
+                            <span class="colorSelector" id="darkColorSelector"></span>
+                        </label>
                     </div>
 
-                    <div class="radio-mirror-item radio-mirrorY">
-                        <input type="radio" id="mirrorY" value="y" name="mirror" v-model="mirror">
-                        <label for="mirrorY"></label>
+                </div>
+                <div id="mirror" class="button">
+                    <span class="toolbarLabel">Mirror</span>
+                    <div>
+                        <input type="radio" value="false" name="noMirror" id="noMirror" v-model="mirror">
+                        <label for="noMirror">
+                            <span class='mirrorRadio'>No</span>
+                        </label>
                     </div>
-                    <div class="radio-mirror-item radio-mirrorZ">
-                        <input type="radio" id="mirrorZ" value="z" name="mirror" v-model="mirror">
-                        <label for="mirrorZ"></label>
+                    <div>
+                        <input type="radio" value="x" name="mirrorX" id='mirrorX' v-model="mirror">
+                        <label for="mirrorX">
+                            <span class='mirrorRadio'>X</span>
+                        </label>
                     </div>
+                    <div>
+                        <input type="radio" value="y" name="mirrorY" id='mirrorY' v-model="mirror">
+                        <label for="mirrorY">
+                            <span class='mirrorRadio'>Y</span>
+                        </label>
+                    </div>
+                    <div>
+                        <input type="radio" value="z" name="mirrorZ" id='mirrorZ' v-model="mirror">
+                        <label for="mirrorZ">
+                            <span class='mirrorRadio'>Z</span>
+                        </label>
+                    </div>
+
                 </div>
             </div>
 
@@ -119,7 +173,10 @@
             </div>
         </div>
 
-        <!--<div id="themeSelection">
+
+    </div>
+
+    <!--<div id="themeSelection">
             <span>
                 <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
                     checked /><label for="blueprintTheme">Blueprint</label>
@@ -140,13 +197,13 @@
         </div>
     -->
 
-        <div id="saveLoad" style="display: none;">
-            <button id="Save">Save</button>
-            <button id="Load">Load</button>
-            <button id="Export">Export geometry</button>
-        </div>
+    <div id="saveLoad" style="display: none;">
+        <button id="Save">Save</button>
+        <button id="Load">Load</button>
+        <button id="Export">Export geometry</button>
+    </div>
 
-        <div id="share" style="display: none;"><button id="makeGif">Make gif</button></div>
+    <div id="share" style="display: none;"><button id="makeGif">Make gif</button></div>
 
     </div>
 </body>
