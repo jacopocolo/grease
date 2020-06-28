@@ -1204,7 +1204,6 @@ function animate() {
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
-
 function checkIfHelperObject(object) {
     if (object.type === "AxesHelper" || object.type === "GridHelper" || object.type === "Object3D") {
         return true
@@ -1356,22 +1355,6 @@ function repositionCamera() {
         }
     }
 };
-
-//Allow dechecking of radio buttons
-var mirrorRadios = document.getElementsByName('mirror');
-var setCheck;
-var x = 0;
-for (x = 0; x < mirrorRadios.length; x++) {
-    mirrorRadios[x].onclick = function () {
-        if (setCheck != this) {
-            setCheck = this;
-        } else {
-            this.checked = false;
-            app.mirror = false;
-            setCheck = null;
-        }
-    };
-}
 
 //SAVE AND LOAD
 function save() {
