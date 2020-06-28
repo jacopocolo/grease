@@ -633,6 +633,7 @@ app.selection = {
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
                 duplicateArray.push(duplicate);
+                mirror.object(duplicate, duplicate.userData.mirrorAxis);
             })
             //deselect current group
             this.deselect();
@@ -658,11 +659,17 @@ app.selection = {
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
+            transformControls.addEventListener("change", function () {
+                if (transforming == true) {
+                    mirror.updateMirrorOf(transformControls.object);
+                }
+                app.selection.helper.update();
+            });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
             });
             this.group.position.set(
-                this.group.position.x + 0.2,
+                this.group.position.x + 0.1,
                 this.group.position.y,
                 this.group.position.z
             )
@@ -690,10 +697,17 @@ app.selection = {
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
+            transformControls.addEventListener("change", function () {
+                if (transforming == true) {
+                    mirror.updateMirrorOf(transformControls.object);
+                }
+                app.selection.helper.update();
+            });
             transformControls.addEventListener("mouseUp", function () {
                 transforming = false;
             });
             scene.add(duplicate);
+            mirror.object(duplicate, duplicate.userData.mirrorAxis);
         }
     },
     deselect: function () {
@@ -796,6 +810,9 @@ app.selection = {
                 context.lineTo(path[j][0], path[j][1]);
         }
         context.stroke();
+    },
+    addTransformControls: function (selectionArray) {
+
     }
 }
 
@@ -1093,12 +1110,10 @@ function onWindowResize() {
 function animate() {
     updateminiAxisCamera();
     requestAnimationFrame(animate);
-
     //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
     }
-
     //check if we need to disable controls
     if (controls) {
         controls.enabled = !app.controlsLocked
@@ -1113,7 +1128,6 @@ function animate() {
             app.controlsLocked = false;
         }
     }
-
     //this sets the resolution of the materials correctly every frame
     //seems to be needed based on examples    
     if (materials) {
@@ -1121,7 +1135,6 @@ function animate() {
             material.resolution.set(window.innerWidth, window.innerHeight)
         );
     }
-
     //Update colors of lines based on theme?
     if (app.linesNeedThemeUpdate) {
         scene.children.forEach(object => {
