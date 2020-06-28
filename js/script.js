@@ -558,75 +558,78 @@ app.selection = {
         //If selecting array is empty and we are not transforming: it means we selected nothing and we deselect
         if (this.selecting.length == 0 && !transforming) {
             this.deselect();
+        } else {
+            this.addTransformControls(this.selecting);
         }
-        //If tempArray has one selected object, 
-        //we attach the controls only to that object
-        //and push that object into the current array
-        else if (this.selecting.length == 1) {
-            //somethingSelected = true;
-            this.helper = new THREE.BoxHelper(this.selecting[0], 0xfecf12);
-            scene.add(this.helper);
-            transformControls = new TransformControls(camera, drawingCanvas);
-            transformControls.attach(this.selecting[0]);
-            this.current.push(this.selecting[0]);
-            scene.add(transformControls);
-            transformControls.addEventListener("mouseDown", function () {
-                transforming = true;
-            });
-            transformControls.addEventListener("change", function () {
-                if (transforming == true) { mirror.updateMirrorOf(transformControls.object) }
-                app.selection.helper.update();
-            }
-            );
-            transformControls.addEventListener("mouseUp", function () {
-                transforming = false;
-            });
-            this.selecting = []; //reset
-        }
-        //If selecting has several selected objects,
-        //we group them together and attach transform controls to the group
-        //and push them to the group array
-        else if (this.selecting.length > 1) {
-            this.group = new THREE.Group();
-            scene.add(this.group);
-            this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
-            scene.add(this.helper);
-            //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
-            var center = new THREE.Vector3();
-            this.selecting.forEach(obj => {
-                center.add(obj.position);
-            })
-            center.divideScalar(this.selecting.length);
-            this.group.position.set(center.x, center.y, center.z);
-            //Add all the selected elements to the temporary groups
-            this.selecting.forEach(element => {
-                this.toggleDash(element, true)
-                this.group.attach(element); //attach and not add manages transform controls super well
-                this.current.push(element); //we also add it to the current selection in case we need it for duplication
-            })
-            this.helper.update();
-            //Attach controls to the temporary group
-            transformControls = new TransformControls(camera, drawingCanvas);
-            transformControls.attach(this.group);
-            scene.add(transformControls);
-            transformControls.addEventListener("mouseDown", function () {
-                transforming = true;
-            });
-            transformControls.addEventListener("change", function () {
-                if (transforming == true) {
-                    mirror.updateMirrorOf(transformControls.object);
-                }
-                app.selection.helper.update();
-            });
-            transformControls.addEventListener("mouseUp", function () {
-                transforming = false;
-            });
-            this.selecting = []; //reset
-        }
+        // //If tempArray has one selected object, 
+        // //we attach the controls only to that object
+        // //and push that object into the current array
+        // else if (this.selecting.length == 1) {
+        //     //somethingSelected = true;
+        //     this.helper = new THREE.BoxHelper(this.selecting[0], 0xfecf12);
+        //     scene.add(this.helper);
+        //     transformControls = new TransformControls(camera, drawingCanvas);
+        //     transformControls.attach(this.selecting[0]);
+        //     this.current.push(this.selecting[0]);
+        //     scene.add(transformControls);
+        //     transformControls.addEventListener("mouseDown", function () {
+        //         transforming = true;
+        //     });
+        //     transformControls.addEventListener("change", function () {
+        //         if (transforming == true) { mirror.updateMirrorOf(transformControls.object) }
+        //         app.selection.helper.update();
+        //     }
+        //     );
+        //     transformControls.addEventListener("mouseUp", function () {
+        //         transforming = false;
+        //     });
+        //     this.selecting = []; //reset
+        // }
+        // //If selecting has several selected objects,
+        // //we group them together and attach transform controls to the group
+        // //and push them to the group array
+        // else if (this.selecting.length > 1) {
+        //     this.group = new THREE.Group();
+        //     scene.add(this.group);
+        //     this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
+        //     scene.add(this.helper);
+        //     //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
+        //     var center = new THREE.Vector3();
+        //     this.selecting.forEach(obj => {
+        //         center.add(obj.position);
+        //     })
+        //     center.divideScalar(this.selecting.length);
+        //     this.group.position.set(center.x, center.y, center.z);
+        //     //Add all the selected elements to the temporary groups
+        //     this.selecting.forEach(element => {
+        //         this.toggleDash(element, true)
+        //         this.group.attach(element); //attach and not add manages transform controls super well
+        //         this.current.push(element); //we also add it to the current selection in case we need it for duplication
+        //     })
+        //     this.helper.update();
+        //     //Attach controls to the temporary group
+        //     transformControls = new TransformControls(camera, drawingCanvas);
+        //     transformControls.attach(this.group);
+        //     scene.add(transformControls);
+        //     transformControls.addEventListener("mouseDown", function () {
+        //         transforming = true;
+        //     });
+        //     transformControls.addEventListener("change", function () {
+        //         if (transforming == true) {
+        //             mirror.updateMirrorOf(transformControls.object);
+        //         }
+        //         app.selection.helper.update();
+        //     });
+        //     transformControls.addEventListener("mouseUp", function () {
+        //         transforming = false;
+        //     });
+        //     this.selecting = []; //reset
+        // }
     },
     duplicate: function () {
         //it's a group
         if (this.current.length > 1) {
+            var sourcePosition = this.group.position;
             var duplicateArray = [];
             this.current.forEach(object => {
                 var duplicate = object.clone();
@@ -638,76 +641,39 @@ app.selection = {
             //deselect current group
             this.deselect();
             this.current = duplicateArray;
-            //somethingSelected = true;
-            this.group = new THREE.Group();
-            scene.add(this.group);
-            //Add all the selected elements to the temporary groups
+            console.log(this.current)
+            // //Add all the selected elements to the temporary groups
             this.current.forEach(element => {
                 this.toggleDash(element, true)
-                this.group.add(element);
             })
-            //Attach controls to the temporary group
-            transformControls = new TransformControls(camera, drawingCanvas);
-            transformControls.attach(this.group);
-            scene.add(transformControls);
-            //Calculate center between the elements of the group
-            transformControls.position.set(
-                this.computeGroupCenter().x,
-                this.computeGroupCenter().y,
-                this.computeGroupCenter().z
-            );
-            transformControls.addEventListener("mouseDown", function () {
-                transforming = true;
-            });
-            transformControls.addEventListener("change", function () {
-                if (transforming == true) {
-                    mirror.updateMirrorOf(transformControls.object);
-                }
-                app.selection.helper.update();
-            });
-            transformControls.addEventListener("mouseUp", function () {
-                transforming = false;
-            });
+            this.addTransformControls(this.current);
             this.group.position.set(
-                this.group.position.x + 0.1,
-                this.group.position.y,
-                this.group.position.z
+                sourcePosition.x + 0.1,
+                sourcePosition.y,
+                sourcePosition.z
             )
+            this.helper.update();
+            mirror.updateMirrorOf(this.group);
         }
         //it's a single objet
         else if (this.current.length == 1) {
             var duplicate = this.current[0].clone();
-            var duplicateMaterial = this.current[0].material.clone();
+            var originalPosition = duplicate.position;
+            var duplicateMaterial = duplicate.material.clone();
             duplicate.material = duplicateMaterial;
-            //deselect current object
-            this.deselect();
-            //We move the duplicate a tiny bit
-            //This needs to be adjusted based on camera position?
             duplicate.position.set(
-                duplicate.position.x + 0.1,
-                duplicate.position.y,
-                duplicate.position.z
+                originalPosition.x + 0.1,
+                originalPosition.y,
+                originalPosition.z
             )
-            //And select the new one
-            this.current.push(duplicate);
-            this.toggleDash(this.current[0], true);
-            transformControls = new TransformControls(camera, drawingCanvas);
-            transformControls.attach(this.current[0]);
-            scene.add(transformControls);
-            transformControls.addEventListener("mouseDown", function () {
-                transforming = true;
-            });
-            transformControls.addEventListener("change", function () {
-                if (transforming == true) {
-                    mirror.updateMirrorOf(transformControls.object);
-                }
-                app.selection.helper.update();
-            });
-            transformControls.addEventListener("mouseUp", function () {
-                transforming = false;
-            });
             scene.add(duplicate);
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
+            //deselect current object
+            this.deselect();
+            this.selecting.push(duplicate);
+            this.addTransformControls(this.selecting);
+            this.selecting = [];
+            this.helper.update();
         }
     },
     deselect: function () {
@@ -759,6 +725,7 @@ app.selection = {
         }
         else if (this.current.length == 1) {
             var object = this.current[0];
+            console.log(object)
             //blueprint.updateBlueprintLine(object);
             this.toggleDash(object, false);
         }
@@ -766,7 +733,6 @@ app.selection = {
         transformControls.dispose();
         this.current = [];
         scene.remove(app.selection.helper);
-
     },
     toggleDash: function (object, bool) {
         var material = object.material;
@@ -812,7 +778,64 @@ app.selection = {
         context.stroke();
     },
     addTransformControls: function (selectionArray) {
-
+        //It's a single element
+        if (selectionArray.length == 1) {
+            this.helper = new THREE.BoxHelper(selectionArray[0], 0xfecf12);
+            scene.add(this.helper);
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(selectionArray[0]);
+            this.current.push(selectionArray[0]);
+            scene.add(transformControls);
+            transformControls.addEventListener("mouseDown", function () {
+                transforming = true;
+            });
+            transformControls.addEventListener("change", function () {
+                if (transforming == true) { mirror.updateMirrorOf(transformControls.object) }
+                app.selection.helper.update();
+            }
+            );
+            transformControls.addEventListener("mouseUp", function () {
+                transforming = false;
+            });
+            this.selecting = []; //reset
+            //It's a group element
+        } else if (selectionArray.length > 1) {
+            this.group = new THREE.Group();
+            scene.add(this.group);
+            this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
+            scene.add(this.helper);
+            //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
+            var center = new THREE.Vector3();
+            selectionArray.forEach(obj => {
+                center.add(obj.position);
+            })
+            center.divideScalar(selectionArray.length);
+            this.group.position.set(center.x, center.y, center.z);
+            //Add all the selected elements to the temporary groups
+            selectionArray.forEach(element => {
+                this.toggleDash(element, true)
+                this.group.attach(element); //attach and not add manages transform controls super well
+                this.current.push(element); //we also add it to the current selection in case we need it for duplication
+            })
+            this.helper.update();
+            //Attach controls to the temporary group
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(this.group);
+            scene.add(transformControls);
+            transformControls.addEventListener("mouseDown", function () {
+                transforming = true;
+            });
+            transformControls.addEventListener("change", function () {
+                if (transforming == true) {
+                    mirror.updateMirrorOf(transformControls.object);
+                }
+                app.selection.helper.update();
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                transforming = false;
+            });
+            this.selecting = []; //reset
+        }
     }
 }
 
