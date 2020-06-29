@@ -1028,6 +1028,195 @@ let exportTo = {
     },
     image: function () {
         //nothing yet
+    },
+    imageWithEncodedFile: function () {
+        var itemProcessed = 0;
+        var json = [];
+        scene.children.forEach(obj => {
+            if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+
+                line = {};
+
+                line.u = obj.uuid;
+                line.c = {};
+                line.c.r = obj.material.color.r * 255;
+                line.c.g = obj.material.color.g * 255;
+                line.c.b = obj.material.color.b * 255;
+                line.w = obj.material.linewidth;
+                line.g = obj.geometry.userData.positions;
+
+                var position = new THREE.Vector3();
+                position = obj.getWorldPosition(position);
+                line.p = position;
+
+                var quaternion = new THREE.Quaternion();
+                quaternion = obj.getWorldQuaternion(quaternion);
+                line.q = quaternion;
+
+                var scale = new THREE.Vector3();
+                scale = obj.getWorldScale(scale);
+                line.s = scale;
+
+                if (obj.userData.mirror) { line.m = obj.userData.mirror };
+                if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
+
+                json.push(line);
+                console.log(line.c)
+            }
+            itemProcessed = itemProcessed + 1;
+            if (itemProcessed === scene.children.length) {
+                encode(JSON.stringify(json));
+            }
+        });
+
+        function encode(json) {
+            //generate stringified json from scene
+            var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+            renderer.render(scene, camera);
+            var imgData = renderer.domElement.toDataURL();
+            var img = new Image();
+            var canvasWithEncodedImage = document.createElement('canvas');
+            canvasWithEncodedImage.width = 500;
+            canvasWithEncodedImage.height = 500;
+            canvasWithEncodedImage.style.zIndex = 5;
+            canvasWithEncodedImage.style.position = 'absolute';
+            canvasWithEncodedImage.style.top = '10px';
+            canvasWithEncodedImage.style.right = '10px';
+            var ctx = canvasWithEncodedImage.getContext("2d");
+            ctx.imageSmoothingEnabled = false;
+            ctx.mozImageSmoothingEnabled = false;
+            ctx.oImageSmoothingEnabled = false;
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+            ctx.fillStyle = 'rgb(2, 32, 132)';
+            ctx.fillRect(0, 0, 500, 300);
+            img.src = imgData;
+            img.onload = function () {
+                ctx.drawImage(img, 0, 0, 500, 400 * img.height / img.width)
+            };
+            document.body.appendChild(canvasWithEncodedImage);
+
+            function encode(json) {
+                console.log(json)
+                var pixels = [];
+                for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
+                    var pixel = {};
+                    pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
+                    pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
+                    pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
+                    // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
+                    pixels.push(pixel);
+                }
+                var count = 0
+                for (var y = 300; y < canvasWithEncodedImage.height; y++) {
+                    for (var x = 0; x < canvasWithEncodedImage.width; x++) {
+                        if (count < pixels.length) {
+                            ctx.fillStyle = "rgb(" +
+                                pixels[count].r
+                                + "," +
+                                pixels[count].g
+                                + "," +
+                                pixels[count].b
+                                + ")";
+                            ctx.fillRect(x, y, 1, 1);
+                            count = count + 1;
+                        } else {
+                            console.log(pixels[0])
+                            console.log(replacementValues[pixels[0].r]);
+                            console.log(replacementValues[pixels[0].g]);
+                            console.log(replacementValues[pixels[0].b]);
+                            // console.log(replacementValues[pixels[0].a]);
+                            console.log(ctx.getImageData(1, 300, 1, 1).data);
+                            console.log(replacementValues[ctx.getImageData(0, 300, 1, 1).data[0]]);
+                            console.log(replacementValues[ctx.getImageData(0, 300, 1, 1).data[1]]);
+                            console.log(replacementValues[ctx.getImageData(0, 300, 1, 1).data[2]]);
+                            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[3] / 2]);
+                            return
+                        }
+                    }
+                }
+
+            }
+            encode(json);
+
+        }
+    }
+}
+
+let importFrom = {
+    imageWithEncodedFile: function () {
+        var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+        var input, file, fr;
+        var input = document.createElement('input');
+        input.style.display = 'none';
+        input.type = 'file';
+        document.body.appendChild(input);
+        input.onchange = event => {
+            var img = new Image();
+            img.onload = () => {
+                var canvasWithEncodedImage = document.createElement('canvas');
+                canvasWithEncodedImage.width = 500;
+                canvasWithEncodedImage.height = 500;
+                canvasWithEncodedImage.style.zIndex = 5;
+                canvasWithEncodedImage.style.position = 'absolute';
+                canvasWithEncodedImage.style.top = '10px';
+                canvasWithEncodedImage.style.right = '10px';
+                var ctx = canvasWithEncodedImage.getContext("2d");
+                ctx.imageSmoothingEnabled = false;
+                ctx.mozImageSmoothingEnabled = false;
+                ctx.oImageSmoothingEnabled = false;
+                ctx.webkitImageSmoothingEnabled = false;
+                ctx.msImageSmoothingEnabled = false;
+                ctx.clearRect(0, 0, 500, 500);
+                ctx.drawImage(img, 0, 0);
+                decode(canvasWithEncodedImage, ctx);
+                document.body.appendChild(canvasWithEncodedImage);
+            };
+            img.src = URL.createObjectURL(event.target.files[0]);
+        }
+        input.click();
+
+        function decode(canvas, ctx) {
+            var json = '';
+            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[0]]);
+            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[1]]);
+            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[2]]);;
+            for (var y = 300; y < canvas.height; y++) {
+                for (var x = 0; x < canvas.width; x++) {
+                    //there's probably a better way of doing this
+                    if (replacementValues[ctx.getImageData(x, y, 1, 1).data[0]] != "]") {
+                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
+                    } else {
+                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
+                        console.log(JSON.parse(json))
+                        return
+                    }
+
+                    if (replacementValues[ctx.getImageData(x, y, 1, 1).data[1]] != "]") {
+                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
+                    } else {
+                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
+                        console.log(JSON.parse(json))
+                        return
+                    }
+
+                    if (replacementValues[ctx.getImageData(x, y, 1, 1).data[2]] != "]") {
+                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
+                    } else {
+                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
+                        console.log(JSON.parse(json))
+                        return
+                    }
+
+
+
+                }
+            }
+
+        }
+    },
+    json: function () {
+        console.log(json);
     }
 }
 
@@ -1358,14 +1547,16 @@ function repositionCamera() {
 
 //SAVE AND LOAD
 function save() {
-    function download(content, fileName, contentType) {
-        var a = document.createElement("a");
-        var file = new Blob([content], { type: contentType });
-        a.href = URL.createObjectURL(file);
-        a.download = fileName;
-        a.click();
-    }
-    download(JSON.stringify(blueprint), 'blueprint.json', 'json');
+    exportTo.imageWithEncodedFile();
+    // function download(content, fileName, contentType) {
+    //     var a = document.createElement("a");
+    //     var file = new Blob([content], { type: contentType });
+    //     a.href = URL.createObjectURL(file);
+    //     a.download = fileName;
+    //     a.click();
+    // }
+    // download(JSON.stringify(blueprint), 'blueprint.json', 'json');
+
 }
 document.getElementById("Save").addEventListener("click", save);
 
@@ -1389,7 +1580,7 @@ function load() {
     }
     input.click();
 }
-document.getElementById("Load").addEventListener("click", load);
+document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
 
 document.getElementById("Export").addEventListener("click", exportTo.gltf);
 document.getElementById("makeGif").addEventListener("click", exportTo.gif);
