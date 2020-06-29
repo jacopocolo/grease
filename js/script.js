@@ -262,110 +262,9 @@ let line = {
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
+        this.renderLine(this.linepositions, app.lineColor, app.lineWidth, app.mirror, false);
     },
-    // renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
-    //     var matLineDrawn = new LineMaterial({
-    //         color: new THREE.Color(lineColor),
-    //         linewidth: lineWidth, // in pixels
-    //         vertexColors: false,
-    //         wireframe: false,
-    //         side: THREE.DoubleSide,
-    //         depthWrite: true
-    //     });
-    //     materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
-    //     var geometry = new LineGeometry();
-    //     var positions = this.rejectPalm(positions);
-    //     geometry.setPositions(positions);
-    //     var l = new Line2(geometry, matLineDrawn);
-    //     if (position) {
-    //         l.position.set(position.x, position.y, position.z);
-    //     } else {
-    //         l.position.set(
-    //             l.geometry.boundingSphere.center.x,
-    //             l.geometry.boundingSphere.center.y,
-    //             l.geometry.boundingSphere.center.z
-    //         );
-    //     }
-    //     if (quaternion) {
-    //         // l.quaternion.normalize();
-    //         l.applyQuaternion(quaternion)
-    //         l.updateMatrix();
-    //     }
-    //     l.geometry.center();
-    //     l.needsUpdate = true;
-    //     l.computeLineDistances();
-    //     if (scale) {
-    //         l.scale.set(scale.x, scale.y, scale.z)
-    //     } else {
-    //         l.scale.set(1, 1, 1);
-    //     }
-    //     l.layers.set(1);
-
-    //     var lposition = l.getWorldPosition(lposition);
-    //     var lquaternion = l.getWorldQuaternion(lquaternion);
-    //     var lscale = l.getWorldScale(lscale);
-    //     //Create line object and add it to the blueprint
-    //     // var blueprintLine = {
-    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-    //     //     position: lposition,
-    //     //     quaternion: lquaternion,
-    //     //     scale: lscale,
-    //     // };
-
-    //     // var blueprintLine = {
-    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-    //     //     position: lposition,
-    //     //     quaternion: lquaternion,
-    //     //     scale: lscale,
-    //     //     //An idea for handling mirror somewhat decently in the save format.
-    //     //     //we store the UUID of the original line, if that original line exists
-    //     //     //we clone and apply the mirror so the two lines maintain the same geometry
-    //     //     //otherwise we draw it from scratch with a new geometry 
-    //     //     mirrorOf: l.uuid
-    //     //     mirrorAxis: 'x'
-    //     // };
-
-    //     //blueprint.lines.push(blueprintLine);
-    //     scene.add(l);
-    //     let lmirrored;
-    //     switch (app.mirror) {
-    //         case "x":
-    //             lmirrored = l.clone();
-    //             // lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-    //             // lmirrored.scale.set(-1, 1, 1);
-    //             lmirrored.applyMatrix4(new THREE.Matrix4().makeScale(1, 1, -1));
-    //             lmirrored.updateMatrix();
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         case "y":
-    //             lmirrored = l.clone();
-    //             lmirrored.position.set(l.position.x, -l.position.y, l.position.z)
-    //             lmirrored.scale.set(1, -1, 1);
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         case "z":
-    //             lmirrored = l.clone();
-    //             lmirrored.position.set(l.position.x, l.position.y, -l.position.z)
-    //             lmirrored.scale.set(1, 1, -1);
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         default:
-    //             return
-    //     }
-    //     // if (app.mirror == 'x') {
-    //     //     let lmirrored = l.clone();
-    //     //     lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-    //     //     lmirrored.scale.set(-1, 1, 1);
-    //     //     lmirrored.userData = { mirroredAxis: app.mirror };
-    //     //     scene.add(lmirrored);
-    //     // }
-    //     //Remove listener and clear arrays
-    // },
-    renderLine: function (positions, lineColor, lineWidth) {
+    renderLine: function (positions, lineColor, lineWidth, mirror, returnLineBool) {
         var matLineDrawn = new LineMaterial({
             color: new THREE.Color(lineColor),
             linewidth: lineWidth, // in pixels
@@ -394,7 +293,10 @@ let line = {
         var lquaternion = l.getWorldQuaternion(lquaternion);
         var lscale = l.getWorldScale(lscale);
         scene.add(l);
-        switch (app.mirror) {
+        if (returnLineBool) {
+            return l;
+        }
+        switch (mirror) {
             case "x":
                 mirror.object(l, 'x')
                 break;
@@ -407,26 +309,6 @@ let line = {
             default:
                 return
         }
-    },
-    renderMirroredLine: function (positions, axis) {
-        var startingPos; //0 for x, 1 for y, 2 for z
-        switch (axis) {
-            case "x":
-                startingPos = 0;
-                break;
-            case "y":
-                startingPos = 1;
-                break;
-            case "z":
-                startingPos = 2;
-                break;
-            default:
-                return
-        }
-        for (var i = startingPos; i < positions.length; i = i + 3) {
-            positions[i] = -positions[i]
-        }
-        this.renderLine(positions, app.lineColor, app.lineWidth);
     },
     rejectPalm: function (positions) {
         //rudimentary approach to palm rejection
@@ -786,6 +668,7 @@ app.selection = {
             transformControls.attach(selectionArray[0]);
             this.current.push(selectionArray[0]);
             scene.add(transformControls);
+            transformControls.rotationSnap = 0.0174533;  //1 degree
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
@@ -822,6 +705,7 @@ app.selection = {
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.group);
             scene.add(transformControls);
+            transformControls.rotationSnap = 0.0174533; //1 degree
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
@@ -904,6 +788,10 @@ let mirror = {
         }
     }
 }
+
+const encodedImageWidth = 1000;
+const encodedImageHeigth = 1000;
+const encodedImageDataStartingAt = 600;
 
 let exportTo = {
     gltf: function () {
@@ -1034,16 +922,19 @@ let exportTo = {
         var json = [];
         scene.children.forEach(obj => {
             if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-
+                console.log(obj);
                 line = {};
 
                 line.u = obj.uuid;
                 line.c = {};
+                //Color could be replaced by a single number 1-4
+                //Where 1 is lightest and 4 is dark
+                //This would reduce the length significantly
                 line.c.r = obj.material.color.r * 255;
                 line.c.g = obj.material.color.g * 255;
                 line.c.b = obj.material.color.b * 255;
                 line.w = obj.material.linewidth;
-                line.g = obj.geometry.userData.positions;
+                line.g = obj.geometry.userData;
 
                 var position = new THREE.Vector3();
                 position = obj.getWorldPosition(position);
@@ -1076,12 +967,16 @@ let exportTo = {
             var imgData = renderer.domElement.toDataURL();
             var img = new Image();
             var canvasWithEncodedImage = document.createElement('canvas');
-            canvasWithEncodedImage.width = 500;
-            canvasWithEncodedImage.height = 500;
+            canvasWithEncodedImage.width = encodedImageWidth;
+            canvasWithEncodedImage.height = encodedImageHeigth;
             canvasWithEncodedImage.style.zIndex = 5;
             canvasWithEncodedImage.style.position = 'absolute';
             canvasWithEncodedImage.style.top = '10px';
             canvasWithEncodedImage.style.right = '10px';
+            canvasWithEncodedImage.style.width = '500px';
+            canvasWithEncodedImage.style.height = '500px';
+            canvasWithEncodedImage.style.border = '2px solid white';
+            canvasWithEncodedImage.style.backgroundColor = '#666';
             var ctx = canvasWithEncodedImage.getContext("2d");
             ctx.imageSmoothingEnabled = false;
             ctx.mozImageSmoothingEnabled = false;
@@ -1089,10 +984,10 @@ let exportTo = {
             ctx.webkitImageSmoothingEnabled = false;
             ctx.msImageSmoothingEnabled = false;
             ctx.fillStyle = 'rgb(2, 32, 132)';
-            ctx.fillRect(0, 0, 500, 300);
+            ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
             img.src = imgData;
             img.onload = function () {
-                ctx.drawImage(img, 0, 0, 500, 400 * img.height / img.width)
+                ctx.drawImage(img, 0, 0, encodedImageWidth, encodedImageDataStartingAt * img.height / img.width)
             };
             document.body.appendChild(canvasWithEncodedImage);
 
@@ -1108,7 +1003,7 @@ let exportTo = {
                     pixels.push(pixel);
                 }
                 var count = 0
-                for (var y = 300; y < canvasWithEncodedImage.height; y++) {
+                for (var y = encodedImageDataStartingAt; y < canvasWithEncodedImage.height; y++) {
                     for (var x = 0; x < canvasWithEncodedImage.width; x++) {
                         if (count < pixels.length) {
                             ctx.fillStyle = "rgb(" +
@@ -1150,13 +1045,13 @@ let importFrom = {
         var input = document.createElement('input');
         input.style.display = 'none';
         input.type = 'file';
-        document.body.appendChild(input);
+        //document.body.appendChild(input);
         input.onchange = event => {
             var img = new Image();
             img.onload = () => {
                 var canvasWithEncodedImage = document.createElement('canvas');
-                canvasWithEncodedImage.width = 500;
-                canvasWithEncodedImage.height = 500;
+                canvasWithEncodedImage.width = encodedImageWidth;
+                canvasWithEncodedImage.height = encodedImageHeigth;
                 canvasWithEncodedImage.style.zIndex = 5;
                 canvasWithEncodedImage.style.position = 'absolute';
                 canvasWithEncodedImage.style.top = '10px';
@@ -1167,10 +1062,10 @@ let importFrom = {
                 ctx.oImageSmoothingEnabled = false;
                 ctx.webkitImageSmoothingEnabled = false;
                 ctx.msImageSmoothingEnabled = false;
-                ctx.clearRect(0, 0, 500, 500);
+                ctx.clearRect(0, 0, encodedImageWidth, encodedImageHeigth);
                 ctx.drawImage(img, 0, 0);
                 decode(canvasWithEncodedImage, ctx);
-                document.body.appendChild(canvasWithEncodedImage);
+                //document.body.appendChild(canvasWithEncodedImage);
             };
             img.src = URL.createObjectURL(event.target.files[0]);
         }
@@ -1178,45 +1073,59 @@ let importFrom = {
 
         function decode(canvas, ctx) {
             var json = '';
-            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[0]]);
-            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[1]]);
-            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[2]]);;
-            for (var y = 300; y < canvas.height; y++) {
+            for (var y = encodedImageDataStartingAt; y < canvas.height; y++) {
                 for (var x = 0; x < canvas.width; x++) {
-                    //there's probably a better way of doing this
-                    if (replacementValues[ctx.getImageData(x, y, 1, 1).data[0]] != "]") {
-                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
-                    } else {
-                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
-                        console.log(JSON.parse(json))
+                    //not super elegant
+                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
+                    if (json.slice(-2) == '}]') {
+                        importFrom.json(json);
                         return
-                    }
-
-                    if (replacementValues[ctx.getImageData(x, y, 1, 1).data[1]] != "]") {
-                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
-                    } else {
-                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
-                        console.log(JSON.parse(json))
+                    };
+                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
+                    if (json.slice(-2) == '}]') {
+                        importFrom.json(json);
                         return
-                    }
-
-                    if (replacementValues[ctx.getImageData(x, y, 1, 1).data[2]] != "]") {
-                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
-                    } else {
-                        json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
-                        console.log(JSON.parse(json))
+                    };
+                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
+                    if (json.slice(-2) == '}]') {
+                        importFrom.json(json);
                         return
-                    }
-
-
-
+                    };
                 }
             }
 
         }
     },
-    json: function () {
-        console.log(json);
+    json: function (json) {
+        var json = JSON.parse(json);
+        json.forEach(importedLine => {
+            console.log(importedLine);
+            console.log(importedLine.c)
+            var l = line.renderLine(
+                importedLine.g,
+                "rgb(" + importedLine.c.r + "," + importedLine.c.g + "," + importedLine.c.b + ")",
+                importedLine.w,
+                importedLine.a,
+                true);
+
+            l.position.set(
+                importedLine.p.x,
+                importedLine.p.y,
+                importedLine.p.z
+            );
+            l.quaternion.set(
+                importedLine.q._x,
+                importedLine.q._y,
+                importedLine.q._z,
+                importedLine.q._w,
+            );
+            l.scale.set(
+                importedLine.s.x,
+                importedLine.s.y,
+                importedLine.s.z
+            );
+            console.log(scene);
+        })
     }
 }
 
@@ -1560,26 +1469,26 @@ function save() {
 }
 document.getElementById("Save").addEventListener("click", save);
 
-function load() {
-    var input, file, fr;
-    var input = document.createElement('input');
-    input.style.display = 'none';
-    input.type = 'file';
-    document.body.appendChild(input);
-    input.onchange = event => {
-        var selectedFile = event.target.files[0];
-        const fileReader = new FileReader();
-        fileReader.readAsText(selectedFile, "UTF-8");
-        fileReader.onload = () => {
-            var data = JSON.parse(fileReader.result);
-            data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth, obj.position, obj.quaternion, obj.scale) })
-        }
-        fileReader.onerror = (error) => {
-            console.log(error);
-        }
-    }
-    input.click();
-}
+// function load() {
+//     var input, file, fr;
+//     var input = document.createElement('input');
+//     input.style.display = 'none';
+//     input.type = 'file';
+//     document.body.appendChild(input);
+//     input.onchange = event => {
+//         var selectedFile = event.target.files[0];
+//         const fileReader = new FileReader();
+//         fileReader.readAsText(selectedFile, "UTF-8");
+//         fileReader.onload = () => {
+//             var data = JSON.parse(fileReader.result);
+//             data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth, obj.position, obj.quaternion, obj.scale) })
+//         }
+//         fileReader.onerror = (error) => {
+//             console.log(error);
+//         }
+//     }
+//     input.click();
+// }
 document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
 
 document.getElementById("Export").addEventListener("click", exportTo.gltf);
