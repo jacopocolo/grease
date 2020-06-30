@@ -1129,6 +1129,14 @@ let importFrom = {
     }
 }
 
+//Improvements to the save and restore:
+//the image should maintain the correct aspect ratio
+//the image should be nicer
+//It should be possible to discard the mirrored elements, the renderLine function _should_ take care of them
+//And if that's the case, UUID could just be removed. We'll generate new ones
+//Color could be vastly simplified and genericized (so it's eventually theme independent)
+//Image height could be adjusted dynamically based on the length of the json
+
 init();
 animate();
 
