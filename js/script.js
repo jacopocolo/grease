@@ -1,4 +1,4 @@
-import * as THREE from "/js/vendor/three.module.js";
+import * as THREE from "https://threejs.org/build/three.module.js";
 import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
@@ -6,6 +6,8 @@ import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMateria
 import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
 import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
+import { SVGRenderer } from 'https://threejs.org/examples/jsm/renderers/SVGRenderer.js';
+import { GeometryUtils } from 'https://threejs.org/examples/jsm/utils/GeometryUtils.js';
 
 var app = new Vue({
     el: '#app',
@@ -228,172 +230,90 @@ let mouse = {
 };
 
 let line = {
-    linepositions: [],
+    linepositions: undefined,
+    geometry: undefined,
+    splineArray: [],
+    l: undefined,
+    MAX_POINTS: 500,
+    updateLinePositions: function (line) {
+        var positions = line.geometry.attributes.position.array;
+        var index = 0;
+        for (var i = 0; i < this.splineArray.length; i++) {
+            positions[index++] = this.splineArray[i].x;
+            positions[index++] = this.splineArray[i].y;
+            positions[index++] = this.splineArray[i].z;
+        }
+        // line.geometry.setDrawRange(0, this.splineArray.length - 1);
+        line.geometry.attributes.position.needsUpdate = true;
+    },
     start: function () {
-        this.linepositions = []; //reset array
-        //draw line
-        context.beginPath();
-        context.lineWidth = app.lineWidth;
-        context.strokeStyle = app.lineColor;
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.moveTo(mouse.cx, mouse.cy);
+        //https://jsfiddle.net/w67tzfhx/40/
         //Start
+        this.linepositions = new Float32Array(this.MAX_POINTS * 3);
+        this.geometry = new THREE.BufferGeometry();
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
-        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+        this.splineArray.push(vNow);
+        this.geometry.setAttribute('position', new THREE.BufferAttribute(this.linepositions, 3));
+        // this.geometry.setDrawRange(0, 2);
+        var material = new THREE.LineBasicMaterial({ color: new THREE.Color(app.lineColor), linewidth: (app.lineWidth) });
+        this.l = new THREE.Line(this.geometry, material);
+        scene.add(this.l);
     },
     move: function () {
-        //Draw on canvas
-        context.lineTo(mouse.cx, mouse.cy);
-        context.stroke();
         //Add line elements
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
-        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+        this.splineArray.push(vNow);
+        this.updateLinePositions(this.l);
     },
     end: function () {
-        //render line
-        context.lineTo(mouse.cx, mouse.cy);
-        context.stroke();
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        //Close and add line to scene
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
+        // var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+        // vNow.unproject(camera);
+        // this.splineArray.push(vNow);
+        // this.updateLinePositions(this.l);
+        this.splineArray = [];
+        this.linepositions = [];
+        this.geometry = [];
+        // this.l = undefined;
+        this.l.geometry.attributes.position.needsUpdate = true;
+        //this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
     },
-    // renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
-    //     var matLineDrawn = new LineMaterial({
-    //         color: new THREE.Color(lineColor),
-    //         linewidth: lineWidth, // in pixels
-    //         vertexColors: false,
-    //         wireframe: false,
-    //         side: THREE.DoubleSide,
-    //         depthWrite: true
-    //     });
-    //     materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
-    //     var geometry = new LineGeometry();
-    //     var positions = this.rejectPalm(positions);
-    //     geometry.setPositions(positions);
-    //     var l = new Line2(geometry, matLineDrawn);
-    //     if (position) {
-    //         l.position.set(position.x, position.y, position.z);
-    //     } else {
-    //         l.position.set(
-    //             l.geometry.boundingSphere.center.x,
-    //             l.geometry.boundingSphere.center.y,
-    //             l.geometry.boundingSphere.center.z
-    //         );
-    //     }
-    //     if (quaternion) {
-    //         // l.quaternion.normalize();
-    //         l.applyQuaternion(quaternion)
-    //         l.updateMatrix();
-    //     }
-    //     l.geometry.center();
-    //     l.needsUpdate = true;
-    //     l.computeLineDistances();
-    //     if (scale) {
-    //         l.scale.set(scale.x, scale.y, scale.z)
-    //     } else {
-    //         l.scale.set(1, 1, 1);
-    //     }
-    //     l.layers.set(1);
-
-    //     var lposition = l.getWorldPosition(lposition);
-    //     var lquaternion = l.getWorldQuaternion(lquaternion);
-    //     var lscale = l.getWorldScale(lscale);
-    //     //Create line object and add it to the blueprint
-    //     // var blueprintLine = {
-    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-    //     //     position: lposition,
-    //     //     quaternion: lquaternion,
-    //     //     scale: lscale,
-    //     // };
-
-    //     // var blueprintLine = {
-    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-    //     //     position: lposition,
-    //     //     quaternion: lquaternion,
-    //     //     scale: lscale,
-    //     //     //An idea for handling mirror somewhat decently in the save format.
-    //     //     //we store the UUID of the original line, if that original line exists
-    //     //     //we clone and apply the mirror so the two lines maintain the same geometry
-    //     //     //otherwise we draw it from scratch with a new geometry 
-    //     //     mirrorOf: l.uuid
-    //     //     mirrorAxis: 'x'
-    //     // };
-
-    //     //blueprint.lines.push(blueprintLine);
-    //     scene.add(l);
-    //     let lmirrored;
-    //     switch (app.mirror) {
-    //         case "x":
-    //             lmirrored = l.clone();
-    //             // lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-    //             // lmirrored.scale.set(-1, 1, 1);
-    //             lmirrored.applyMatrix4(new THREE.Matrix4().makeScale(1, 1, -1));
-    //             lmirrored.updateMatrix();
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         case "y":
-    //             lmirrored = l.clone();
-    //             lmirrored.position.set(l.position.x, -l.position.y, l.position.z)
-    //             lmirrored.scale.set(1, -1, 1);
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         case "z":
-    //             lmirrored = l.clone();
-    //             lmirrored.position.set(l.position.x, l.position.y, -l.position.z)
-    //             lmirrored.scale.set(1, 1, -1);
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         default:
-    //             return
-    //     }
-    //     // if (app.mirror == 'x') {
-    //     //     let lmirrored = l.clone();
-    //     //     lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-    //     //     lmirrored.scale.set(-1, 1, 1);
-    //     //     lmirrored.userData = { mirroredAxis: app.mirror };
-    //     //     scene.add(lmirrored);
-    //     // }
-    //     //Remove listener and clear arrays
-    // },
     renderLine: function (positions, lineColor, lineWidth) {
-        var matLineDrawn = new LineMaterial({
+        // var matLineDrawn = new LineMaterial({
+        //     color: new THREE.Color(lineColor),
+        //     linewidth: lineWidth, // in pixels
+        //     vertexColors: false,
+        //     wireframe: false,
+        //     side: THREE.DoubleSide,
+        //     depthWrite: true
+        // });
+        // materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
+        var material = new THREE.LineBasicMaterial({
             color: new THREE.Color(lineColor),
             linewidth: lineWidth, // in pixels
-            vertexColors: false,
-            wireframe: false,
-            side: THREE.DoubleSide,
-            depthWrite: true
         });
-        materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
         var geometry = new LineGeometry();
-        var positions = this.rejectPalm(positions);
-        geometry.setPositions(positions);
+        //var positions = this.rejectPalm(positions);
+        var geometry = new THREE.BufferGeometry().setFromPoints(positions);
+        //geometry.setPositions(positions);
         geometry.userData = positions;
-        var l = new Line2(geometry, matLineDrawn);
-        l.position.set(
-            l.geometry.boundingSphere.center.x,
-            l.geometry.boundingSphere.center.y,
-            l.geometry.boundingSphere.center.z
-        );
-        l.geometry.center();
+        var l = new THREE.Line(geometry, material);
+        // l.position.set(
+        //     l.geometry.boundingSphere.center.x,
+        //     l.geometry.boundingSphere.center.y,
+        //     l.geometry.boundingSphere.center.z
+        // );
+        // l.geometry.center();
         l.needsUpdate = true;
         l.computeLineDistances();
         l.scale.set(1, 1, 1);
         l.layers.set(1);
-        var lposition = l.getWorldPosition(lposition);
-        var lquaternion = l.getWorldQuaternion(lquaternion);
-        var lscale = l.getWorldScale(lscale);
+        // var lposition = l.getWorldPosition(lposition);
+        // var lquaternion = l.getWorldQuaternion(lquaternion);
+        // var lscale = l.getWorldScale(lscale);
         scene.add(l);
+        console.log(l);
         switch (app.mirror) {
             case "x":
                 mirror.object(l, 'x')
@@ -507,13 +427,13 @@ app.selection = {
             paths.push([mouse.cx, mouse.cy]);
             raycaster = new THREE.Raycaster();
             raycaster.layers.set(1);
-            raycaster.params.Line.threshold = 1;
+            raycaster.params.Line.threshold = 0.01;
             try {
                 raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                if (intersectObject.geometry.type == "LineGeometry"
+                if (intersectObject.type == "Line"
                     && this.selecting.indexOf(intersectObject) < 0
-                    && !intersectObject.material.dashed
+                    //&& !intersectObject.material.dashed
                 ) {
                     this.deselect();
                     this.toggleDash(intersectObject, true);
@@ -538,10 +458,11 @@ app.selection = {
                 raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
                 //Check if the object is a line, is not in the array already and it not a mirror
-                if (intersectObject.geometry.type == "LineGeometry"
+                if (intersectObject.type == "Line"
                     && this.selecting.indexOf(intersectObject) < 0
-                    && !intersectObject.material.dashed) {
-                    this.toggleDash(intersectObject, true);
+                    //&& !intersectObject.material.dashed
+                ) {
+                    //this.toggleDash(intersectObject, true);
                     this.selecting.push(intersectObject);
                 }
             } catch (err) {
@@ -1035,27 +956,30 @@ init();
 animate();
 
 function init() {
-    renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        preserveDrawingBuffer: false
-    });
+    // renderer = new THREE.WebGLRenderer({
+    //     antialias: true,
+    //     alpha: true,
+    //     preserveDrawingBuffer: false
+    // });
+    renderer = new SVGRenderer();
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0); //transparent so the background shows through
+    //renderer.setClearColor(0x000000, 0); //transparent so the background shows through
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
     renderer.domElement.id = 'threeJsCanvas';
 
-    miniAxisRenderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true
-    });
+    // miniAxisRenderer = new THREE.WebGLRenderer({
+    //     antialias: true,
+    //     alpha: true
+    // });
+    miniAxisRenderer = new SVGRenderer();
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
     miniAxisRenderer.setClearColor(0x000000, 0.4);
     miniAxisRenderer.setSize(250, 250);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x022084);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
@@ -1116,6 +1040,7 @@ function init() {
     bufferRenderer.setPixelRatio(window.devicePixelRatio);
     bufferRenderer.setClearColor(0x000000, 0);
     bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
+
 }
 
 function onWindowResize() {
@@ -1180,8 +1105,8 @@ function animate() {
         app.linesNeedThemeUpdate = false;
     }
 
-    renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    miniAxisRenderer.setViewport(0, 0, 250, 250);
+    // renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+    // miniAxisRenderer.setViewport(0, 0, 250, 250);
     renderer.render(scene, camera);
     if (makingGif) {
         if (count < gifLength) {
