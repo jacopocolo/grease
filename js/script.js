@@ -230,6 +230,9 @@ let mouse = {
 };
 
 let line = {
+    //https://jsfiddle.net/jacopocolo/ksb2rn43/
+    /*This fiddle above uses the SVG renderer and regular lines with simple geometry that can be drawn in real time without needing the "fake" 2d canvas effect. And it has a bit of code in the animate function that creates new positions. Finding the right balance might be a bit difficult and performance is unclear. So it might not be totally worth it. I'm commenting here in case at some point I want to switch.
+    */
     linepositions: undefined,
     geometry: undefined,
     splineArray: [],
