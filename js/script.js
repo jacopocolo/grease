@@ -22,10 +22,234 @@ var app = new Vue({
         mirror: false,
         autoRotate: false,
         selection: undefined, //to be filled from init
-        lineWidthDragging: false,
-        startX: 0,
-        x: 'no',
-        y: 'no'
+        showModal: false,
+        modalImage: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAeElEQVQoU52QsQrAIAxEz8nBQXB09v+/xE8QN3UTHBScLGmRWiilbabj8nIhYdbaoZQC5xx31XtHzhnMez9IGGMgpbywpRQ450BBLIQwhBC7scITIq+1doBaa6wNil0HU0onSM0Jk17T/4FPq2OM746ptX54z9uHb8VzhCNVi2+LAAAAAElFTkSuQmCC',
+        exportTo: {
+            gltf: function () {
+                //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
+                var scene2 = new THREE.Scene();
+                function exportGLTF(input) {
+                    var gltfExporter = new GLTFExporter();
+                    var options = {
+                    };
+                    gltfExporter.parse(input, function (result) {
+                        if (result instanceof ArrayBuffer) {
+                            saveArrayBuffer(result, 'scene.glb');
+                        } else {
+                            var output = JSON.stringify(result, null, 2);
+                            // console.log(output);
+                            saveString(output, 'scene.gltf');
+                        }
+                    }, options);
+
+                    scene2.traverse(object => {
+                        if (!object.isMesh) return
+
+                        console.log('dispose geometry!')
+                        object.geometry.dispose()
+
+                        if (object.material.isMaterial) {
+                            cleanMaterial(object.material)
+                        } else {
+                            // an array of materials
+                            for (const material of object.material) cleanMaterial(material)
+                        }
+                    })
+                    const cleanMaterial = material => {
+                        console.log('dispose material!')
+                        material.dispose()
+                        // dispose textures
+                        for (const key of Object.keys(material)) {
+                            const value = material[key]
+                            if (value && typeof value === 'object' && 'minFilter' in value) {
+                                console.log('dispose texture!')
+                                value.dispose()
+                            }
+                        }
+                    }
+                    scene2.dispose();
+                }
+                var link = document.createElement('a');
+                link.style.display = 'none';
+                document.body.appendChild(link); // Firefox workaround, see #6594
+                function save(blob, filename) {
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    link.click();
+                    // URL.revokeObjectURL( url ); breaks Firefox...
+                }
+                function saveString(text, filename) {
+                    save(new Blob([text], {
+                        type: 'text/plain'
+                    }), filename);
+                }
+                function saveArrayBuffer(buffer, filename) {
+                    save(new Blob([buffer], {
+                        type: 'application/octet-stream'
+                    }), filename);
+                }
+                //may need to scale up a bit
+                function convertLine2toLine() {
+                    var itemProcessed = 0;
+                    scene.children.forEach(obj => {
+                        if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+                            var material = new THREE.LineBasicMaterial({
+                                color: obj.material.color,
+                                linewidth: obj.material.linewidth
+                            });
+                            var geometry = new THREE.BufferGeometry();
+                            var vertices = new Float32Array(obj.geometry.userData);
+                            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                            var convertedLine = new THREE.Line(geometry, material);
+                            var position = obj.getWorldPosition(position);
+                            var quaternion = obj.getWorldQuaternion(quaternion);
+                            var scale = obj.getWorldScale(scale);
+                            convertedLine.position.set(position.x, position.y, position.z)
+                            convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
+                            convertedLine.scale.set(scale.x, scale.y, scale.z)
+                            scene2.add(convertedLine);
+                            convertedLine.geometry.center();
+                        }
+                        itemProcessed = itemProcessed + 1;
+                        if (itemProcessed === scene.children.length) {
+                            exportGLTF(scene2);
+                        }
+                    })
+                }
+                convertLine2toLine()
+            },
+            blueprint: function () {
+                //nothing yet
+            },
+            gif: function () {
+                makingGif = true;
+
+                gif = new GIF({
+                    workers: 10,
+                    quality: 10,
+                    workerScript: 'js/vendor/gif.worker.js'
+                });
+
+                gif.on("finished", function (blob) {
+                    var img = new Image();
+                    img.src = URL.createObjectURL(blob);
+                    img.style.zIndex = 5;
+                    img.style.position = 'absolute';
+                    img.style.top = '10px';
+                    img.style.right = '10px';
+                    img.style.width = window.innerWidth / 3;
+                    img.style.height = window.innerHeight / 3;
+                    img.style.border = '1px solid white';
+                    document.body.appendChild(img);
+                    console.log("rendered");
+                    app.autoRotate = false;
+                });
+            },
+            image: function () {
+                //nothing yet
+            },
+            imageWithEncodedFile: function () {
+                var itemProcessed = 0;
+                var json = [];
+                scene.children.forEach(obj => {
+                    if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+                        console.log(obj);
+                        line = {};
+
+                        line.u = obj.uuid;
+                        line.c = {};
+                        //Color could be replaced by a single number 1-4
+                        //Where 1 is lightest and 4 is dark
+                        //This would reduce the length significantly
+                        line.c.r = obj.material.color.r * 255;
+                        line.c.g = obj.material.color.g * 255;
+                        line.c.b = obj.material.color.b * 255;
+                        line.w = obj.material.linewidth;
+                        line.g = obj.geometry.userData;
+
+                        var position = new THREE.Vector3();
+                        position = obj.getWorldPosition(position);
+                        line.p = position;
+
+                        var quaternion = new THREE.Quaternion();
+                        quaternion = obj.getWorldQuaternion(quaternion);
+                        line.q = quaternion;
+
+                        var scale = new THREE.Vector3();
+                        scale = obj.getWorldScale(scale);
+                        line.s = scale;
+
+                        if (obj.userData.mirror) { line.m = obj.userData.mirror };
+                        if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
+
+                        json.push(line);
+                        console.log(line.c)
+                    }
+                    itemProcessed = itemProcessed + 1;
+                    if (itemProcessed === scene.children.length) {
+                        encode(JSON.stringify(json));
+                    }
+                });
+
+                function encode(json) {
+                    //generate stringified json from scene
+                    var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+                    renderer.render(scene, camera);
+                    var imgData = renderer.domElement.toDataURL();
+                    var img = new Image();
+                    var canvasWithEncodedImage = document.createElement('canvas');
+                    canvasWithEncodedImage.width = encodedImageWidth;
+                    canvasWithEncodedImage.height = encodedImageHeigth;
+                    var ctx = canvasWithEncodedImage.getContext("2d");
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.mozImageSmoothingEnabled = false;
+                    ctx.oImageSmoothingEnabled = false;
+                    ctx.webkitImageSmoothingEnabled = false;
+                    ctx.msImageSmoothingEnabled = false;
+                    ctx.fillStyle = 'rgb(2, 32, 132)';
+                    ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
+                    img.src = imgData;
+                    img.onload = function () {
+                        ctx.drawImage(img, 0, 0, encodedImageWidth, encodedImageDataStartingAt * img.height / img.width)
+                    };
+                    app.showModal = true;
+                    app.modalImage = canvasWithEncodedImage.toDataURL("image/png");
+
+                    function encode(json) {
+                        var pixels = [];
+                        for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
+                            var pixel = {};
+                            pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
+                            pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
+                            pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
+                            // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
+                            pixels.push(pixel);
+                        }
+                        var count = 0
+                        for (var y = encodedImageDataStartingAt; y < canvasWithEncodedImage.height; y++) {
+                            for (var x = 0; x < canvasWithEncodedImage.width; x++) {
+                                if (count < pixels.length) {
+                                    ctx.fillStyle = "rgb(" +
+                                        pixels[count].r
+                                        + "," +
+                                        pixels[count].g
+                                        + "," +
+                                        pixels[count].b
+                                        + ")";
+                                    ctx.fillRect(x, y, 1, 1);
+                                    count = count + 1;
+                                } else {
+                                    return
+                                }
+                            }
+                        }
+
+                    }
+                    encode(json);
+
+                }
+            }
+        }
     },
     watch: {
         selectedTheme: function () {
@@ -51,39 +275,6 @@ var app = new Vue({
     methods: {
         duplicateSelected: function () {
             app.selection.duplicate()
-        },
-        lineWidthStartDrag() {
-            document.addEventListener('mouseup', this.lineWidthStopDrag);
-            document.addEventListener('mousemove', this.lineWidthdonDrag);
-            document.addEventListener('touchend', this.lineWidthStopDrag);
-            document.addEventListener('touchmove', this.lineWidthdonDrag);
-            drawingCanvas.removeEventListener("touchstart", this.onTapStart, false);
-            drawingCanvas.removeEventListener("mousedown", this.onTapStart, false);
-            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.removeEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.removeEventListener("mouseup", this.onTapEnd, false);
-            this.lineWidthDragging = true;
-            this.x = this.y = 0;
-            this.startX = event.pageX;
-        },
-        lineWidthdonDrag(event) {
-            if (this.lineWidthDragging) {
-                this.x = event.pageX;
-                this.y = event.pageY;
-                this.lineWidth = this.lineWidth + -(this.startX - this.x) / 50;
-            }
-        },
-        lineWidthStopDrag() {
-            this.lineWidthDragging = false;
-            this.x = this.y = 'no';
-            document.removeEventListener('mouseup', this.lineWidthStopDrag);
-            document.removeEventListener('mousemove', this.lineWidthdonDrag);
-            document.removeEventListener('touchend', this.lineWidthStopDrag);
-            document.removeEventListener('touchmove', this.lineWidthdonDrag);
-            drawingCanvas.addEventListener("touchstart", this.onTapStart, false);
-            drawingCanvas.addEventListener("mousedown", this.onTapStart, false);
-
         },
         //MOUSE HANDLERS
         onTapMove: function (event) {
@@ -147,6 +338,38 @@ var app = new Vue({
     }
 });
 
+Vue.component("modal", {
+    props: ['source'],
+    template: `
+    <transition name="modal">
+    <div class="modal-mask">
+        <div class="modal-wrapper">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <slot name="header">
+                        default header
+                    </slot>
+                </div>
+                <div class="modal-body">
+                    <slot name="body">
+                        <img  :src="source" class="saveImg">
+                    </slot>
+                </div>
+                <div class="modal-footer">
+                    <slot name="footer">
+                        default footer
+                        <button class="modal-default-button" @click="$emit('close')">
+                            OK
+                        </button>
+                    </slot>
+                </div>
+            </div>
+        </div>
+    </div>
+</transition>
+  `
+});
+
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
 var matLine, matLineBasic;
@@ -170,6 +393,11 @@ let makingGif = false;
 let count = 0;
 let gifLength = 60;
 let bufferRenderer;
+
+//Save image vars
+const encodedImageWidth = 1000;
+const encodedImageHeigth = 1000;
+const encodedImageDataStartingAt = 600;
 
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
@@ -789,255 +1017,6 @@ let mirror = {
     }
 }
 
-const encodedImageWidth = 1000;
-const encodedImageHeigth = 1000;
-const encodedImageDataStartingAt = 600;
-
-let exportTo = {
-    gltf: function () {
-        //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
-        var scene2 = new THREE.Scene();
-        function exportGLTF(input) {
-            var gltfExporter = new GLTFExporter();
-            var options = {
-            };
-            gltfExporter.parse(input, function (result) {
-                if (result instanceof ArrayBuffer) {
-                    saveArrayBuffer(result, 'scene.glb');
-                } else {
-                    var output = JSON.stringify(result, null, 2);
-                    // console.log(output);
-                    saveString(output, 'scene.gltf');
-                }
-            }, options);
-
-            scene2.traverse(object => {
-                if (!object.isMesh) return
-
-                console.log('dispose geometry!')
-                object.geometry.dispose()
-
-                if (object.material.isMaterial) {
-                    cleanMaterial(object.material)
-                } else {
-                    // an array of materials
-                    for (const material of object.material) cleanMaterial(material)
-                }
-            })
-            const cleanMaterial = material => {
-                console.log('dispose material!')
-                material.dispose()
-                // dispose textures
-                for (const key of Object.keys(material)) {
-                    const value = material[key]
-                    if (value && typeof value === 'object' && 'minFilter' in value) {
-                        console.log('dispose texture!')
-                        value.dispose()
-                    }
-                }
-            }
-            scene2.dispose();
-        }
-        var link = document.createElement('a');
-        link.style.display = 'none';
-        document.body.appendChild(link); // Firefox workaround, see #6594
-        function save(blob, filename) {
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            link.click();
-            // URL.revokeObjectURL( url ); breaks Firefox...
-        }
-        function saveString(text, filename) {
-            save(new Blob([text], {
-                type: 'text/plain'
-            }), filename);
-        }
-        function saveArrayBuffer(buffer, filename) {
-            save(new Blob([buffer], {
-                type: 'application/octet-stream'
-            }), filename);
-        }
-        //may need to scale up a bit
-        function convertLine2toLine() {
-            var itemProcessed = 0;
-            scene.children.forEach(obj => {
-                if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-                    var material = new THREE.LineBasicMaterial({
-                        color: obj.material.color,
-                        linewidth: obj.material.linewidth
-                    });
-                    var geometry = new THREE.BufferGeometry();
-                    var vertices = new Float32Array(obj.geometry.userData);
-                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                    var convertedLine = new THREE.Line(geometry, material);
-                    var position = obj.getWorldPosition(position);
-                    var quaternion = obj.getWorldQuaternion(quaternion);
-                    var scale = obj.getWorldScale(scale);
-                    convertedLine.position.set(position.x, position.y, position.z)
-                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
-                    convertedLine.scale.set(scale.x, scale.y, scale.z)
-                    scene2.add(convertedLine);
-                    convertedLine.geometry.center();
-                }
-                itemProcessed = itemProcessed + 1;
-                if (itemProcessed === scene.children.length) {
-                    exportGLTF(scene2);
-                }
-            })
-        }
-        convertLine2toLine()
-    },
-    blueprint: function () {
-        //nothing yet
-    },
-    gif: function () {
-        makingGif = true;
-
-        gif = new GIF({
-            workers: 10,
-            quality: 10,
-            workerScript: 'js/vendor/gif.worker.js'
-        });
-
-        gif.on("finished", function (blob) {
-            var img = new Image();
-            img.src = URL.createObjectURL(blob);
-            img.style.zIndex = 5;
-            img.style.position = 'absolute';
-            img.style.top = '10px';
-            img.style.right = '10px';
-            img.style.width = window.innerWidth / 3;
-            img.style.height = window.innerHeight / 3;
-            img.style.border = '1px solid white';
-            document.body.appendChild(img);
-            console.log("rendered");
-            app.autoRotate = false;
-        });
-    },
-    image: function () {
-        //nothing yet
-    },
-    imageWithEncodedFile: function () {
-        var itemProcessed = 0;
-        var json = [];
-        scene.children.forEach(obj => {
-            if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-                console.log(obj);
-                line = {};
-
-                line.u = obj.uuid;
-                line.c = {};
-                //Color could be replaced by a single number 1-4
-                //Where 1 is lightest and 4 is dark
-                //This would reduce the length significantly
-                line.c.r = obj.material.color.r * 255;
-                line.c.g = obj.material.color.g * 255;
-                line.c.b = obj.material.color.b * 255;
-                line.w = obj.material.linewidth;
-                line.g = obj.geometry.userData;
-
-                var position = new THREE.Vector3();
-                position = obj.getWorldPosition(position);
-                line.p = position;
-
-                var quaternion = new THREE.Quaternion();
-                quaternion = obj.getWorldQuaternion(quaternion);
-                line.q = quaternion;
-
-                var scale = new THREE.Vector3();
-                scale = obj.getWorldScale(scale);
-                line.s = scale;
-
-                if (obj.userData.mirror) { line.m = obj.userData.mirror };
-                if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
-
-                json.push(line);
-                console.log(line.c)
-            }
-            itemProcessed = itemProcessed + 1;
-            if (itemProcessed === scene.children.length) {
-                encode(JSON.stringify(json));
-            }
-        });
-
-        function encode(json) {
-            //generate stringified json from scene
-            var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-            renderer.render(scene, camera);
-            var imgData = renderer.domElement.toDataURL();
-            var img = new Image();
-            var canvasWithEncodedImage = document.createElement('canvas');
-            canvasWithEncodedImage.width = encodedImageWidth;
-            canvasWithEncodedImage.height = encodedImageHeigth;
-            canvasWithEncodedImage.style.zIndex = 5;
-            canvasWithEncodedImage.style.position = 'absolute';
-            canvasWithEncodedImage.style.top = '10px';
-            canvasWithEncodedImage.style.right = '10px';
-            canvasWithEncodedImage.style.width = '500px';
-            canvasWithEncodedImage.style.height = '500px';
-            canvasWithEncodedImage.style.border = '2px solid white';
-            canvasWithEncodedImage.style.backgroundColor = '#666';
-            var ctx = canvasWithEncodedImage.getContext("2d");
-            ctx.imageSmoothingEnabled = false;
-            ctx.mozImageSmoothingEnabled = false;
-            ctx.oImageSmoothingEnabled = false;
-            ctx.webkitImageSmoothingEnabled = false;
-            ctx.msImageSmoothingEnabled = false;
-            ctx.fillStyle = 'rgb(2, 32, 132)';
-            ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-            img.src = imgData;
-            img.onload = function () {
-                ctx.drawImage(img, 0, 0, encodedImageWidth, encodedImageDataStartingAt * img.height / img.width)
-            };
-            document.body.appendChild(canvasWithEncodedImage);
-
-            function encode(json) {
-                console.log(json)
-                var pixels = [];
-                for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
-                    var pixel = {};
-                    pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
-                    pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
-                    pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
-                    // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
-                    pixels.push(pixel);
-                }
-                var count = 0
-                for (var y = encodedImageDataStartingAt; y < canvasWithEncodedImage.height; y++) {
-                    for (var x = 0; x < canvasWithEncodedImage.width; x++) {
-                        if (count < pixels.length) {
-                            ctx.fillStyle = "rgb(" +
-                                pixels[count].r
-                                + "," +
-                                pixels[count].g
-                                + "," +
-                                pixels[count].b
-                                + ")";
-                            ctx.fillRect(x, y, 1, 1);
-                            count = count + 1;
-                        } else {
-                            console.log(pixels[0])
-                            console.log(replacementValues[pixels[0].r]);
-                            console.log(replacementValues[pixels[0].g]);
-                            console.log(replacementValues[pixels[0].b]);
-                            // console.log(replacementValues[pixels[0].a]);
-                            console.log(ctx.getImageData(1, 300, 1, 1).data);
-                            console.log(replacementValues[ctx.getImageData(0, 300, 1, 1).data[0]]);
-                            console.log(replacementValues[ctx.getImageData(0, 300, 1, 1).data[1]]);
-                            console.log(replacementValues[ctx.getImageData(0, 300, 1, 1).data[2]]);
-                            // console.log(replacementValues[ctx.getImageData(1, 300, 1, 1).data[3] / 2]);
-                            return
-                        }
-                    }
-                }
-
-            }
-            encode(json);
-
-        }
-    }
-}
-
 let importFrom = {
     imageWithEncodedFile: function () {
         var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
@@ -1463,19 +1442,19 @@ function repositionCamera() {
 };
 
 //SAVE AND LOAD
-function save() {
-    exportTo.imageWithEncodedFile();
-    // function download(content, fileName, contentType) {
-    //     var a = document.createElement("a");
-    //     var file = new Blob([content], { type: contentType });
-    //     a.href = URL.createObjectURL(file);
-    //     a.download = fileName;
-    //     a.click();
-    // }
-    // download(JSON.stringify(blueprint), 'blueprint.json', 'json');
+// function save() {
+//     exportTo.imageWithEncodedFile();
+//     // function download(content, fileName, contentType) {
+//     //     var a = document.createElement("a");
+//     //     var file = new Blob([content], { type: contentType });
+//     //     a.href = URL.createObjectURL(file);
+//     //     a.download = fileName;
+//     //     a.click();
+//     // }
+//     // download(JSON.stringify(blueprint), 'blueprint.json', 'json');
 
-}
-document.getElementById("Save").addEventListener("click", save);
+// }
+// document.getElementById("Save").addEventListener("click", save);
 
 // function load() {
 //     var input, file, fr;
@@ -1499,5 +1478,5 @@ document.getElementById("Save").addEventListener("click", save);
 // }
 document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
 
-document.getElementById("Export").addEventListener("click", exportTo.gltf);
-document.getElementById("makeGif").addEventListener("click", exportTo.gif);
+// document.getElementById("Export").addEventListener("click", exportTo.gltf);
+// document.getElementById("makeGif").addEventListener("click", exportTo.gif);
