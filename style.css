@@ -437,6 +437,11 @@ margin: 0px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
   transition: all 0.3s ease;
   font-family: Helvetica, Arial, sans-serif;
+  -webkit-touch-callout: default;
+  -webkit-user-select: default;
+  -khtml-user-select: default;
+  -moz-user-select: default;
+  -ms-user-select: default;
 }
 
 .modal-header h3 {
@@ -446,6 +451,11 @@ margin: 0px;
 
 .modal-body {
   margin: 20px 0;
+  -webkit-touch-callout: default;
+  -webkit-user-select: default;
+  -khtml-user-select: default;
+  -moz-user-select: default;
+  -ms-user-select: default;
 }
 
 .modal-default-button {
@@ -477,4 +487,9 @@ margin: 0px;
 
 .saveImg {
   max-width: 300px;
+  -webkit-touch-callout: default;
+  -webkit-user-select: default;
+  -khtml-user-select: default;
+  -moz-user-select: default;
+  -ms-user-select: default;
 }

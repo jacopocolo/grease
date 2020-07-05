@@ -23,7 +23,7 @@
 
 <body>
     <div id="app">
-        <modal v-if="showModal" @close="showModal = false" :source="modalImage">
+        <modal v-if="modal.show" @close="modal.show = false" :title="modal.title" :source="modal.image">
         </modal>
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>

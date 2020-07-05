@@ -21,9 +21,12 @@ var app = new Vue({
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
-        selection: undefined, //to be filled from init
-        showModal: false,
-        modalImage: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAeElEQVQoU52QsQrAIAxEz8nBQXB09v+/xE8QN3UTHBScLGmRWiilbabj8nIhYdbaoZQC5xx31XtHzhnMez9IGGMgpbywpRQ450BBLIQwhBC7scITIq+1doBaa6wNil0HU0onSM0Jk17T/4FPq2OM746ptX54z9uHb8VzhCNVi2+LAAAAAElFTkSuQmCC',
+        selection: {}, //to be filled from init
+        modal: {
+            show: false,
+            title: 'This is your save file',
+            image: ''
+        },
         exportTo: {
             gltf: function () {
                 //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
@@ -154,7 +157,7 @@ var app = new Vue({
                 scene.children.forEach(obj => {
                     if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
                         console.log(obj);
-                        line = {};
+                        var line = {};
 
                         line.u = obj.uuid;
                         line.c = {};
@@ -192,30 +195,9 @@ var app = new Vue({
                 });
 
                 function encode(json) {
-                    //generate stringified json from scene
-                    var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-                    renderer.render(scene, camera);
-                    var imgData = renderer.domElement.toDataURL();
-                    var img = new Image();
-                    var canvasWithEncodedImage = document.createElement('canvas');
-                    canvasWithEncodedImage.width = encodedImageWidth;
-                    canvasWithEncodedImage.height = encodedImageHeigth;
-                    var ctx = canvasWithEncodedImage.getContext("2d");
-                    ctx.imageSmoothingEnabled = false;
-                    ctx.mozImageSmoothingEnabled = false;
-                    ctx.oImageSmoothingEnabled = false;
-                    ctx.webkitImageSmoothingEnabled = false;
-                    ctx.msImageSmoothingEnabled = false;
-                    ctx.fillStyle = 'rgb(2, 32, 132)';
-                    ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-                    img.src = imgData;
-                    img.onload = function () {
-                        ctx.drawImage(img, 0, 0, encodedImageWidth, encodedImageDataStartingAt * img.height / img.width)
-                    };
-                    app.showModal = true;
-                    app.modalImage = canvasWithEncodedImage.toDataURL("image/png");
 
-                    function encode(json) {
+                    function encodeJsonInCanvas(json, ctx) {
+                        console.log('Encoding…')
                         var pixels = [];
                         for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
                             var pixel = {};
@@ -226,7 +208,7 @@ var app = new Vue({
                             pixels.push(pixel);
                         }
                         var count = 0
-                        for (var y = encodedImageDataStartingAt; y < canvasWithEncodedImage.height; y++) {
+                        for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
                             for (var x = 0; x < canvasWithEncodedImage.width; x++) {
                                 if (count < pixels.length) {
                                     ctx.fillStyle = "rgb(" +
@@ -239,14 +221,103 @@ var app = new Vue({
                                     ctx.fillRect(x, y, 1, 1);
                                     count = count + 1;
                                 } else {
+                                    app.modal.show = true;
+                                    var hRatio = canvasWithEncodedImage.width / img.width;
+                                    var vRatio = canvasWithEncodedImage.height / img.height;
+                                    var ratio = Math.min(hRatio, vRatio);
+                                    ctx.drawImage(img,
+                                        0,
+                                        0,
+                                        img.width,
+                                        img.height,
+                                        padding,
+                                        padding,
+                                        (img.width * ratio) - padding * 2,
+                                        (img.height * ratio) - padding * 2
+                                    );
+                                    app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
                                     return
                                 }
                             }
                         }
-
                     }
-                    encode(json);
+                    //generate stringified json from scene
+                    var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+                    renderer.render(scene, camera);
+                    var imgData = renderer.domElement.toDataURL();
+                    var img = new Image();
+                    //Do a quick calulation of the height of the image based on how many characters are in the JSON
+                    encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
+                    var canvasWithEncodedImage = document.createElement('canvas');
+                    canvasWithEncodedImage.width = encodedImageWidth;
+                    canvasWithEncodedImage.height = encodedImageHeigth;
+                    let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
+                    var ctx = canvasWithEncodedImage.getContext("2d");
+                    var padding = 10;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.oImageSmoothingEnabled = false;
+                    ctx.webkitImageSmoothingEnabled = false;
+                    ctx.msImageSmoothingEnabled = false;
+                    ctx.fillStyle = 'rgb(2, 32, 132)';
+                    ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
+                    ctx.strokeStyle = 'rgb(255, 255, 255)';
+                    ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
+                    var infoBox = { height: 100, width: 250 };
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - padding - 1,
+                        blueprintImage.height - infoBox.height
+                    );
+                    ctx.stroke();
 
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - padding - 2
+                    );
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgb(255, 255, 255)';
+                    ctx.font = "12px Courier New";
+                    ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height + (padding * 3)
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - padding - 1,
+                        blueprintImage.height - infoBox.height + (padding * 3)
+                    );
+                    ctx.stroke();
+                    ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height + (padding * 6)
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - padding - 1,
+                        blueprintImage.height - infoBox.height + (padding * 6)
+                    );
+                    ctx.stroke();
+                    ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
+                    ctx.fillStyle = 'rgb(255, 255, 255)';
+                    ctx.font = "15px Courier New";
+                    ctx.fillText("DO NOT MODIFY", 20, 30);
+                    ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
+                    ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
+                    img.src = imgData;
+                    img.onload = function () {
+                        encodeJsonInCanvas(json, ctx);
+                    };
                 }
             }
         }
@@ -339,7 +410,7 @@ var app = new Vue({
 });
 
 Vue.component("modal", {
-    props: ['source'],
+    props: ['title', 'source'],
     template: `
     <transition name="modal">
     <div class="modal-mask">
@@ -347,12 +418,12 @@ Vue.component("modal", {
             <div class="modal-container">
                 <div class="modal-header">
                     <slot name="header">
-                        default header
+                        {{title}}
                     </slot>
                 </div>
                 <div class="modal-body">
                     <slot name="body">
-                        <img  :src="source" class="saveImg">
+                        <img :src="source" class="saveImg" id="saveImg">
                     </slot>
                 </div>
                 <div class="modal-footer">
@@ -395,9 +466,9 @@ let gifLength = 60;
 let bufferRenderer;
 
 //Save image vars
-const encodedImageWidth = 1000;
-const encodedImageHeigth = 1000;
-const encodedImageDataStartingAt = 600;
+const encodedImageWidth = 800;
+let encodedImageHeigth = 300; //for safety
+const encodedImageDataStartingAt = 500;
 
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
@@ -492,7 +563,7 @@ let line = {
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
         this.renderLine(this.linepositions, app.lineColor, app.lineWidth, app.mirror, false);
     },
-    renderLine: function (positions, lineColor, lineWidth, mirror, returnLineBool) {
+    renderLine: function (positions, lineColor, lineWidth, mirrorOn, returnLineBool) {
         var matLineDrawn = new LineMaterial({
             color: new THREE.Color(lineColor),
             linewidth: lineWidth, // in pixels
@@ -521,10 +592,7 @@ let line = {
         var lquaternion = l.getWorldQuaternion(lquaternion);
         var lscale = l.getWorldScale(lscale);
         scene.add(l);
-        if (returnLineBool) {
-            return l;
-        }
-        switch (mirror) {
+        switch (mirrorOn) {
             case "x":
                 mirror.object(l, 'x')
                 break;
@@ -535,7 +603,10 @@ let line = {
                 mirror.object(l, 'z')
                 break;
             default:
-                return
+            //it's false, do nothing
+        }
+        if (returnLineBool == true) {
+            return l;
         }
     },
     rejectPalm: function (positions) {
@@ -988,7 +1059,7 @@ let mirror = {
         }
     },
     object: function (obj, axis) {
-        console.log(obj)
+        console.log('mirror')
         var clone = obj.clone();
         clone.userData.mirror = obj.uuid;
         clone.userData.mirrorAxis = axis;
@@ -1019,29 +1090,30 @@ let mirror = {
 
 let importFrom = {
     imageWithEncodedFile: function () {
+        console.log('importing')
         var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
         var input, file, fr;
         var input = document.createElement('input');
         input.style.display = 'none';
         input.type = 'file';
-        //document.body.appendChild(input);
+        document.body.appendChild(input);
         input.onchange = event => {
             var img = new Image();
             img.onload = () => {
+                console.log('img loaded')
                 var canvasWithEncodedImage = document.createElement('canvas');
                 canvasWithEncodedImage.width = encodedImageWidth;
-                canvasWithEncodedImage.height = encodedImageHeigth;
+                canvasWithEncodedImage.height = img.height;
                 canvasWithEncodedImage.style.zIndex = 5;
                 canvasWithEncodedImage.style.position = 'absolute';
                 canvasWithEncodedImage.style.top = '10px';
                 canvasWithEncodedImage.style.right = '10px';
                 var ctx = canvasWithEncodedImage.getContext("2d");
                 ctx.imageSmoothingEnabled = false;
-                ctx.mozImageSmoothingEnabled = false;
                 ctx.oImageSmoothingEnabled = false;
                 ctx.webkitImageSmoothingEnabled = false;
                 ctx.msImageSmoothingEnabled = false;
-                ctx.clearRect(0, 0, encodedImageWidth, encodedImageHeigth);
+                ctx.clearRect(0, 0, encodedImageWidth, img.height);
                 ctx.drawImage(img, 0, 0);
                 decode(canvasWithEncodedImage, ctx);
                 //document.body.appendChild(canvasWithEncodedImage);
@@ -1054,7 +1126,6 @@ let importFrom = {
             var json = '';
             for (var y = encodedImageDataStartingAt; y < canvas.height; y++) {
                 for (var x = 0; x < canvas.width; x++) {
-                    //not super elegant
                     json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
                     if (json.slice(-2) == '}]') {
                         importFrom.json(json);
@@ -1441,41 +1512,6 @@ function repositionCamera() {
     }
 };
 
-//SAVE AND LOAD
-// function save() {
-//     exportTo.imageWithEncodedFile();
-//     // function download(content, fileName, contentType) {
-//     //     var a = document.createElement("a");
-//     //     var file = new Blob([content], { type: contentType });
-//     //     a.href = URL.createObjectURL(file);
-//     //     a.download = fileName;
-//     //     a.click();
-//     // }
-//     // download(JSON.stringify(blueprint), 'blueprint.json', 'json');
-
-// }
-// document.getElementById("Save").addEventListener("click", save);
-
-// function load() {
-//     var input, file, fr;
-//     var input = document.createElement('input');
-//     input.style.display = 'none';
-//     input.type = 'file';
-//     document.body.appendChild(input);
-//     input.onchange = event => {
-//         var selectedFile = event.target.files[0];
-//         const fileReader = new FileReader();
-//         fileReader.readAsText(selectedFile, "UTF-8");
-//         fileReader.onload = () => {
-//             var data = JSON.parse(fileReader.result);
-//             data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth, obj.position, obj.quaternion, obj.scale) })
-//         }
-//         fileReader.onerror = (error) => {
-//             console.log(error);
-//         }
-//     }
-//     input.click();
-// }
 document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
 
 // document.getElementById("Export").addEventListener("click", exportTo.gltf);
