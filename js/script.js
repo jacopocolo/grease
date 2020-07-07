@@ -194,165 +194,6 @@ var app = new Vue({
                     }
                 });
                 function encode(json) {
-
-                    //Small PNG chunks parsing util
-                    var PNG = {
-                        parse: function (base64) {
-                            //var base64 = PNG.asBase64(imgTag);
-                            var byteData = PNG.utils.base64StringToByteArray(base64);
-                            var parsedPngData = PNG.utils.parseBytes(byteData);
-                            return PNG.utils.enrichParsedData(parsedPngData);
-                        },
-
-                        asBase64: function (imgTag) {
-                            var canvas = document.createElement("canvas");
-                            canvas.width = imgTag.width;
-                            canvas.height = imgTag.height;
-                            var ctx = canvas.getContext("2d");
-                            ctx.drawImage(imgTag, 0, 0);
-                            var dataURL = canvas.toDataURL("image/png");
-                            return dataURL.split('base64,')[1];
-                        },
-
-                        utils: {
-                            base64StringToByteArray: function (base64String) {
-                                //http://stackoverflow.com/questions/16245767/creating-a-blob-from-a-base64-string-in-javascript
-                                var byteCharacters = atob(base64String);
-                                var byteNumbers = new Array(byteCharacters.length);
-                                for (var i = 0; i < byteCharacters.length; i++) {
-                                    byteNumbers[i] = byteCharacters.charCodeAt(i);
-                                }
-                                return new Uint8Array(byteNumbers);
-                            },
-                            byteArrayToBase64String: function (byteArray, start, length) {
-                                var front = byteArray.slice(0, start);
-                                var back = byteArray.slice(start + length);
-                                byteArray = new Uint8Array(front.byteLength + back.byteLength);
-                                byteArray.set(new Uint8Array(front), 0);
-                                byteArray.set(new Uint8Array(back), front.byteLength);
-                                console.log(byteArray.length)
-                                return btoa(String.fromCharCode(...new Uint8Array(byteArray)));
-                            },
-                            parseBytes: function (bytes) {
-                                var pngData = {};
-                                //see https://en.wikipedia.org/wiki/Portable_Network_Graphics
-
-                                //verify file header
-                                pngData['headerIsValid'] = bytes[0] == 0x89 &&
-                                    bytes[1] == 0x50 &&
-                                    bytes[2] == 0x4E &&
-                                    bytes[3] == 0x47 &&
-                                    bytes[4] == 0x0D &&
-                                    bytes[5] == 0x0A &&
-                                    bytes[6] == 0x1A &&
-                                    bytes[7] == 0x0A
-
-                                if (!pngData.headerIsValid) {
-                                    console.warn('Provided data does not belong to a png')
-                                    return pngData;
-                                }
-
-                                //parsing chunks
-                                var chunks = [];
-
-                                var chunk = PNG.utils.parseChunk(bytes, 8);
-                                chunks.push(chunk);
-
-                                while (chunk.name !== 'IEND') {
-                                    chunk = PNG.utils.parseChunk(bytes, chunk.end);
-                                    chunks.push(chunk);
-                                }
-
-                                pngData['chunks'] = chunks;
-                                return pngData;
-                            },
-
-                            parseChunk: function (bytes, start) {
-                                var chunkLength = PNG.utils.bytes2Int(bytes.slice(start, start + 4));
-
-                                var chunkName = '';
-                                chunkName += String.fromCharCode(bytes[start + 4]);
-                                chunkName += String.fromCharCode(bytes[start + 5]);
-                                chunkName += String.fromCharCode(bytes[start + 6]);
-                                chunkName += String.fromCharCode(bytes[start + 7]);
-
-                                var chunkData = [];
-                                for (var idx = start + 8; idx < chunkLength + start + 8; idx++) {
-                                    chunkData.push(bytes[idx]);
-                                }
-
-                                //TODO validate crc as required!
-
-                                return {
-                                    start: start,
-                                    end: Number(start) + Number(chunkLength) + 12, //12 = 4 (length) + 4 (name) + 4 (crc)
-                                    length: chunkLength,
-                                    name: chunkName,
-                                    data: chunkData,
-                                    crc: [
-                                        bytes[chunkLength + start + 8],
-                                        bytes[chunkLength + start + 9],
-                                        bytes[chunkLength + start + 10],
-                                        bytes[chunkLength + start + 11]
-                                    ],
-                                    crcChecked: false
-                                };
-                            },
-
-                            enrichParsedData: function (pngData) {
-                                var idhrChunk = PNG.utils.getChunk(pngData, 'IDHR');
-
-                                //see http://www.libpng.org/pub/png/spec/1.2/PNG-Chunks.html
-                                pngData.width = PNG.utils.bytes2Int(idhrChunk.data.slice(0, 4));
-                                pngData.height = PNG.utils.bytes2Int(idhrChunk.data.slice(4, 8));
-                                pngData.bitDepth = PNG.utils.bytes2Int(idhrChunk.data.slice(8, 9));
-                                pngData.colorType = PNG.utils.bytes2Int(idhrChunk.data.slice(9, 10));
-                                pngData.compressionMethod = PNG.utils.bytes2Int(idhrChunk.data.slice(10, 11));
-                                pngData.filterMethod = PNG.utils.bytes2Int(idhrChunk.data.slice(11, 12));
-                                pngData.interlaceMethod = PNG.utils.bytes2Int(idhrChunk.data.slice(12, 13));
-
-                                pngData.isGreyScale = pngData.colorType == 0 || pngData.colorType == 4;
-                                pngData.isRgb = pngData.colorType == 2 || pngData.colorType == 6;
-                                pngData.hasAlpha = pngData.colorType == 4 || pngData.colorType == 6;
-                                pngData.hasPaletteMode = pngData.colorType == 3 && PNG.utils.getChunk(pngData, 'PLTE') != null;
-
-                                return pngData;
-                            },
-
-                            getChunks: function (pngData, chunkName) {
-                                var chunksForName = [];
-                                for (var idx = 0; idx < pngData.chunks.length; idx++) {
-                                    if (pngData.chunks[idx].name = chunkName) {
-                                        chunksForName.push(pngData.chunks[idx]);
-                                    }
-                                }
-                                return chunksForName;
-                            },
-
-                            getChunk: function (pngData, chunkName) {
-                                for (var idx = 0; idx < pngData.chunks.length; idx++) {
-                                    if (pngData.chunks[idx].name = chunkName) {
-                                        return pngData.chunks[idx];
-                                    }
-                                }
-                                return null;
-                            },
-
-                            bytes2Int: function (bytes) {
-                                var ret = 0;
-
-                                for (var idx = 0; idx < bytes.length; idx++) {
-                                    ret += bytes[idx];
-                                    if (idx < bytes.length - 1) {
-                                        ret = ret << 8;
-                                    }
-                                }
-
-                                return ret;
-                            }
-                        }
-                    }
-
                     function encodeJsonInCanvas(json, ctx) {
                         console.log('Encoding…')
                         var pixels = [];
@@ -392,38 +233,7 @@ var app = new Vue({
                                         (img.width * ratio) - padding * 2,
                                         (img.height * ratio) - padding * 2
                                     );
-
-                                    var b64 = canvasWithEncodedImage.toDataURL().split('base64,')[1];
-                                    var pngChunks = PNG.parse(b64);
-                                    var chunkStart;
-                                    var chunkEnd;
-                                    var length;
-
-                                    //This is a bit of a crazy hack to ensure cross-browser compatibility. If the image is saved from Safari or a browser that handles color profiles, we strip away the color profile element from the PNG so other browsers that don't handle color profiles don't have problems reading the pixels
-
-                                    //TODO: this is not good enough, requires more testing. At the moment it seems like only safari injects sRGB and eXIf info in the png but other browsers might as well.
-
-                                    var indexOfsRGBChunk = pngChunks.chunks.map(function (e) { return e.name; }).indexOf('sRGB')
-                                    var indexOfeXIfChunk = pngChunks.chunks.map(function (e) { return e.name; }).indexOf('eXIf')
-                                    if (indexOfsRGBChunk > 0 && indexOfeXIfChunk > 0) {
-                                        console.log('Removing sRGB and eXIf')
-                                        chunkStart = pngChunks.chunks[indexOfsRGBChunk].start;
-                                        chunkEnd = pngChunks.chunks[indexOfeXIfChunk].end;
-                                        length = chunkEnd - chunkStart;
-                                        var byteArray = PNG.utils.base64StringToByteArray(b64);
-                                        console.log(byteArray);
-                                        var front = byteArray.slice(0, chunkStart);
-                                        var back = byteArray.slice(chunkStart + length);
-                                        var newByteArray = new Uint8Array(front.byteLength + back.byteLength);
-                                        newByteArray.set(new Uint8Array(front), 0);
-                                        newByteArray.set(new Uint8Array(back), front.byteLength);
-                                        console.log(newByteArray);
-                                        app.modal.image = 'data:image/png;base64,' + btoa(String.fromCharCode(...new Uint8Array(newByteArray)));
-                                        alert('Removing sRGB and eXIf')
-                                    } else {
-                                        app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
-                                    }
-                                    return
+                                    app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
                                 }
                             }
                         }
@@ -1284,28 +1094,62 @@ let importFrom = {
         input.style.display = 'none';
         input.type = 'file';
         document.body.appendChild(input);
+
         input.onchange = event => {
-            var img = new Image();
-            img.onload = () => {
-                console.log('img loaded')
-                var canvasWithEncodedImage = document.createElement('canvas');
-                canvasWithEncodedImage.width = encodedImageWidth;
-                canvasWithEncodedImage.height = img.height;
-                canvasWithEncodedImage.style.zIndex = 5;
-                canvasWithEncodedImage.style.position = 'absolute';
-                canvasWithEncodedImage.style.top = '10px';
-                canvasWithEncodedImage.style.right = '10px';
-                var ctx = canvasWithEncodedImage.getContext("2d");
-                ctx.imageSmoothingEnabled = false;
-                ctx.oImageSmoothingEnabled = false;
-                ctx.webkitImageSmoothingEnabled = false;
-                ctx.msImageSmoothingEnabled = false;
-                ctx.clearRect(0, 0, encodedImageWidth, img.height);
-                ctx.drawImage(img, 0, 0);
-                decode(canvasWithEncodedImage, ctx);
-                //document.body.appendChild(canvasWithEncodedImage);
-            };
-            img.src = URL.createObjectURL(event.target.files[0]);
+
+            //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well. 
+
+            //FIREFOX
+            if (navigator.userAgent.indexOf("Firefox") > 0) {
+                var instance = new pngcrush();
+                instance.exec(event.target.files[0], function (event) {
+                    console.log(event.data.line);
+                }).then(function (event) {
+                    // Done processing the image, display file size and output image
+                    var outputFile = new Blob([event.data.data], { type: 'image/png' });
+                    var img = new Image();
+                    img.onload = () => {
+                        var canvasWithEncodedImage = document.createElement('canvas');
+                        canvasWithEncodedImage.width = encodedImageWidth;
+                        canvasWithEncodedImage.height = img.height;
+                        canvasWithEncodedImage.style.zIndex = 5;
+                        canvasWithEncodedImage.style.position = 'absolute';
+                        canvasWithEncodedImage.style.top = '10px';
+                        canvasWithEncodedImage.style.right = '10px';
+                        var ctx = canvasWithEncodedImage.getContext("2d");
+                        ctx.imageSmoothingEnabled = false;
+                        ctx.oImageSmoothingEnabled = false;
+                        ctx.webkitImageSmoothingEnabled = false;
+                        ctx.msImageSmoothingEnabled = false;
+                        ctx.clearRect(0, 0, encodedImageWidth, img.height);
+                        ctx.drawImage(img, 0, 0);
+                        decode(canvasWithEncodedImage, ctx);
+                    }
+                    img.src = URL.createObjectURL(outputFile);
+                });
+                //NOT FIREFOX
+            } else {
+                var img = new Image();
+                img.onload = () => {
+                    console.log('img loaded')
+                    var canvasWithEncodedImage = document.createElement('canvas');
+                    canvasWithEncodedImage.width = encodedImageWidth;
+                    canvasWithEncodedImage.height = img.height;
+                    canvasWithEncodedImage.style.zIndex = 5;
+                    canvasWithEncodedImage.style.position = 'absolute';
+                    canvasWithEncodedImage.style.top = '10px';
+                    canvasWithEncodedImage.style.right = '10px';
+                    var ctx = canvasWithEncodedImage.getContext("2d");
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.oImageSmoothingEnabled = false;
+                    ctx.webkitImageSmoothingEnabled = false;
+                    ctx.msImageSmoothingEnabled = false;
+                    ctx.clearRect(0, 0, encodedImageWidth, img.height);
+                    ctx.drawImage(img, 0, 0);
+                    decode(canvasWithEncodedImage, ctx);
+                };
+                img.src = URL.createObjectURL(event.target.files[0]);
+            }
         }
         input.click();
 
