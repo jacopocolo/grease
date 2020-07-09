@@ -1,5 +1,5 @@
 :root {
-  --bg-color: rgb(2, 32, 132);
+  --bg-color: rgb(2, 32, 131);
   --accent-color: rgb(254, 207, 18);
   --accent-color-selected: rgb(218, 175, 1);
   --ui-bg-color: rgb(0, 0, 0);
@@ -14,7 +14,8 @@ body, html, #app {
   height: 100%;
   /* position: fixed; */
   overflow: hidden;
-  font-family: sans-serif;
+  font-family: "Sometype Mono";
+  font-weight: 500;
   font-size: 14px;
 }
 
@@ -220,6 +221,14 @@ margin: 0px;
 
 #lineWidth input[type="radio"]:checked + label, #lineColor input[type="radio"]:checked + label, #mirror input[type="radio"]:checked + label {
   border: var(--accent-color) 2px solid;
+}
+
+#smallestLineWidthIndicator{
+  height: 1px;
+  width: 1px;
+  background-color: var(--line-color-lightest);
+  border-radius: 3px;
+  display: grid;
 }
 
 #smallLineWidthIndicator{

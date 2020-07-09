@@ -28,6 +28,52 @@ var app = new Vue({
             image: ''
         },
         exportTo: {
+            json: async function () {
+                var itemProcessed = 0;
+                var json = [];
+                var mirroredObject = [];
+                scene.children.forEach(obj => {
+                    //check if it's a line, if it's in the right layer and that we don't already have its original
+                    if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
+                        var line = {};
+                        line.c = {};
+                        //Color could be replaced by a single number 1-4
+                        //Where 1 is lightest and 4 is dark
+                        //This would reduce the length significantly
+                        line.c.r = obj.material.color.r * 255;
+                        line.c.g = obj.material.color.g * 255;
+                        line.c.b = obj.material.color.b * 255;
+                        line.w = obj.material.linewidth;
+                        line.g = obj.geometry.userData;
+
+                        var position = new THREE.Vector3();
+                        position = obj.getWorldPosition(position);
+                        line.p = position;
+
+                        var quaternion = new THREE.Quaternion();
+                        quaternion = obj.getWorldQuaternion(quaternion);
+                        line.q = quaternion;
+
+                        var scale = new THREE.Vector3();
+                        scale = obj.getWorldScale(scale);
+                        line.s = scale;
+
+                        if (obj.userData.mirror) {
+                            //Push the id of the mirrored line in the array to exclude mirrors
+                            mirroredObject.push(obj.userData.mirror);
+                        };
+                        //This is all we need to restore its mirror, the renderLine takes care of it
+                        if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
+
+                        json.push(line);
+                    }
+                    itemProcessed = itemProcessed + 1;
+                    if (itemProcessed >= scene.children.length) {
+                        return
+                    }
+                });
+                return json
+            },
             gltf: function () {
                 //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
                 var scene2 = new THREE.Scene();
@@ -121,11 +167,10 @@ var app = new Vue({
                 }
                 convertLine2toLine()
             },
-            blueprint: function () {
-                //nothing yet
-            },
             gif: function () {
                 makingGif = true;
+                app.autoRotate = true;
+                controls.autoRotateSpeed = 30.0;
 
                 gif = new GIF({
                     workers: 10,
@@ -134,16 +179,8 @@ var app = new Vue({
                 });
 
                 gif.on("finished", function (blob) {
-                    var img = new Image();
-                    img.src = URL.createObjectURL(blob);
-                    img.style.zIndex = 5;
-                    img.style.position = 'absolute';
-                    img.style.top = '10px';
-                    img.style.right = '10px';
-                    img.style.width = window.innerWidth / 3;
-                    img.style.height = window.innerHeight / 3;
-                    img.style.border = '1px solid white';
-                    document.body.appendChild(img);
+                    app.modal.show = true;
+                    app.modal.image = URL.createObjectURL(blob);
                     console.log("rendered");
                     app.autoRotate = false;
                 });
@@ -151,49 +188,9 @@ var app = new Vue({
             image: function () {
                 //nothing yet
             },
-            imageWithEncodedFile: function () {
-                var itemProcessed = 0;
-                var json = [];
-                scene.children.forEach(obj => {
-                    if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-                        console.log(obj);
-                        var line = {};
-
-                        line.u = obj.uuid;
-                        line.c = {};
-                        //Color could be replaced by a single number 1-4
-                        //Where 1 is lightest and 4 is dark
-                        //This would reduce the length significantly
-                        line.c.r = obj.material.color.r * 255;
-                        line.c.g = obj.material.color.g * 255;
-                        line.c.b = obj.material.color.b * 255;
-                        line.w = obj.material.linewidth;
-                        line.g = obj.geometry.userData;
-
-                        var position = new THREE.Vector3();
-                        position = obj.getWorldPosition(position);
-                        line.p = position;
-
-                        var quaternion = new THREE.Quaternion();
-                        quaternion = obj.getWorldQuaternion(quaternion);
-                        line.q = quaternion;
-
-                        var scale = new THREE.Vector3();
-                        scale = obj.getWorldScale(scale);
-                        line.s = scale;
-
-                        if (obj.userData.mirror) { line.m = obj.userData.mirror };
-                        if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
-
-                        json.push(line);
-                        console.log(line.c)
-                    }
-                    itemProcessed = itemProcessed + 1;
-                    if (itemProcessed === scene.children.length) {
-                        encode(JSON.stringify(json));
-                    }
-                });
-                function encode(json) {
+            imageWithEncodedFile: async function () {
+                app.exportTo.json().then(function (json) {
+                    json = JSON.stringify(json);
                     function encodeJsonInCanvas(json, ctx) {
                         console.log('Encoding…')
                         var pixels = [];
@@ -315,7 +312,7 @@ var app = new Vue({
                     img.onload = function () {
                         encodeJsonInCanvas(json, ctx);
                     };
-                }
+                });
             }
         }
     },
@@ -331,13 +328,6 @@ var app = new Vue({
             //     this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
             //     this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
             // }
-        },
-        lineWidth: function () {
-            if (this.lineWidth < 3) {
-                this.lineWidth = 3;
-            } else if (this.lineWidth > 40) {
-                this.lineWidth = 40;
-            }
         }
     },
     methods: {
@@ -399,14 +389,13 @@ var app = new Vue({
             drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         }
     },
-    mounted() {
-        // this.lineWidthEl = document.getElementById('lineWidth');
-        // this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
-        // this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
-    }
 });
 
 Vue.component("modal", {
+    //mode: loading, image
+    //title: 
+    //body
+    //img
     props: ['title', 'source'],
     template: `
     <transition name="modal">
@@ -459,7 +448,7 @@ var linesNeedThemeUpdate = false;
 let gif;
 let makingGif = false;
 let count = 0;
-let gifLength = 60;
+let gifLength = 120;
 let bufferRenderer;
 
 //Save image vars
@@ -473,34 +462,6 @@ drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
-
-//Blueprint is an object that holds a minimal version of the THREEjs scene
-//It contains all the positions of the lines that are drawn on canvas
-//Their width, colors, positions, rotation and scale
-//Lines are deleted if they are deleted from the scene
-//Lines positions, rotation and scale are updated when they 
-//It is used to produce JSON files that can be saved and restored (redrawn)
-//It's also used to produce export files that only contain lines geometry as
-//Line2 don't export well using the native THREE exporters
-let blueprint = {
-    lines: [],
-    removeFromBlueprint: function (object) {
-        var indexOfElementToRemove = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(object.uuid)
-        blueprint.lines.splice(indexOfElementToRemove, 1)
-    },
-    updateBlueprintLine: function (object) {
-        var indexOfObjectToUpdate = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(object.uuid);
-        var position = object.getWorldPosition(position);
-        console.log(position);
-        blueprint.lines[indexOfObjectToUpdate].position = position;
-        var quaternion = object.getWorldQuaternion(quaternion);
-        console.log(quaternion);
-        blueprint.lines[indexOfObjectToUpdate].quaternion = quaternion;
-        var scale = object.getWorldScale(scale);
-        console.log(scale);
-        blueprint.lines[indexOfObjectToUpdate].scale = scale;
-    },
-};
 
 let mouse = {
     tx: 0, //x coord for threejs
@@ -1180,8 +1141,6 @@ let importFrom = {
     json: function (json) {
         var json = JSON.parse(json);
         json.forEach(importedLine => {
-            console.log(importedLine);
-            console.log(importedLine.c)
             var l = line.renderLine(
                 importedLine.g,
                 "rgb(" + importedLine.c.r + "," + importedLine.c.g + "," + importedLine.c.b + ")",
@@ -1205,18 +1164,17 @@ let importFrom = {
                 importedLine.s.y,
                 importedLine.s.z
             );
-            console.log(scene);
+
+            mirror.updateMirrorOf(l);
         })
     }
 }
 
 //Improvements to the save and restore:
 //the image should maintain the correct aspect ratio
-//the image should be nicer
 //It should be possible to discard the mirrored elements, the renderLine function _should_ take care of them
 //And if that's the case, UUID could just be removed. We'll generate new ones
 //Color could be vastly simplified and genericized (so it's eventually theme independent)
-//Image height could be adjusted dynamically based on the length of the json
 
 init();
 animate();
@@ -1301,10 +1259,9 @@ function init() {
         antialias: true,
     });
     bufferRenderer.setPixelRatio(window.devicePixelRatio);
-    bufferRenderer.setClearColor(0x000000, 0);
+    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
+    bufferRenderer.setClearColor(new THREE.Color(bgCol.r, bgCol.g, bgCol.b), 1);
     bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
-
-    //line.renderLine([0, 0, 0, 1, 1, 1], app.lineColor, app.lineWidth, app.mirror, false);
 }
 
 function onWindowResize() {
@@ -1374,8 +1331,6 @@ function animate() {
     renderer.render(scene, camera);
     if (makingGif) {
         if (count < gifLength) {
-            app.autoRotate = true;
-            controls.autoRotateSpeed = 30.0;
             bufferRenderer.render(scene, camera)
             gif.addFrame(bufferRenderer.domElement, {
                 copy: true,
@@ -1383,10 +1338,10 @@ function animate() {
             });
             count = count + 1;
         } else {
-            gif.render();
             app.autoRotate = false;
             controls.autoRotateSpeed = 30.0;
             makingGif = false;
+            gif.render();
             count = 0;
         }
     }
