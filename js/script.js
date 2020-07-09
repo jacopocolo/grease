@@ -1061,7 +1061,7 @@ let importFrom = {
             //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well. 
 
             //FIREFOX
-            if (navigator.userAgent.indexOf("Firefox") > 0) {
+            if (navigator.userAgent.indexOf("Firefox") > 0 || navigator.userAgent.indexOf("Chrome") > 0) {
                 var instance = new pngcrush();
                 instance.exec(event.target.files[0], function (event) {
                     console.log(event.data.line);
@@ -1182,11 +1182,11 @@ animate();
 function init() {
     renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: true,
+        alpha: false,
         preserveDrawingBuffer: false
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0); //transparent so the background shows through
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
     renderer.domElement.id = 'threeJsCanvas';
@@ -1201,6 +1201,9 @@ function init() {
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
+    //Set the background based on the css variable;
+    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').match(/\d+/g);
+    scene.background = new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
@@ -1259,8 +1262,7 @@ function init() {
         antialias: true,
     });
     bufferRenderer.setPixelRatio(window.devicePixelRatio);
-    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
-    bufferRenderer.setClearColor(new THREE.Color(bgCol.r, bgCol.g, bgCol.b), 1);
+    bufferRenderer.setClearColor(0x000000, 0);
     bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
 }
 
