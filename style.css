@@ -9,12 +9,30 @@
   --line-color-dark: rgb(72, 114, 223);
 }
 
+@font-face {
+  font-family: 'Sometype Mono';
+  src: url('fonts/SometypeMono-Regular.woff2') format('woff2'),
+       url('fonts/SometypeMono-Regular.woff') format('woff');
+  font-weight: 400;
+}
+@font-face {
+  font-family: 'Sometype Mono';
+  src: url('fonts/SometypeMono-Medium.woff2') format('woff2'),
+       url('fonts/SometypeMono-Medium.woff') format('woff');
+  font-weight: 500;
+}
+@font-face {
+  font-family: 'Sometype Mono';
+  src: url('fonts/SometypeMono-Bold.woff2') format('woff2'),
+       url('fonts/SometypeMono-Bold.woff') format('woff'); 
+  font-weight: 600;
+}
+
 body, html, #app { 
   width: 100%;
   height: 100%;
-  /* position: fixed; */
   overflow: hidden;
-  font-family: "Sometype Mono";
+  font-family: "Sometype Mono", monospace;
   font-weight: 500;
   font-size: 14px;
 }
