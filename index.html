@@ -15,6 +15,7 @@
         integrity="sha256-Fc0S35M2Uo4ZMUBJy7ZWT+fkxv5Vpk8k1+cToMBUze4=" crossorigin="anonymous"></script> -->
     <!-- <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script> -->
     <script src="js/vendor/gif.js" defer></script>
+    <script src="js/vendor/pngcrush-class.js" defer></script>
     <script src="js/script.js" type="module" defer></script>
     <script src="js/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="/reset.css" />
@@ -23,6 +24,8 @@
 
 <body>
     <div id="app">
+        <modal v-if="modal.show" @close="modal.show = false" :title="modal.title" :source="modal.image">
+        </modal>
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>
         <div id="miniAxis">
@@ -66,6 +69,13 @@
                 <div id="lineSelection">
                     <div id="lineWidth" class="button">
                         <span class="toolbarLabel">Width</span>
+                        <div>
+                            <input type="radio" id="smallestLineWidth" value="1" name="smallestLineWidth"
+                                v-model="lineWidth">
+                            <label for="smallestLineWidth">
+                                <span id="smallestLineWidthIndicator"></span>
+                            </label>
+                        </div>
                         <div>
                             <input type="radio" id="smallLineWidth" value="3" name="smallLineWidth" v-model="lineWidth">
                             <label for="smallLineWidth">
@@ -173,7 +183,13 @@
             </div>
         </div>
 
+        <div id="saveLoad">
+            <button id="Save" @click="exportTo.imageWithEncodedFile">Save</button>
+            <button id="Load">Load</button>
+            <button id="Export" style="display: none;">Export geometry</button>
+        </div>
 
+        <div id="share"><button id="makeGif" @click="exportTo.gif">Make gif</button></div>
     </div>
 
     <!--<div id="themeSelection">
@@ -196,16 +212,6 @@
             <label for="autoRotate">Autorotate</label>
         </div>
     -->
-
-    <div id="saveLoad">
-        <button id="Save">Save</button>
-        <button id="Load">Load</button>
-        <button id="Export">Export geometry</button>
-    </div>
-
-    <div id="share" style="display: none;"><button id="makeGif">Make gif</button></div>
-
-    </div>
 </body>
 <script>
     document.body.addEventListener('touchmove', function (event) {

@@ -21,11 +21,300 @@ var app = new Vue({
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
-        selection: undefined, //to be filled from init
-        lineWidthDragging: false,
-        startX: 0,
-        x: 'no',
-        y: 'no'
+        selection: {}, //to be filled from init
+        modal: {
+            show: false,
+            title: 'This is your save file',
+            image: ''
+        },
+        exportTo: {
+            json: async function () {
+                var itemProcessed = 0;
+                var json = [];
+                var mirroredObject = [];
+                scene.children.forEach(obj => {
+                    //check if it's a line, if it's in the right layer and that we don't already have its original
+                    if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
+                        var line = {};
+                        line.c = {};
+                        //Color could be replaced by a single number 1-4
+                        //Where 1 is lightest and 4 is dark
+                        //This would reduce the length significantly
+                        line.c.r = obj.material.color.r * 255;
+                        line.c.g = obj.material.color.g * 255;
+                        line.c.b = obj.material.color.b * 255;
+                        line.w = obj.material.linewidth;
+                        line.g = obj.geometry.userData;
+
+                        var position = new THREE.Vector3();
+                        position = obj.getWorldPosition(position);
+                        line.p = position;
+
+                        var quaternion = new THREE.Quaternion();
+                        quaternion = obj.getWorldQuaternion(quaternion);
+                        line.q = quaternion;
+
+                        var scale = new THREE.Vector3();
+                        scale = obj.getWorldScale(scale);
+                        line.s = scale;
+
+                        if (obj.userData.mirror) {
+                            //Push the id of the mirrored line in the array to exclude mirrors
+                            mirroredObject.push(obj.userData.mirror);
+                        };
+                        //This is all we need to restore its mirror, the renderLine takes care of it
+                        if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
+
+                        json.push(line);
+                    }
+                    itemProcessed = itemProcessed + 1;
+                    if (itemProcessed >= scene.children.length) {
+                        return
+                    }
+                });
+                return json
+            },
+            gltf: function () {
+                //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
+                var scene2 = new THREE.Scene();
+                function exportGLTF(input) {
+                    var gltfExporter = new GLTFExporter();
+                    var options = {
+                    };
+                    gltfExporter.parse(input, function (result) {
+                        if (result instanceof ArrayBuffer) {
+                            saveArrayBuffer(result, 'scene.glb');
+                        } else {
+                            var output = JSON.stringify(result, null, 2);
+                            // console.log(output);
+                            saveString(output, 'scene.gltf');
+                        }
+                    }, options);
+
+                    scene2.traverse(object => {
+                        if (!object.isMesh) return
+
+                        console.log('dispose geometry!')
+                        object.geometry.dispose()
+
+                        if (object.material.isMaterial) {
+                            cleanMaterial(object.material)
+                        } else {
+                            // an array of materials
+                            for (const material of object.material) cleanMaterial(material)
+                        }
+                    })
+                    const cleanMaterial = material => {
+                        console.log('dispose material!')
+                        material.dispose()
+                        // dispose textures
+                        for (const key of Object.keys(material)) {
+                            const value = material[key]
+                            if (value && typeof value === 'object' && 'minFilter' in value) {
+                                console.log('dispose texture!')
+                                value.dispose()
+                            }
+                        }
+                    }
+                    scene2.dispose();
+                }
+                var link = document.createElement('a');
+                link.style.display = 'none';
+                document.body.appendChild(link); // Firefox workaround, see #6594
+                function save(blob, filename) {
+                    link.href = URL.createObjectURL(blob);
+                    link.download = filename;
+                    link.click();
+                    // URL.revokeObjectURL( url ); breaks Firefox...
+                }
+                function saveString(text, filename) {
+                    save(new Blob([text], {
+                        type: 'text/plain'
+                    }), filename);
+                }
+                function saveArrayBuffer(buffer, filename) {
+                    save(new Blob([buffer], {
+                        type: 'application/octet-stream'
+                    }), filename);
+                }
+                //may need to scale up a bit
+                function convertLine2toLine() {
+                    var itemProcessed = 0;
+                    scene.children.forEach(obj => {
+                        if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+                            var material = new THREE.LineBasicMaterial({
+                                color: obj.material.color,
+                                linewidth: obj.material.linewidth
+                            });
+                            var geometry = new THREE.BufferGeometry();
+                            var vertices = new Float32Array(obj.geometry.userData);
+                            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                            var convertedLine = new THREE.Line(geometry, material);
+                            var position = obj.getWorldPosition(position);
+                            var quaternion = obj.getWorldQuaternion(quaternion);
+                            var scale = obj.getWorldScale(scale);
+                            convertedLine.position.set(position.x, position.y, position.z)
+                            convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
+                            convertedLine.scale.set(scale.x, scale.y, scale.z)
+                            scene2.add(convertedLine);
+                            convertedLine.geometry.center();
+                        }
+                        itemProcessed = itemProcessed + 1;
+                        if (itemProcessed === scene.children.length) {
+                            exportGLTF(scene2);
+                        }
+                    })
+                }
+                convertLine2toLine()
+            },
+            gif: function () {
+                makingGif = true;
+                app.autoRotate = true;
+                controls.autoRotateSpeed = 30.0;
+
+                gif = new GIF({
+                    workers: 10,
+                    quality: 10,
+                    workerScript: 'js/vendor/gif.worker.js'
+                });
+
+                gif.on("finished", function (blob) {
+                    app.modal.show = true;
+                    app.modal.image = URL.createObjectURL(blob);
+                    console.log("rendered");
+                    app.autoRotate = false;
+                });
+            },
+            image: function () {
+                //nothing yet
+            },
+            imageWithEncodedFile: async function () {
+                app.exportTo.json().then(function (json) {
+                    json = JSON.stringify(json);
+                    function encodeJsonInCanvas(json, ctx) {
+                        console.log('Encoding…')
+                        var pixels = [];
+                        for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
+                            var pixel = {};
+                            pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
+                            pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
+                            pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
+                            // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
+                            pixels.push(pixel);
+                        }
+                        var count = 0
+                        for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
+                            for (var x = 0; x < canvasWithEncodedImage.width; x++) {
+                                if (count < pixels.length) {
+                                    ctx.fillStyle = "rgb(" +
+                                        pixels[count].r
+                                        + "," +
+                                        pixels[count].g
+                                        + "," +
+                                        pixels[count].b
+                                        + ")";
+                                    ctx.fillRect(x, y, 1, 1);
+                                    count = count + 1;
+                                } else {
+                                    app.modal.show = true;
+                                    var hRatio = canvasWithEncodedImage.width / img.width;
+                                    var vRatio = canvasWithEncodedImage.height / img.height;
+                                    var ratio = Math.min(hRatio, vRatio);
+                                    ctx.drawImage(img,
+                                        0,
+                                        0,
+                                        img.width,
+                                        img.height,
+                                        padding,
+                                        padding,
+                                        (img.width * ratio) - padding * 2,
+                                        (img.height * ratio) - padding * 2
+                                    );
+                                    app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
+                                }
+                            }
+                        }
+                    }
+                    //generate stringified json from scene
+                    var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+                    renderer.render(scene, camera);
+                    var imgData = renderer.domElement.toDataURL();
+                    var img = new Image();
+                    //Do a quick calulation of the height of the image based on how many characters are in the JSON
+                    encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
+                    var canvasWithEncodedImage = document.createElement('canvas');
+                    canvasWithEncodedImage.width = encodedImageWidth;
+                    canvasWithEncodedImage.height = encodedImageHeigth;
+                    let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
+                    var ctx = canvasWithEncodedImage.getContext("2d");
+                    var padding = 10;
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.oImageSmoothingEnabled = false;
+                    ctx.webkitImageSmoothingEnabled = false;
+                    ctx.msImageSmoothingEnabled = false;
+                    ctx.fillStyle = 'rgb(2, 32, 132)';
+                    ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
+                    ctx.strokeStyle = 'rgb(255, 255, 255)';
+                    ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
+                    var infoBox = { height: 100, width: 250 };
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - padding - 1,
+                        blueprintImage.height - infoBox.height
+                    );
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - padding - 2
+                    );
+                    ctx.stroke();
+                    ctx.fillStyle = 'rgb(255, 255, 255)';
+                    ctx.font = "12px Courier New";
+                    ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height + (padding * 3)
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - padding - 1,
+                        blueprintImage.height - infoBox.height + (padding * 3)
+                    );
+                    ctx.stroke();
+                    ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        blueprintImage.width - infoBox.width,
+                        blueprintImage.height - infoBox.height + (padding * 6)
+                    );
+                    ctx.lineTo(
+                        blueprintImage.width - padding - 1,
+                        blueprintImage.height - infoBox.height + (padding * 6)
+                    );
+                    ctx.stroke();
+                    ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
+                    ctx.fillStyle = 'rgb(255, 255, 255)';
+                    ctx.font = "15px Courier New";
+                    ctx.fillText("DO NOT MODIFY", 20, 30);
+                    ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
+                    ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
+                    img.src = imgData;
+                    img.onload = function () {
+                        encodeJsonInCanvas(json, ctx);
+                    };
+                });
+            }
+        }
     },
     watch: {
         selectedTheme: function () {
@@ -39,51 +328,11 @@ var app = new Vue({
             //     this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
             //     this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
             // }
-        },
-        lineWidth: function () {
-            if (this.lineWidth < 3) {
-                this.lineWidth = 3;
-            } else if (this.lineWidth > 40) {
-                this.lineWidth = 40;
-            }
         }
     },
     methods: {
         duplicateSelected: function () {
             app.selection.duplicate()
-        },
-        lineWidthStartDrag() {
-            document.addEventListener('mouseup', this.lineWidthStopDrag);
-            document.addEventListener('mousemove', this.lineWidthdonDrag);
-            document.addEventListener('touchend', this.lineWidthStopDrag);
-            document.addEventListener('touchmove', this.lineWidthdonDrag);
-            drawingCanvas.removeEventListener("touchstart", this.onTapStart, false);
-            drawingCanvas.removeEventListener("mousedown", this.onTapStart, false);
-            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.removeEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.removeEventListener("mouseup", this.onTapEnd, false);
-            this.lineWidthDragging = true;
-            this.x = this.y = 0;
-            this.startX = event.pageX;
-        },
-        lineWidthdonDrag(event) {
-            if (this.lineWidthDragging) {
-                this.x = event.pageX;
-                this.y = event.pageY;
-                this.lineWidth = this.lineWidth + -(this.startX - this.x) / 50;
-            }
-        },
-        lineWidthStopDrag() {
-            this.lineWidthDragging = false;
-            this.x = this.y = 'no';
-            document.removeEventListener('mouseup', this.lineWidthStopDrag);
-            document.removeEventListener('mousemove', this.lineWidthdonDrag);
-            document.removeEventListener('touchend', this.lineWidthStopDrag);
-            document.removeEventListener('touchmove', this.lineWidthdonDrag);
-            drawingCanvas.addEventListener("touchstart", this.onTapStart, false);
-            drawingCanvas.addEventListener("mousedown", this.onTapStart, false);
-
         },
         //MOUSE HANDLERS
         onTapMove: function (event) {
@@ -140,11 +389,42 @@ var app = new Vue({
             drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         }
     },
-    mounted() {
-        // this.lineWidthEl = document.getElementById('lineWidth');
-        // this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
-        // this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
-    }
+});
+
+Vue.component("modal", {
+    //mode: loading, image
+    //title: 
+    //body
+    //img
+    props: ['title', 'source'],
+    template: `
+    <transition name="modal">
+    <div class="modal-mask">
+        <div class="modal-wrapper">
+            <div class="modal-container">
+                <div class="modal-header">
+                    <slot name="header">
+                        {{title}}
+                    </slot>
+                </div>
+                <div class="modal-body">
+                    <slot name="body">
+                        <img :src="source" class="saveImg" id="saveImg">
+                    </slot>
+                </div>
+                <div class="modal-footer">
+                    <slot name="footer">
+                        default footer
+                        <button class="modal-default-button" @click="$emit('close')">
+                            OK
+                        </button>
+                    </slot>
+                </div>
+            </div>
+        </div>
+    </div>
+</transition>
+  `
 });
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
@@ -168,8 +448,13 @@ var linesNeedThemeUpdate = false;
 let gif;
 let makingGif = false;
 let count = 0;
-let gifLength = 60;
+let gifLength = 120;
 let bufferRenderer;
+
+//Save image vars
+const encodedImageWidth = 800;
+let encodedImageHeigth = 300; //for safety
+const encodedImageDataStartingAt = 500;
 
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
@@ -177,34 +462,6 @@ drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
-
-//Blueprint is an object that holds a minimal version of the THREEjs scene
-//It contains all the positions of the lines that are drawn on canvas
-//Their width, colors, positions, rotation and scale
-//Lines are deleted if they are deleted from the scene
-//Lines positions, rotation and scale are updated when they 
-//It is used to produce JSON files that can be saved and restored (redrawn)
-//It's also used to produce export files that only contain lines geometry as
-//Line2 don't export well using the native THREE exporters
-let blueprint = {
-    lines: [],
-    removeFromBlueprint: function (object) {
-        var indexOfElementToRemove = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(object.uuid)
-        blueprint.lines.splice(indexOfElementToRemove, 1)
-    },
-    updateBlueprintLine: function (object) {
-        var indexOfObjectToUpdate = blueprint.lines.map(function (e) { return e.uuid; }).indexOf(object.uuid);
-        var position = object.getWorldPosition(position);
-        console.log(position);
-        blueprint.lines[indexOfObjectToUpdate].position = position;
-        var quaternion = object.getWorldQuaternion(quaternion);
-        console.log(quaternion);
-        blueprint.lines[indexOfObjectToUpdate].quaternion = quaternion;
-        var scale = object.getWorldScale(scale);
-        console.log(scale);
-        blueprint.lines[indexOfObjectToUpdate].scale = scale;
-    },
-};
 
 let mouse = {
     tx: 0, //x coord for threejs
@@ -262,110 +519,9 @@ let line = {
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
         this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        this.renderLine(this.linepositions, app.lineColor, app.lineWidth);
+        this.renderLine(this.linepositions, app.lineColor, app.lineWidth, app.mirror, false);
     },
-    // renderLine: function (positions, lineColor, lineWidth, position, quaternion, scale) {
-    //     var matLineDrawn = new LineMaterial({
-    //         color: new THREE.Color(lineColor),
-    //         linewidth: lineWidth, // in pixels
-    //         vertexColors: false,
-    //         wireframe: false,
-    //         side: THREE.DoubleSide,
-    //         depthWrite: true
-    //     });
-    //     materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
-    //     var geometry = new LineGeometry();
-    //     var positions = this.rejectPalm(positions);
-    //     geometry.setPositions(positions);
-    //     var l = new Line2(geometry, matLineDrawn);
-    //     if (position) {
-    //         l.position.set(position.x, position.y, position.z);
-    //     } else {
-    //         l.position.set(
-    //             l.geometry.boundingSphere.center.x,
-    //             l.geometry.boundingSphere.center.y,
-    //             l.geometry.boundingSphere.center.z
-    //         );
-    //     }
-    //     if (quaternion) {
-    //         // l.quaternion.normalize();
-    //         l.applyQuaternion(quaternion)
-    //         l.updateMatrix();
-    //     }
-    //     l.geometry.center();
-    //     l.needsUpdate = true;
-    //     l.computeLineDistances();
-    //     if (scale) {
-    //         l.scale.set(scale.x, scale.y, scale.z)
-    //     } else {
-    //         l.scale.set(1, 1, 1);
-    //     }
-    //     l.layers.set(1);
-
-    //     var lposition = l.getWorldPosition(lposition);
-    //     var lquaternion = l.getWorldQuaternion(lquaternion);
-    //     var lscale = l.getWorldScale(lscale);
-    //     //Create line object and add it to the blueprint
-    //     // var blueprintLine = {
-    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-    //     //     position: lposition,
-    //     //     quaternion: lquaternion,
-    //     //     scale: lscale,
-    //     // };
-
-    //     // var blueprintLine = {
-    //     //     uuid: l.uuid, geometry: [...positions], material: { color: lineColor, lineWidth: lineWidth },
-    //     //     position: lposition,
-    //     //     quaternion: lquaternion,
-    //     //     scale: lscale,
-    //     //     //An idea for handling mirror somewhat decently in the save format.
-    //     //     //we store the UUID of the original line, if that original line exists
-    //     //     //we clone and apply the mirror so the two lines maintain the same geometry
-    //     //     //otherwise we draw it from scratch with a new geometry 
-    //     //     mirrorOf: l.uuid
-    //     //     mirrorAxis: 'x'
-    //     // };
-
-    //     //blueprint.lines.push(blueprintLine);
-    //     scene.add(l);
-    //     let lmirrored;
-    //     switch (app.mirror) {
-    //         case "x":
-    //             lmirrored = l.clone();
-    //             // lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-    //             // lmirrored.scale.set(-1, 1, 1);
-    //             lmirrored.applyMatrix4(new THREE.Matrix4().makeScale(1, 1, -1));
-    //             lmirrored.updateMatrix();
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         case "y":
-    //             lmirrored = l.clone();
-    //             lmirrored.position.set(l.position.x, -l.position.y, l.position.z)
-    //             lmirrored.scale.set(1, -1, 1);
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         case "z":
-    //             lmirrored = l.clone();
-    //             lmirrored.position.set(l.position.x, l.position.y, -l.position.z)
-    //             lmirrored.scale.set(1, 1, -1);
-    //             lmirrored.userData = { mirrorOnAxis: app.mirror };
-    //             scene.add(lmirrored);
-    //             break;
-    //         default:
-    //             return
-    //     }
-    //     // if (app.mirror == 'x') {
-    //     //     let lmirrored = l.clone();
-    //     //     lmirrored.position.set(-l.position.x, l.position.y, l.position.z)
-    //     //     lmirrored.scale.set(-1, 1, 1);
-    //     //     lmirrored.userData = { mirroredAxis: app.mirror };
-    //     //     scene.add(lmirrored);
-    //     // }
-    //     //Remove listener and clear arrays
-    // },
-    renderLine: function (positions, lineColor, lineWidth) {
+    renderLine: function (positions, lineColor, lineWidth, mirrorOn, returnLineBool) {
         var matLineDrawn = new LineMaterial({
             color: new THREE.Color(lineColor),
             linewidth: lineWidth, // in pixels
@@ -394,7 +550,7 @@ let line = {
         var lquaternion = l.getWorldQuaternion(lquaternion);
         var lscale = l.getWorldScale(lscale);
         scene.add(l);
-        switch (app.mirror) {
+        switch (mirrorOn) {
             case "x":
                 mirror.object(l, 'x')
                 break;
@@ -405,28 +561,11 @@ let line = {
                 mirror.object(l, 'z')
                 break;
             default:
-                return
+            //it's false, do nothing
         }
-    },
-    renderMirroredLine: function (positions, axis) {
-        var startingPos; //0 for x, 1 for y, 2 for z
-        switch (axis) {
-            case "x":
-                startingPos = 0;
-                break;
-            case "y":
-                startingPos = 1;
-                break;
-            case "z":
-                startingPos = 2;
-                break;
-            default:
-                return
+        if (returnLineBool == true) {
+            return l;
         }
-        for (var i = startingPos; i < positions.length; i = i + 3) {
-            positions[i] = -positions[i]
-        }
-        this.renderLine(positions, app.lineColor, app.lineWidth);
     },
     rejectPalm: function (positions) {
         //rudimentary approach to palm rejection
@@ -786,6 +925,7 @@ app.selection = {
             transformControls.attach(selectionArray[0]);
             this.current.push(selectionArray[0]);
             scene.add(transformControls);
+            transformControls.rotationSnap = 0.0174533;  //1 degree
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
@@ -822,6 +962,7 @@ app.selection = {
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.group);
             scene.add(transformControls);
+            transformControls.rotationSnap = 0.0174533; //1 degree
             transformControls.addEventListener("mouseDown", function () {
                 transforming = true;
             });
@@ -876,7 +1017,7 @@ let mirror = {
         }
     },
     object: function (obj, axis) {
-        console.log(obj)
+        console.log('mirror')
         var clone = obj.clone();
         clone.userData.mirror = obj.uuid;
         clone.userData.mirrorAxis = axis;
@@ -905,131 +1046,135 @@ let mirror = {
     }
 }
 
-let exportTo = {
-    gltf: function () {
-        //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
-        var scene2 = new THREE.Scene();
-        function exportGLTF(input) {
-            var gltfExporter = new GLTFExporter();
-            var options = {
-            };
-            gltfExporter.parse(input, function (result) {
-                if (result instanceof ArrayBuffer) {
-                    saveArrayBuffer(result, 'scene.glb');
-                } else {
-                    var output = JSON.stringify(result, null, 2);
-                    // console.log(output);
-                    saveString(output, 'scene.gltf');
-                }
-            }, options);
+let importFrom = {
+    imageWithEncodedFile: function () {
+        console.log('importing')
+        var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+        var input, file, fr;
+        var input = document.createElement('input');
+        input.style.display = 'none';
+        input.type = 'file';
+        document.body.appendChild(input);
 
-            scene2.traverse(object => {
-                if (!object.isMesh) return
+        input.onchange = event => {
 
-                console.log('dispose geometry!')
-                object.geometry.dispose()
+            //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well. 
 
-                if (object.material.isMaterial) {
-                    cleanMaterial(object.material)
-                } else {
-                    // an array of materials
-                    for (const material of object.material) cleanMaterial(material)
-                }
-            })
-            const cleanMaterial = material => {
-                console.log('dispose material!')
-                material.dispose()
-                // dispose textures
-                for (const key of Object.keys(material)) {
-                    const value = material[key]
-                    if (value && typeof value === 'object' && 'minFilter' in value) {
-                        console.log('dispose texture!')
-                        value.dispose()
+            //FIREFOX
+            if (navigator.userAgent.indexOf("Firefox") > 0 || navigator.userAgent.indexOf("Chrome") > 0) {
+                var instance = new pngcrush();
+                instance.exec(event.target.files[0], function (event) {
+                    console.log(event.data.line);
+                }).then(function (event) {
+                    // Done processing the image, display file size and output image
+                    var outputFile = new Blob([event.data.data], { type: 'image/png' });
+                    var img = new Image();
+                    img.onload = () => {
+                        var canvasWithEncodedImage = document.createElement('canvas');
+                        canvasWithEncodedImage.width = encodedImageWidth;
+                        canvasWithEncodedImage.height = img.height;
+                        canvasWithEncodedImage.style.zIndex = 5;
+                        canvasWithEncodedImage.style.position = 'absolute';
+                        canvasWithEncodedImage.style.top = '10px';
+                        canvasWithEncodedImage.style.right = '10px';
+                        var ctx = canvasWithEncodedImage.getContext("2d");
+                        ctx.imageSmoothingEnabled = false;
+                        ctx.oImageSmoothingEnabled = false;
+                        ctx.webkitImageSmoothingEnabled = false;
+                        ctx.msImageSmoothingEnabled = false;
+                        ctx.clearRect(0, 0, encodedImageWidth, img.height);
+                        ctx.drawImage(img, 0, 0);
+                        decode(canvasWithEncodedImage, ctx);
                     }
+                    img.src = URL.createObjectURL(outputFile);
+                });
+                //NOT FIREFOX
+            } else {
+                var img = new Image();
+                img.onload = () => {
+                    console.log('img loaded')
+                    var canvasWithEncodedImage = document.createElement('canvas');
+                    canvasWithEncodedImage.width = encodedImageWidth;
+                    canvasWithEncodedImage.height = img.height;
+                    canvasWithEncodedImage.style.zIndex = 5;
+                    canvasWithEncodedImage.style.position = 'absolute';
+                    canvasWithEncodedImage.style.top = '10px';
+                    canvasWithEncodedImage.style.right = '10px';
+                    var ctx = canvasWithEncodedImage.getContext("2d");
+                    ctx.imageSmoothingEnabled = false;
+                    ctx.oImageSmoothingEnabled = false;
+                    ctx.webkitImageSmoothingEnabled = false;
+                    ctx.msImageSmoothingEnabled = false;
+                    ctx.clearRect(0, 0, encodedImageWidth, img.height);
+                    ctx.drawImage(img, 0, 0);
+                    decode(canvasWithEncodedImage, ctx);
+                };
+                img.src = URL.createObjectURL(event.target.files[0]);
+            }
+        }
+        input.click();
+
+        function decode(canvas, ctx) {
+            var json = '';
+            for (var y = encodedImageDataStartingAt; y < canvas.height; y++) {
+                for (var x = 0; x < canvas.width; x++) {
+                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
+                    if (json.slice(-2) == '}]') {
+                        importFrom.json(json);
+                        return
+                    };
+                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
+                    if (json.slice(-2) == '}]') {
+                        importFrom.json(json);
+                        return
+                    };
+                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
+                    if (json.slice(-2) == '}]') {
+                        importFrom.json(json);
+                        return
+                    };
                 }
             }
-            scene2.dispose();
-        }
-        var link = document.createElement('a');
-        link.style.display = 'none';
-        document.body.appendChild(link); // Firefox workaround, see #6594
-        function save(blob, filename) {
-            link.href = URL.createObjectURL(blob);
-            link.download = filename;
-            link.click();
-            // URL.revokeObjectURL( url ); breaks Firefox...
-        }
-        function saveString(text, filename) {
-            save(new Blob([text], {
-                type: 'text/plain'
-            }), filename);
-        }
-        function saveArrayBuffer(buffer, filename) {
-            save(new Blob([buffer], {
-                type: 'application/octet-stream'
-            }), filename);
-        }
-        //may need to scale up a bit
-        function convertLine2toLine() {
-            var itemProcessed = 0;
-            scene.children.forEach(obj => {
-                if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-                    var material = new THREE.LineBasicMaterial({
-                        color: obj.material.color,
-                        linewidth: obj.material.linewidth
-                    });
-                    var geometry = new THREE.BufferGeometry();
-                    var vertices = new Float32Array(obj.geometry.userData);
-                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                    var convertedLine = new THREE.Line(geometry, material);
-                    var position = obj.getWorldPosition(position);
-                    var quaternion = obj.getWorldQuaternion(quaternion);
-                    var scale = obj.getWorldScale(scale);
-                    convertedLine.position.set(position.x, position.y, position.z)
-                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
-                    convertedLine.scale.set(scale.x, scale.y, scale.z)
-                    scene2.add(convertedLine);
-                    convertedLine.geometry.center();
-                }
-                itemProcessed = itemProcessed + 1;
-                if (itemProcessed === scene.children.length) {
-                    exportGLTF(scene2);
-                }
-            })
-        }
-        convertLine2toLine()
-    },
-    blueprint: function () {
-        //nothing yet
-    },
-    gif: function () {
-        makingGif = true;
 
-        gif = new GIF({
-            workers: 10,
-            quality: 10,
-            workerScript: 'js/vendor/gif.worker.js'
-        });
-
-        gif.on("finished", function (blob) {
-            var img = new Image();
-            img.src = URL.createObjectURL(blob);
-            img.style.zIndex = 5;
-            img.style.position = 'absolute';
-            img.style.top = '10px';
-            img.style.right = '10px';
-            img.style.width = window.innerWidth / 3;
-            img.style.height = window.innerHeight / 3;
-            img.style.border = '1px solid white';
-            document.body.appendChild(img);
-            console.log("rendered");
-            app.autoRotate = false;
-        });
+        }
     },
-    image: function () {
-        //nothing yet
+    json: function (json) {
+        var json = JSON.parse(json);
+        json.forEach(importedLine => {
+            var l = line.renderLine(
+                importedLine.g,
+                "rgb(" + importedLine.c.r + "," + importedLine.c.g + "," + importedLine.c.b + ")",
+                importedLine.w,
+                importedLine.a,
+                true);
+
+            l.position.set(
+                importedLine.p.x,
+                importedLine.p.y,
+                importedLine.p.z
+            );
+            l.quaternion.set(
+                importedLine.q._x,
+                importedLine.q._y,
+                importedLine.q._z,
+                importedLine.q._w,
+            );
+            l.scale.set(
+                importedLine.s.x,
+                importedLine.s.y,
+                importedLine.s.z
+            );
+
+            mirror.updateMirrorOf(l);
+        })
     }
 }
+
+//Improvements to the save and restore:
+//the image should maintain the correct aspect ratio
+//It should be possible to discard the mirrored elements, the renderLine function _should_ take care of them
+//And if that's the case, UUID could just be removed. We'll generate new ones
+//Color could be vastly simplified and genericized (so it's eventually theme independent)
 
 init();
 animate();
@@ -1037,11 +1182,11 @@ animate();
 function init() {
     renderer = new THREE.WebGLRenderer({
         antialias: true,
-        alpha: true,
+        alpha: false,
         preserveDrawingBuffer: false
     });
     renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setClearColor(0x000000, 0); //transparent so the background shows through
+    renderer.setClearColor(0x000000, 0);
     renderer.setSize(window.innerWidth, window.innerHeight);
     main.appendChild(renderer.domElement);
     renderer.domElement.id = 'threeJsCanvas';
@@ -1056,6 +1201,9 @@ function init() {
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
+    //Set the background based on the css variable;
+    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').match(/\d+/g);
+    scene.background = new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
@@ -1185,8 +1333,6 @@ function animate() {
     renderer.render(scene, camera);
     if (makingGif) {
         if (count < gifLength) {
-            app.autoRotate = true;
-            controls.autoRotateSpeed = 30.0;
             bufferRenderer.render(scene, camera)
             gif.addFrame(bufferRenderer.domElement, {
                 copy: true,
@@ -1194,10 +1340,10 @@ function animate() {
             });
             count = count + 1;
         } else {
-            gif.render();
             app.autoRotate = false;
             controls.autoRotateSpeed = 30.0;
             makingGif = false;
+            gif.render();
             count = 0;
         }
     }
@@ -1356,40 +1502,7 @@ function repositionCamera() {
     }
 };
 
-//SAVE AND LOAD
-function save() {
-    function download(content, fileName, contentType) {
-        var a = document.createElement("a");
-        var file = new Blob([content], { type: contentType });
-        a.href = URL.createObjectURL(file);
-        a.download = fileName;
-        a.click();
-    }
-    download(JSON.stringify(blueprint), 'blueprint.json', 'json');
-}
-document.getElementById("Save").addEventListener("click", save);
+document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
 
-function load() {
-    var input, file, fr;
-    var input = document.createElement('input');
-    input.style.display = 'none';
-    input.type = 'file';
-    document.body.appendChild(input);
-    input.onchange = event => {
-        var selectedFile = event.target.files[0];
-        const fileReader = new FileReader();
-        fileReader.readAsText(selectedFile, "UTF-8");
-        fileReader.onload = () => {
-            var data = JSON.parse(fileReader.result);
-            data.lines.forEach(obj => { line.renderLine(obj.geometry, obj.material.color, obj.material.lineWidth, obj.position, obj.quaternion, obj.scale) })
-        }
-        fileReader.onerror = (error) => {
-            console.log(error);
-        }
-    }
-    input.click();
-}
-document.getElementById("Load").addEventListener("click", load);
-
-document.getElementById("Export").addEventListener("click", exportTo.gltf);
-document.getElementById("makeGif").addEventListener("click", exportTo.gif);
+// document.getElementById("Export").addEventListener("click", exportTo.gltf);
+// document.getElementById("makeGif").addEventListener("click", exportTo.gif);
