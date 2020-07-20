@@ -1,4 +1,4 @@
-import * as THREE from "/js/vendor/three.module.js";
+import * as THREE from "../build/three.module.js";
 import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
 import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
 import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
@@ -175,7 +175,7 @@ var app = new Vue({
                 gif = new GIF({
                     workers: 10,
                     quality: 10,
-                    workerScript: 'js/vendor/gif.worker.js'
+                    workerScript: '../build/gif.worker.js'
                 });
 
                 gif.on("finished", function (blob) {
@@ -393,7 +393,7 @@ var app = new Vue({
 
 Vue.component("modal", {
     //mode: loading, image
-    //title: 
+    //title:
     //body
     //img
     props: ['title', 'source'],
@@ -671,7 +671,7 @@ app.selection = {
             //we are redrawing the line every frame
             this.redrawLine('rgba(255, 255, 255, 0.15)');
         }
-        //If nothing is already selected we add to the selection 
+        //If nothing is already selected we add to the selection
         if (this.current.length === 0) {
             try {
                 raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
@@ -684,7 +684,7 @@ app.selection = {
                     this.selecting.push(intersectObject);
                 }
             } catch (err) {
-                //if there's an error here, it just means that the raycaster found nothing  
+                //if there's an error here, it just means that the raycaster found nothing
             }
         }
     },
@@ -700,7 +700,7 @@ app.selection = {
         } else {
             this.addTransformControls(this.selecting);
         }
-        // //If tempArray has one selected object, 
+        // //If tempArray has one selected object,
         // //we attach the controls only to that object
         // //and push that object into the current array
         // else if (this.selecting.length == 1) {
@@ -1058,7 +1058,7 @@ let importFrom = {
 
         input.onchange = event => {
 
-            //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well. 
+            //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well.
 
             //FIREFOX
             if (navigator.userAgent.indexOf("Firefox") > 0 || navigator.userAgent.indexOf("Chrome") > 0) {
@@ -1300,7 +1300,7 @@ function animate() {
         }
     }
     //this sets the resolution of the materials correctly every frame
-    //seems to be needed based on examples    
+    //seems to be needed based on examples
     if (materials) {
         materials.forEach(material =>
             material.resolution.set(window.innerWidth, window.innerHeight)
