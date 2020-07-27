@@ -180,7 +180,7 @@
                 </span>
             </div>
             <div v-if="selectedTool === 'select'" id="duplicate" class="button"
-                v-bind:class="[selection.current.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
+                v-bind:class="[selection.selected.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
             </div>
         </div>
 
