@@ -242,8 +242,8 @@ margin: 0px;
 }
 
 #smallestLineWidthIndicator{
-  height: 1px;
-  width: 1px;
+  height: 2px;
+  width: 2px;
   background-color: var(--line-color-lightest);
   border-radius: 3px;
   display: grid;

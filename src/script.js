@@ -340,6 +340,26 @@ var app = new Vue({
             app.selection.deselectFromButton()
         },
         //MOUSE HANDLERS
+        onTapStart: function (event) {
+            if (event.which == 3) return;
+            mouse.updateCoordinates(event);
+            //DRAW
+            if (this.selectedTool == "draw") {
+                line.start();
+            }
+            //ERASER
+            else if (this.selectedTool == "erase") {
+                eraser.start();
+            }
+            //SELECT
+            else if (this.selectedTool == "select") {
+                app.selection.start();
+            }
+            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
+        },
         onTapMove: function (event) {
             mouse.updateCoordinates(event);
             //DRAW
@@ -373,26 +393,7 @@ var app = new Vue({
             drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
             drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
         },
-        onTapStart: function (event) {
-            if (event.which == 3) return;
-            mouse.updateCoordinates(event);
-            //DRAW
-            if (this.selectedTool == "draw") {
-                line.start();
-            }
-            //ERASER
-            else if (this.selectedTool == "erase") {
-                eraser.start();
-            }
-            //SELECT
-            else if (this.selectedTool == "select") {
-                app.selection.start();
-            }
-            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
-        }
+
     },
 });
 
@@ -434,14 +435,15 @@ Vue.component("modal", {
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
-var matLine, matLineBasic;
-var matLineDrawn;
+
+var fade;
 
 var paths = [];
 
 //var selection = app.selection;
 var raycaster;
 var raycastObject;
+var threshold = 0.001;
 
 var insetWidth;
 var insetHeight;
@@ -473,6 +475,7 @@ let mouse = {
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     updateCoordinates: function (event) {
+        //This seems like a simple enough implementation of a smoothing approach https://github.com/dulnan/lazy-brush/blob/master/src/LazyBrush.js
         if (event.touches) {
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
@@ -517,6 +520,8 @@ let line = {
                 sizeAttenuation: 0,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
+                fog: true,
+                //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
             mesh.raycast = MeshLineRaycast;
@@ -578,13 +583,15 @@ let line = {
                 }
             }
         },
-        fromVertices(vertices, lineColor, lineWidth, mirrorOn) {
+        fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
             line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
             for (var i = 1; i < vertices.length; i++) {
                 line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
             }
             line.render.end();
-            console.log(scene);
+            if (returnLineBool == true) {
+                return line;
+            }
         },
     },
     renderLine: function (positions, lineColor, lineWidth, mirrorOn, returnLineBool) {
@@ -638,7 +645,7 @@ let line = {
 let eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = 0.0001;
+        raycaster.params.Line.threshold = threshold;
         raycaster.layers.set(1);
         paths.push([mouse.cx, mouse.cy]);
     },
@@ -700,7 +707,7 @@ app.selection = {
         if (!this.transforming) {
             paths.push([mouse.cx, mouse.cy]);
             this.raycaster = new THREE.Raycaster();
-            this.raycaster.params.Line.threshold = 0.0001;
+            this.raycaster.params.Line.threshold = threshold;
             this.raycaster.layers.set(1);
             try {
                 this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
@@ -790,6 +797,7 @@ app.selection = {
                 originalPosition.z
             )
             scene.add(duplicate);
+            duplicate.raycast = MeshLineRaycast;
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
             //deselect selected object
             this.deselect();
@@ -848,6 +856,9 @@ app.selection = {
         transformControls.addEventListener("mouseDown", function () {
             app.selection.transforming = true;
         });
+        transformControls.addEventListener("touchstart", function () {
+            app.selection.transforming = true;
+        });
         transformControls.addEventListener("objectChange", function () {
             app.selection.helper.update();
             transformControls.object.children.forEach(obj => {
@@ -866,6 +877,9 @@ app.selection = {
         });
         transformControls.addEventListener("mouseUp", function () {
             app.selection.transforming = false;
+        });
+        transformControls.addEventListener("touchend", function () {
+            app.selection.transforming = true;
         });
         scene.add(transformControls);
         this.selection = [];
@@ -1164,15 +1178,18 @@ function init() {
     //Set the background based on the css variable;
     var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').match(/\d+/g);
     scene.background = new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255);
+    scene.fog = new THREE.Fog(new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255), 2, 2.5);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
     axesHelper.layers.set(0);
+    axesHelper.material.fog = false;
     scene.add(axesHelper);
 
     var axesHelperFlipped = new THREE.AxesHelper();
     axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
     axesHelperFlipped.layers.set(0);
+    axesHelperFlipped.material.fog = false;
     scene.add(axesHelperFlipped);
 
     drawAxisHelperControls();
@@ -1181,6 +1198,7 @@ function init() {
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
     gridHelper.layers.set(0);
+    gridHelper.material.fog = false;
     scene.add(gridHelper);
 
     camera = new THREE.OrthographicCamera(
@@ -1193,6 +1211,18 @@ function init() {
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
+
+    // var geometry = new THREE.BoxGeometry(3, 3, 3);
+    // var material = new THREE.MeshBasicMaterial({
+    //     color: new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255),
+    //     //color: 0xFF0000,
+    //     transparent: true,
+    //     opacity: 0.3,
+    //     side: THREE.DoubleSide,
+    // });
+    // fade = new THREE.Mesh(geometry, material);
+    // fade.position.set(0, 0, -1.55)
+    // scene.add(fade);
 
     camera.position.set(0, 0, 2);
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
@@ -1267,6 +1297,7 @@ function onWindowResize() {
 
 function animate() {
     updateminiAxisCamera();
+    //updateFade();
     requestAnimationFrame(animate);
     //may need to wrap this in a function
     if (transformControls) {
@@ -1341,6 +1372,11 @@ function updateminiAxisCamera() {
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.quaternion.copy(camera.quaternion);
 }
+// function updateFade() {
+//     //fade.quaternion.copy(camera.quaternion);
+//     fade.rotation.y = camera.rotation.y
+// }
+
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
     let handlesDistance = 0.6
