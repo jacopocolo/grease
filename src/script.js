@@ -638,7 +638,7 @@ let line = {
 let eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = 0.001;
+        raycaster.params.Line.threshold = 0.0001;
         raycaster.layers.set(1);
         paths.push([mouse.cx, mouse.cy]);
     },
@@ -692,7 +692,6 @@ app.selection = {
     array: [],
     selection: [],
     selected: [],
-    somethingSelected: false,
     helper: undefined,
     group: undefined,
     transforming: false,
@@ -701,7 +700,7 @@ app.selection = {
         if (!this.transforming) {
             paths.push([mouse.cx, mouse.cy]);
             this.raycaster = new THREE.Raycaster();
-            this.raycaster.params.Line.threshold = 0.01;
+            this.raycaster.params.Line.threshold = 0.0001;
             this.raycaster.layers.set(1);
             try {
                 this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
@@ -752,27 +751,30 @@ app.selection = {
         if (this.selected.length > 1) {
             var sourcePosition = this.group.position;
             var duplicateArray = [];
+            console.log(app.selection.selection);
             this.selected.forEach(object => {
                 var duplicate = object.clone();
+                duplicate.layers.set(1);
+                duplicate.raycast = MeshLineRaycast;
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
                 duplicateArray.push(duplicate);
+                scene.add(duplicate);
                 mirror.object(duplicate, duplicate.userData.mirrorAxis);
             })
+            console.log(duplicateArray);
             //deselect selected group
             this.deselect();
-            this.selected = duplicateArray;
-            console.log(this.selected)
-            // //Add all the selected elements to the temporary groups
-            this.selected.forEach(element => {
+            app.selection.selection = duplicateArray;
+            app.selection.selection.forEach(element => {
                 this.toggleSelectionColor(element, true)
             })
-            this.addTransformControls(this.selected);
-            this.group.position.set(
-                sourcePosition.x + 0.1,
-                sourcePosition.y,
-                sourcePosition.z
-            )
+            this.select(app.selection.selection);
+            // this.group.position.set(
+            //     sourcePosition.x + 0.1,
+            //     sourcePosition.y,
+            //     sourcePosition.z
+            // );
             this.helper.update();
             mirror.updateMirrorOf(this.group);
         }
@@ -799,14 +801,26 @@ app.selection = {
     },
     select: function (selection) {
         //selection can not be zero so it's either 1 or more than 1
+        //It's a single element
         if (selection.length == 1) {
             this.helper = new THREE.BoxHelper(selection[0], 0xfecf12);
             scene.add(this.helper);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(selection[0]);
+            transformControls.addEventListener("mouseDown", function () {
+                app.selection.transforming = true;
+            });
+            transformControls.addEventListener("objectChange", function () {
+                mirror.updateMirrorOf(app.selection.selected[0])
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                app.selection.transforming = false;
+            });
             this.selected.push(selection[0])
             this.helper.update();
-        } else {
+        }
+        //It's a group
+        else {
             this.group = new THREE.Group();
             scene.add(this.group);
             this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
@@ -818,7 +832,7 @@ app.selection = {
             })
             center.divideScalar(selection.length);
             this.group.position.set(center.x, center.y, center.z);
-            //Clone all the selected elements to the temporary groups
+            //Clone all the elements in the selection to the temporary groups
             selection.forEach(element => {
                 var clone = element.clone()
                 scene.add(clone);
@@ -847,16 +861,14 @@ app.selection = {
                 selectedObj.position.set(position.x, position.y, position.z)
                 selectedObj.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
                 selectedObj.scale.set(scale.x, scale.y, scale.z)
+                mirror.updateMirrorOf(selectedObj)
             });
         });
         transformControls.addEventListener("mouseUp", function () {
-            console.log(app.selection.transforming);
             app.selection.transforming = false;
-            console.log(app.selection.transforming);
         });
         scene.add(transformControls);
         this.selection = [];
-        console.log(scene);
     },
     deselect: function () {
         transformControls.detach();
@@ -865,7 +877,6 @@ app.selection = {
 
         switch (true) {
             case (this.selected.length == 0):
-                console.log(this.selected.length)
                 break;
             case (this.selected.length == 1):
 
@@ -890,7 +901,6 @@ app.selection = {
         this.selection = [];
     },
     toggleSelectionColor: function (object, bool) {
-        console.log(object);
         if (bool) {
             object.material.color = new THREE.Color(0xfecf12);
         } else {
@@ -967,6 +977,8 @@ let mirror = {
     object: function (obj, axis) {
         console.log('mirror')
         var clone = obj.clone();
+        clone.layers.set(1);
+        clone.raycast = MeshLineRaycast;
         clone.userData.mirror = obj.uuid;
         clone.userData.mirrorAxis = axis;
         obj.userData.mirror = clone.uuid;
@@ -1192,7 +1204,7 @@ function init() {
     camera.zoom = 900;
     controls.zoomEnabled = false;
     controls.panEnabled = false;
-    //transformControls = new TransformControls(camera, drawingCanvas);
+    transformControls = new TransformControls(camera, drawingCanvas);
 
     // var g = new THREE.Geometry();
     // var l = new MeshLine();
