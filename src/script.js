@@ -680,7 +680,6 @@ let mirror = {
     }
 };
 
-
 //TODO improvements to the save and restore:
 //the image should maintain the correct aspect ratio
 let importFrom = {
@@ -1009,6 +1008,8 @@ app.exportTo = {
                             var hRatio = canvasWithEncodedImage.width / img.width;
                             var vRatio = canvasWithEncodedImage.height / img.height;
                             var ratio = Math.min(hRatio, vRatio);
+                            ctx.fillStyle = 'rgb(2, 32, 132)';
+                            ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
                             ctx.drawImage(img,
                                 0,
                                 0,
@@ -1019,6 +1020,66 @@ app.exportTo = {
                                 (img.width * ratio) - padding * 2,
                                 (img.height * ratio) - padding * 2
                             );
+                            let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
+                            var padding = 10;
+                            ctx.imageSmoothingEnabled = false;
+                            ctx.oImageSmoothingEnabled = false;
+                            ctx.webkitImageSmoothingEnabled = false;
+                            ctx.msImageSmoothingEnabled = false;
+                            ctx.strokeStyle = 'rgb(255, 255, 255)';
+                            ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
+                            var infoBox = { height: 100, width: 250 };
+                            ctx.beginPath();
+                            ctx.moveTo(
+                                blueprintImage.width - infoBox.width,
+                                blueprintImage.height - infoBox.height
+                            );
+                            ctx.lineTo(
+                                blueprintImage.width - padding - 1,
+                                blueprintImage.height - infoBox.height
+                            );
+                            ctx.stroke();
+
+                            ctx.beginPath();
+                            ctx.moveTo(
+                                blueprintImage.width - infoBox.width,
+                                blueprintImage.height - infoBox.height
+                            );
+                            ctx.lineTo(
+                                blueprintImage.width - infoBox.width,
+                                blueprintImage.height - padding - 2
+                            );
+                            ctx.stroke();
+                            ctx.fillStyle = 'rgb(255, 255, 255)';
+                            ctx.font = "12px Courier New";
+                            ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
+                            ctx.beginPath();
+                            ctx.moveTo(
+                                blueprintImage.width - infoBox.width,
+                                blueprintImage.height - infoBox.height + (padding * 3)
+                            );
+                            ctx.lineTo(
+                                blueprintImage.width - padding - 1,
+                                blueprintImage.height - infoBox.height + (padding * 3)
+                            );
+                            ctx.stroke();
+                            ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
+                            ctx.beginPath();
+                            ctx.moveTo(
+                                blueprintImage.width - infoBox.width,
+                                blueprintImage.height - infoBox.height + (padding * 6)
+                            );
+                            ctx.lineTo(
+                                blueprintImage.width - padding - 1,
+                                blueprintImage.height - infoBox.height + (padding * 6)
+                            );
+                            ctx.stroke();
+                            ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
+                            ctx.fillStyle = 'rgb(255, 255, 255)';
+                            ctx.font = "15px Courier New";
+                            ctx.fillText("DO NOT MODIFY", 20, 30);
+                            ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
+                            ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
                             app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
                         }
                     }
@@ -1034,69 +1095,7 @@ app.exportTo = {
             var canvasWithEncodedImage = document.createElement('canvas');
             canvasWithEncodedImage.width = encodedImageWidth;
             canvasWithEncodedImage.height = encodedImageHeigth;
-            let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
             var ctx = canvasWithEncodedImage.getContext("2d");
-            var padding = 10;
-            ctx.imageSmoothingEnabled = false;
-            ctx.oImageSmoothingEnabled = false;
-            ctx.webkitImageSmoothingEnabled = false;
-            ctx.msImageSmoothingEnabled = false;
-            ctx.fillStyle = 'rgb(2, 32, 132)';
-            ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-            ctx.strokeStyle = 'rgb(255, 255, 255)';
-            ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
-            var infoBox = { height: 100, width: 250 };
-            ctx.beginPath();
-            ctx.moveTo(
-                blueprintImage.width - infoBox.width,
-                blueprintImage.height - infoBox.height
-            );
-            ctx.lineTo(
-                blueprintImage.width - padding - 1,
-                blueprintImage.height - infoBox.height
-            );
-            ctx.stroke();
-
-            ctx.beginPath();
-            ctx.moveTo(
-                blueprintImage.width - infoBox.width,
-                blueprintImage.height - infoBox.height
-            );
-            ctx.lineTo(
-                blueprintImage.width - infoBox.width,
-                blueprintImage.height - padding - 2
-            );
-            ctx.stroke();
-            ctx.fillStyle = 'rgb(255, 255, 255)';
-            ctx.font = "12px Courier New";
-            ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
-            ctx.beginPath();
-            ctx.moveTo(
-                blueprintImage.width - infoBox.width,
-                blueprintImage.height - infoBox.height + (padding * 3)
-            );
-            ctx.lineTo(
-                blueprintImage.width - padding - 1,
-                blueprintImage.height - infoBox.height + (padding * 3)
-            );
-            ctx.stroke();
-            ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
-            ctx.beginPath();
-            ctx.moveTo(
-                blueprintImage.width - infoBox.width,
-                blueprintImage.height - infoBox.height + (padding * 6)
-            );
-            ctx.lineTo(
-                blueprintImage.width - padding - 1,
-                blueprintImage.height - infoBox.height + (padding * 6)
-            );
-            ctx.stroke();
-            ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
-            ctx.fillStyle = 'rgb(255, 255, 255)';
-            ctx.font = "15px Courier New";
-            ctx.fillText("DO NOT MODIFY", 20, 30);
-            ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
-            ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
             img.src = imgData;
             img.onload = function () {
                 encodeJsonInCanvas(json, ctx);
