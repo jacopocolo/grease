@@ -980,17 +980,15 @@ app.exportTo = {
             }), filename);
         }
         //may need to scale up a bit
-        function convertLine2toLine() {
+        function convertMeshLinetoLine() {
             var itemProcessed = 0;
             scene.children.forEach(obj => {
-                if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+                if (obj.geometry && obj.geometry.type == "MeshLine" && obj.layers.mask == 2) {
                     var material = new THREE.LineBasicMaterial({
                         color: obj.material.color,
                         linewidth: obj.material.linewidth
                     });
-                    var geometry = new THREE.BufferGeometry();
-                    var vertices = new Float32Array(obj.geometry.userData);
-                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    var geometry = new THREE.BufferGeometry().setFromPoints(obj.geometry.vertices);
                     var convertedLine = new THREE.Line(geometry, material);
                     var position = obj.getWorldPosition(position);
                     var quaternion = obj.getWorldQuaternion(quaternion);
@@ -1007,7 +1005,7 @@ app.exportTo = {
                 }
             })
         }
-        convertLine2toLine()
+        convertMeshLinetoLine()
     },
     gif: function () {
         makingGif = true;
