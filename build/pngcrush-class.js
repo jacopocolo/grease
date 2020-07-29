@@ -77,7 +77,7 @@
         }
 
         var promise = this.workerPromise = new Promise(function (resolve, reject) {
-            var worker = new Worker('js/vendor/pngcrush.worker.js');
+            var worker = new Worker('/build/pngcrush.worker.js');
             worker.onerror = function (event) {
                 var callbacks = [];
                 reject(event);

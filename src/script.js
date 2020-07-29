@@ -24,299 +24,12 @@ var app = new Vue({
         mirror: false,
         autoRotate: false,
         selection: {}, //to be filled from init
+        exportTo: {},
         modal: {
             show: false,
             title: 'This is your save file',
             image: ''
         },
-        exportTo: {
-            json: async function () {
-                var itemProcessed = 0;
-                var json = [];
-                var mirroredObject = [];
-                scene.children.forEach(obj => {
-                    //check if it's a line, if it's in the right layer and that we don't already have its original
-                    if (obj.geometry && obj.geometry.type == "MeshLine" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
-                        var line = {};
-                        line.c = {};
-                        //Color could be replaced by a single number 1-4
-                        //Where 1 is lightest and 4 is dark
-                        //This would reduce the length significantly
-                        line.c.r = obj.material.color.r * 255;
-                        line.c.g = obj.material.color.g * 255;
-                        line.c.b = obj.material.color.b * 255;
-                        line.w = obj.material.linewidth;
-                        line.g = obj.geometry.userData;
-
-                        var position = new THREE.Vector3();
-                        position = obj.getWorldPosition(position);
-                        line.p = position;
-
-                        var quaternion = new THREE.Quaternion();
-                        quaternion = obj.getWorldQuaternion(quaternion);
-                        line.q = quaternion;
-
-                        var scale = new THREE.Vector3();
-                        scale = obj.getWorldScale(scale);
-                        line.s = scale;
-
-                        if (obj.userData.mirror) {
-                            //Push the id of the mirrored line in the array to exclude mirrors
-                            mirroredObject.push(obj.userData.mirror);
-                        };
-                        //This is all we need to restore its mirror, the renderLine takes care of it
-                        if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
-
-                        json.push(line);
-                    }
-                    itemProcessed = itemProcessed + 1;
-                    if (itemProcessed >= scene.children.length) {
-                        return
-                    }
-                });
-                return json
-            },
-            gltf: function () {
-                //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
-                var scene2 = new THREE.Scene();
-                function exportGLTF(input) {
-                    var gltfExporter = new GLTFExporter();
-                    var options = {
-                    };
-                    gltfExporter.parse(input, function (result) {
-                        if (result instanceof ArrayBuffer) {
-                            saveArrayBuffer(result, 'scene.glb');
-                        } else {
-                            var output = JSON.stringify(result, null, 2);
-                            // console.log(output);
-                            saveString(output, 'scene.gltf');
-                        }
-                    }, options);
-
-                    scene2.traverse(object => {
-                        if (!object.isMesh) return
-
-                        console.log('dispose geometry!')
-                        object.geometry.dispose()
-
-                        if (object.material.isMaterial) {
-                            cleanMaterial(object.material)
-                        } else {
-                            // an array of materials
-                            for (const material of object.material) cleanMaterial(material)
-                        }
-                    })
-                    const cleanMaterial = material => {
-                        console.log('dispose material!')
-                        material.dispose()
-                        // dispose textures
-                        for (const key of Object.keys(material)) {
-                            const value = material[key]
-                            if (value && typeof value === 'object' && 'minFilter' in value) {
-                                console.log('dispose texture!')
-                                value.dispose()
-                            }
-                        }
-                    }
-                    scene2.dispose();
-                }
-                var link = document.createElement('a');
-                link.style.display = 'none';
-                document.body.appendChild(link); // Firefox workaround, see #6594
-                function save(blob, filename) {
-                    link.href = URL.createObjectURL(blob);
-                    link.download = filename;
-                    link.click();
-                    // URL.revokeObjectURL( url ); breaks Firefox...
-                }
-                function saveString(text, filename) {
-                    save(new Blob([text], {
-                        type: 'text/plain'
-                    }), filename);
-                }
-                function saveArrayBuffer(buffer, filename) {
-                    save(new Blob([buffer], {
-                        type: 'application/octet-stream'
-                    }), filename);
-                }
-                //may need to scale up a bit
-                function convertLine2toLine() {
-                    var itemProcessed = 0;
-                    scene.children.forEach(obj => {
-                        if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-                            var material = new THREE.LineBasicMaterial({
-                                color: obj.material.color,
-                                linewidth: obj.material.linewidth
-                            });
-                            var geometry = new THREE.BufferGeometry();
-                            var vertices = new Float32Array(obj.geometry.userData);
-                            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                            var convertedLine = new THREE.Line(geometry, material);
-                            var position = obj.getWorldPosition(position);
-                            var quaternion = obj.getWorldQuaternion(quaternion);
-                            var scale = obj.getWorldScale(scale);
-                            convertedLine.position.set(position.x, position.y, position.z)
-                            convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
-                            convertedLine.scale.set(scale.x, scale.y, scale.z)
-                            scene2.add(convertedLine);
-                            convertedLine.geometry.center();
-                        }
-                        itemProcessed = itemProcessed + 1;
-                        if (itemProcessed === scene.children.length) {
-                            exportGLTF(scene2);
-                        }
-                    })
-                }
-                convertLine2toLine()
-            },
-            gif: function () {
-                makingGif = true;
-                app.autoRotate = true;
-                controls.autoRotateSpeed = 30.0;
-
-                gif = new GIF({
-                    workers: 10,
-                    quality: 10,
-                    workerScript: '../build/gif.worker.js'
-                });
-
-                gif.on("finished", function (blob) {
-                    app.modal.show = true;
-                    app.modal.image = URL.createObjectURL(blob);
-                    console.log("rendered");
-                    app.autoRotate = false;
-                });
-            },
-            image: function () {
-                //nothing yet
-            },
-            imageWithEncodedFile: async function () {
-                app.exportTo.json().then(function (json) {
-                    json = JSON.stringify(json);
-                    function encodeJsonInCanvas(json, ctx) {
-                        console.log('Encoding…')
-                        var pixels = [];
-                        for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
-                            var pixel = {};
-                            pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
-                            pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
-                            pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
-                            // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
-                            pixels.push(pixel);
-                        }
-                        var count = 0
-                        for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
-                            for (var x = 0; x < canvasWithEncodedImage.width; x++) {
-                                if (count < pixels.length) {
-                                    ctx.fillStyle = "rgb(" +
-                                        pixels[count].r
-                                        + "," +
-                                        pixels[count].g
-                                        + "," +
-                                        pixels[count].b
-                                        + ")";
-                                    ctx.fillRect(x, y, 1, 1);
-                                    count = count + 1;
-                                } else {
-                                    app.modal.show = true;
-                                    var hRatio = canvasWithEncodedImage.width / img.width;
-                                    var vRatio = canvasWithEncodedImage.height / img.height;
-                                    var ratio = Math.min(hRatio, vRatio);
-                                    ctx.drawImage(img,
-                                        0,
-                                        0,
-                                        img.width,
-                                        img.height,
-                                        padding,
-                                        padding,
-                                        (img.width * ratio) - padding * 2,
-                                        (img.height * ratio) - padding * 2
-                                    );
-                                    app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
-                                }
-                            }
-                        }
-                    }
-                    //generate stringified json from scene
-                    var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-                    renderer.render(scene, camera);
-                    var imgData = renderer.domElement.toDataURL();
-                    var img = new Image();
-                    //Do a quick calulation of the height of the image based on how many characters are in the JSON
-                    encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
-                    var canvasWithEncodedImage = document.createElement('canvas');
-                    canvasWithEncodedImage.width = encodedImageWidth;
-                    canvasWithEncodedImage.height = encodedImageHeigth;
-                    let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
-                    var ctx = canvasWithEncodedImage.getContext("2d");
-                    var padding = 10;
-                    ctx.imageSmoothingEnabled = false;
-                    ctx.oImageSmoothingEnabled = false;
-                    ctx.webkitImageSmoothingEnabled = false;
-                    ctx.msImageSmoothingEnabled = false;
-                    ctx.fillStyle = 'rgb(2, 32, 132)';
-                    ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-                    ctx.strokeStyle = 'rgb(255, 255, 255)';
-                    ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
-                    var infoBox = { height: 100, width: 250 };
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - padding - 1,
-                        blueprintImage.height - infoBox.height
-                    );
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - padding - 2
-                    );
-                    ctx.stroke();
-                    ctx.fillStyle = 'rgb(255, 255, 255)';
-                    ctx.font = "12px Courier New";
-                    ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height + (padding * 3)
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - padding - 1,
-                        blueprintImage.height - infoBox.height + (padding * 3)
-                    );
-                    ctx.stroke();
-                    ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height + (padding * 6)
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - padding - 1,
-                        blueprintImage.height - infoBox.height + (padding * 6)
-                    );
-                    ctx.stroke();
-                    ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
-                    ctx.fillStyle = 'rgb(255, 255, 255)';
-                    ctx.font = "15px Courier New";
-                    ctx.fillText("DO NOT MODIFY", 20, 30);
-                    ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
-                    ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
-                    img.src = imgData;
-                    img.onload = function () {
-                        encodeJsonInCanvas(json, ctx);
-                    };
-                });
-            }
-        }
     },
     watch: {
         selectedTheme: function () {
@@ -527,7 +240,7 @@ let line = {
             mesh.raycast = MeshLineRaycast;
             scene.add(mesh);
 
-            mesh.userData.color = lineColor;
+            mesh.userData.lineColor = lineColor;
             mesh.userData.lineWidth = lineWidth;
 
             switch (mirrorOn) {
@@ -588,9 +301,10 @@ let line = {
             for (var i = 1; i < vertices.length; i++) {
                 line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
             }
+            var l = scene.getObjectByProperty('uuid', this.uuid);
             line.render.end();
             if (returnLineBool == true) {
-                return line;
+                return l;
             }
         },
     },
@@ -640,7 +354,7 @@ let line = {
         }
         return arr
     }
-}
+};
 
 let eraser = {
     start: function () {
@@ -693,7 +407,7 @@ let eraser = {
         }
         context.stroke();
     },
-}
+};
 
 app.selection = {
     array: [],
@@ -949,7 +663,7 @@ app.selection = {
         }
         context.stroke();
     }
-}
+};
 
 let mirror = {
     updateMirrorOf: function (obj) {
@@ -1018,7 +732,7 @@ let mirror = {
             scene.remove(mirroredObject);
         }
     }
-}
+};
 
 let importFrom = {
     imageWithEncodedFile: function () {
@@ -1113,10 +827,17 @@ let importFrom = {
         }
     },
     json: function (json) {
+        console.log(json);
         var json = JSON.parse(json);
         json.forEach(importedLine => {
-            var l = line.renderLine(
-                importedLine.g,
+
+            var vertices = [];
+            for (var i = 0; i < importedLine.g.length; i = i + 3) {
+                vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+            };
+
+            var l = line.render.fromVertices(
+                vertices,
                 "rgb(" + importedLine.c.r + "," + importedLine.c.g + "," + importedLine.c.b + ")",
                 importedLine.w,
                 importedLine.a,
@@ -1142,7 +863,301 @@ let importFrom = {
             mirror.updateMirrorOf(l);
         })
     }
+};
+
+app.exportTo = {
+    json: async function () {
+        var itemProcessed = 0;
+        var json = [];
+        var mirroredObject = [];
+        scene.children.forEach(obj => {
+            //check if it's a line, if it's in the right layer and that we don't already have its original
+            if (obj.geometry && obj.geometry.type == "MeshLine" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
+                var line = {};
+                line.c = {};
+                var color = new THREE.Color(obj.userData.lineColor);
+                line.c.r = color.r * 255;
+                line.c.g = color.g * 255;
+                line.c.b = color.b * 255;
+                line.w = obj.userData.lineWidth;
+                line.g = [];
+                obj.geometry.vertices.forEach(vector3 => {
+                    line.g.push(vector3.x);
+                    line.g.push(vector3.y);
+                    line.g.push(vector3.z);
+                });
+
+                var position = new THREE.Vector3();
+                position = obj.getWorldPosition(position);
+                line.p = position;
+
+                var quaternion = new THREE.Quaternion();
+                quaternion = obj.getWorldQuaternion(quaternion);
+                line.q = quaternion;
+
+                var scale = new THREE.Vector3();
+                scale = obj.getWorldScale(scale);
+                line.s = scale;
+
+                if (obj.userData.mirror) {
+                    //Push the id of the mirrored line in the array to exclude mirrors
+                    mirroredObject.push(obj.userData.mirror);
+                };
+                //This is all we need to restore its mirror, the renderLine takes care of it
+                if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
+
+                json.push(line);
+            }
+            itemProcessed = itemProcessed + 1;
+            if (itemProcessed >= scene.children.length) {
+                return
+            }
+        });
+        console.log(json);
+        return json
+    },
+    gltf: function () {
+        //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
+        var scene2 = new THREE.Scene();
+        function exportGLTF(input) {
+            var gltfExporter = new GLTFExporter();
+            var options = {
+            };
+            gltfExporter.parse(input, function (result) {
+                if (result instanceof ArrayBuffer) {
+                    saveArrayBuffer(result, 'scene.glb');
+                } else {
+                    var output = JSON.stringify(result, null, 2);
+                    // console.log(output);
+                    saveString(output, 'scene.gltf');
+                }
+            }, options);
+
+            scene2.traverse(object => {
+                if (!object.isMesh) return
+
+                console.log('dispose geometry!')
+                object.geometry.dispose()
+
+                if (object.material.isMaterial) {
+                    cleanMaterial(object.material)
+                } else {
+                    // an array of materials
+                    for (const material of object.material) cleanMaterial(material)
+                }
+            })
+            const cleanMaterial = material => {
+                console.log('dispose material!')
+                material.dispose()
+                // dispose textures
+                for (const key of Object.keys(material)) {
+                    const value = material[key]
+                    if (value && typeof value === 'object' && 'minFilter' in value) {
+                        console.log('dispose texture!')
+                        value.dispose()
+                    }
+                }
+            }
+            scene2.dispose();
+        }
+        var link = document.createElement('a');
+        link.style.display = 'none';
+        document.body.appendChild(link); // Firefox workaround, see #6594
+        function save(blob, filename) {
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            // URL.revokeObjectURL( url ); breaks Firefox...
+        }
+        function saveString(text, filename) {
+            save(new Blob([text], {
+                type: 'text/plain'
+            }), filename);
+        }
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([buffer], {
+                type: 'application/octet-stream'
+            }), filename);
+        }
+        //may need to scale up a bit
+        function convertLine2toLine() {
+            var itemProcessed = 0;
+            scene.children.forEach(obj => {
+                if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
+                    var material = new THREE.LineBasicMaterial({
+                        color: obj.material.color,
+                        linewidth: obj.material.linewidth
+                    });
+                    var geometry = new THREE.BufferGeometry();
+                    var vertices = new Float32Array(obj.geometry.userData);
+                    geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+                    var convertedLine = new THREE.Line(geometry, material);
+                    var position = obj.getWorldPosition(position);
+                    var quaternion = obj.getWorldQuaternion(quaternion);
+                    var scale = obj.getWorldScale(scale);
+                    convertedLine.position.set(position.x, position.y, position.z)
+                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
+                    convertedLine.scale.set(scale.x, scale.y, scale.z)
+                    scene2.add(convertedLine);
+                    convertedLine.geometry.center();
+                }
+                itemProcessed = itemProcessed + 1;
+                if (itemProcessed === scene.children.length) {
+                    exportGLTF(scene2);
+                }
+            })
+        }
+        convertLine2toLine()
+    },
+    gif: function () {
+        makingGif = true;
+        app.autoRotate = true;
+        controls.autoRotateSpeed = 30.0;
+
+        gif = new GIF({
+            workers: 10,
+            quality: 10,
+            workerScript: '../build/gif.worker.js'
+        });
+
+        gif.on("finished", function (blob) {
+            app.modal.show = true;
+            app.modal.image = URL.createObjectURL(blob);
+            console.log("rendered");
+            app.autoRotate = false;
+        });
+    },
+    image: function () {
+        //nothing yet
+    },
+    imageWithEncodedFile: async function () {
+        app.exportTo.json().then(function (json) {
+            json = JSON.stringify(json);
+            function encodeJsonInCanvas(json, ctx) {
+                console.log('Encoding…')
+                var pixels = [];
+                for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
+                    var pixel = {};
+                    pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
+                    pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
+                    pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
+                    // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
+                    pixels.push(pixel);
+                }
+                var count = 0
+                for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
+                    for (var x = 0; x < canvasWithEncodedImage.width; x++) {
+                        if (count < pixels.length) {
+                            ctx.fillStyle = "rgb(" +
+                                pixels[count].r
+                                + "," +
+                                pixels[count].g
+                                + "," +
+                                pixels[count].b
+                                + ")";
+                            ctx.fillRect(x, y, 1, 1);
+                            count = count + 1;
+                        } else {
+                            app.modal.show = true;
+                            var hRatio = canvasWithEncodedImage.width / img.width;
+                            var vRatio = canvasWithEncodedImage.height / img.height;
+                            var ratio = Math.min(hRatio, vRatio);
+                            ctx.drawImage(img,
+                                0,
+                                0,
+                                img.width,
+                                img.height,
+                                padding,
+                                padding,
+                                (img.width * ratio) - padding * 2,
+                                (img.height * ratio) - padding * 2
+                            );
+                            app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
+                        }
+                    }
+                }
+            }
+            //generate stringified json from scene
+            var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+            renderer.render(scene, camera);
+            var imgData = renderer.domElement.toDataURL();
+            var img = new Image();
+            //Do a quick calulation of the height of the image based on how many characters are in the JSON
+            encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
+            var canvasWithEncodedImage = document.createElement('canvas');
+            canvasWithEncodedImage.width = encodedImageWidth;
+            canvasWithEncodedImage.height = encodedImageHeigth;
+            let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
+            var ctx = canvasWithEncodedImage.getContext("2d");
+            var padding = 10;
+            ctx.imageSmoothingEnabled = false;
+            ctx.oImageSmoothingEnabled = false;
+            ctx.webkitImageSmoothingEnabled = false;
+            ctx.msImageSmoothingEnabled = false;
+            ctx.fillStyle = 'rgb(2, 32, 132)';
+            ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
+            ctx.strokeStyle = 'rgb(255, 255, 255)';
+            ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
+            var infoBox = { height: 100, width: 250 };
+            ctx.beginPath();
+            ctx.moveTo(
+                blueprintImage.width - infoBox.width,
+                blueprintImage.height - infoBox.height
+            );
+            ctx.lineTo(
+                blueprintImage.width - padding - 1,
+                blueprintImage.height - infoBox.height
+            );
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(
+                blueprintImage.width - infoBox.width,
+                blueprintImage.height - infoBox.height
+            );
+            ctx.lineTo(
+                blueprintImage.width - infoBox.width,
+                blueprintImage.height - padding - 2
+            );
+            ctx.stroke();
+            ctx.fillStyle = 'rgb(255, 255, 255)';
+            ctx.font = "12px Courier New";
+            ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
+            ctx.beginPath();
+            ctx.moveTo(
+                blueprintImage.width - infoBox.width,
+                blueprintImage.height - infoBox.height + (padding * 3)
+            );
+            ctx.lineTo(
+                blueprintImage.width - padding - 1,
+                blueprintImage.height - infoBox.height + (padding * 3)
+            );
+            ctx.stroke();
+            ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
+            ctx.beginPath();
+            ctx.moveTo(
+                blueprintImage.width - infoBox.width,
+                blueprintImage.height - infoBox.height + (padding * 6)
+            );
+            ctx.lineTo(
+                blueprintImage.width - padding - 1,
+                blueprintImage.height - infoBox.height + (padding * 6)
+            );
+            ctx.stroke();
+            ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
+            ctx.fillStyle = 'rgb(255, 255, 255)';
+            ctx.font = "15px Courier New";
+            ctx.fillText("DO NOT MODIFY", 20, 30);
+            ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
+            ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
+            img.src = imgData;
+            img.onload = function () {
+                encodeJsonInCanvas(json, ctx);
+            };
+        });
+    }
 }
+
 
 //Improvements to the save and restore:
 //the image should maintain the correct aspect ratio
