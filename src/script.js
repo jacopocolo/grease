@@ -149,11 +149,8 @@ Vue.component("modal", {
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
 var controls, transformControls;
 
-var fade;
+var paths = []; //For canvas rendering of selection and eraser
 
-var paths = [];
-
-//var selection = app.selection;
 var raycaster;
 var raycastObject;
 var threshold = 0.001;
@@ -205,19 +202,14 @@ let mouse = {
 };
 
 let line = {
-    linepositions: [],
     start: function () {
         this.render.start(mouse.tx, mouse.ty, 0, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        //Add line elements
         this.render.update(mouse.tx, mouse.ty, 0, true);
     },
     end: function () {
-        //Close and add line to scene
         this.render.end();
-        // this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        // this.renderLine(this.linepositions, app.lineColor, app.lineWidth, app.mirror, false);
     },
     render: {
         line: null,
@@ -307,52 +299,6 @@ let line = {
                 return l;
             }
         },
-    },
-    renderLine: function (positions, lineColor, lineWidth, mirrorOn, returnLineBool) {
-        var matLineDrawn = new LineMaterial({
-            color: new THREE.Color(lineColor),
-            linewidth: lineWidth,
-            vertexColors: false,
-            wireframe: false,
-            side: THREE.DoubleSide,
-            depthWrite: true
-        });
-        materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
-        var geometry = new LineGeometry();
-        var positions = this.rejectPalm(positions);
-        geometry.setPositions(positions);
-        geometry.userData = positions;
-        var l = new Line2(geometry, matLineDrawn);
-        l.position.set(
-            l.geometry.boundingSphere.center.x,
-            l.geometry.boundingSphere.center.y,
-            l.geometry.boundingSphere.center.z
-        );
-        l.geometry.center();
-        l.needsUpdate = true;
-        l.computeLineDistances();
-        l.scale.set(1, 1, 1);
-        l.layers.set(1);
-        var lposition = l.getWorldPosition(lposition);
-        var lquaternion = l.getWorldQuaternion(lquaternion);
-        var lscale = l.getWorldScale(lscale);
-        scene.add(l);
-
-        if (returnLineBool == true) {
-            return l;
-        }
-    },
-    rejectPalm: function (positions) {
-        //rudimentary approach to palm rejection
-        //if two points are are too far apart
-        //they are artifacts of palm rejection failing
-        var arr = positions;
-        for (var i = 0; i < arr.length - 2; i = i + 2) {
-            if (arr.length[i] - arr.length[i + 2] > 0.1) {
-                arr = arr.slice(i)
-            }
-        }
-        return arr
     }
 };
 
@@ -734,6 +680,9 @@ let mirror = {
     }
 };
 
+
+//TODO improvements to the save and restore:
+//the image should maintain the correct aspect ratio
 let importFrom = {
     imageWithEncodedFile: function () {
         console.log('importing')
@@ -1156,13 +1105,6 @@ app.exportTo = {
     }
 }
 
-
-//Improvements to the save and restore:
-//the image should maintain the correct aspect ratio
-//It should be possible to discard the mirrored elements, the renderLine function _should_ take care of them
-//And if that's the case, UUID could just be removed. We'll generate new ones
-//Color could be vastly simplified and genericized (so it's eventually theme independent)
-
 init();
 animate();
 
@@ -1225,18 +1167,6 @@ function init() {
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
 
-    // var geometry = new THREE.BoxGeometry(3, 3, 3);
-    // var material = new THREE.MeshBasicMaterial({
-    //     color: new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255),
-    //     //color: 0xFF0000,
-    //     transparent: true,
-    //     opacity: 0.3,
-    //     side: THREE.DoubleSide,
-    // });
-    // fade = new THREE.Mesh(geometry, material);
-    // fade.position.set(0, 0, -1.55)
-    // scene.add(fade);
-
     camera.position.set(0, 0, 2);
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.enabled = true;
@@ -1248,33 +1178,6 @@ function init() {
     controls.zoomEnabled = false;
     controls.panEnabled = false;
     transformControls = new TransformControls(camera, drawingCanvas);
-
-    // var g = new THREE.Geometry();
-    // var l = new MeshLine();
-    // g.vertices.push(new THREE.Vector3(0, 0, 0));
-    // g.vertices.push(new THREE.Vector3(1, 1, 1));
-    // l.setGeometry(g);
-    // var material = new MeshLineMaterial({
-    //     lineWidth: 0.1,
-    //     sizeAttenuation: 0,
-    //     color: 0xFFFFFF,
-    //     side: THREE.DoubleSide,
-    //     wireframe: false
-    // });
-    // var mesh = new THREE.Mesh(l.geometry, material);
-    // mesh.raycast = MeshLineRaycast;
-    // scene.add(mesh);
-    // mesh.layers.set(1);
-    // mesh.position.set(
-    //     mesh.geometry.boundingSphere.center.x,
-    //     mesh.geometry.boundingSphere.center.y,
-    //     mesh.geometry.boundingSphere.center.z
-    // );
-    // g.center();
-    // mesh.geometry.setGeometry(g);
-    // g.verticesNeedsUpdate = true;
-    // g.needsUpdate = true;
-    // console.log(mesh)
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
@@ -1385,10 +1288,6 @@ function updateminiAxisCamera() {
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.quaternion.copy(camera.quaternion);
 }
-// function updateFade() {
-//     //fade.quaternion.copy(camera.quaternion);
-//     fade.rotation.y = camera.rotation.y
-// }
 
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
@@ -1531,6 +1430,3 @@ function repositionCamera() {
 };
 
 document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
-
-// document.getElementById("Export").addEventListener("click", exportTo.gltf);
-// document.getElementById("makeGif").addEventListener("click", exportTo.gif);
