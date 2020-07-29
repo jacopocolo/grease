@@ -632,7 +632,7 @@ app.selection = {
         if (bool) {
             object.material.color = new THREE.Color(0xfecf12);
         } else {
-            object.material.color = new THREE.Color(object.userData.color);
+            object.material.color = new THREE.Color(object.userData.lineColor);
         }
     },
     computeGroupCenter: function () {
