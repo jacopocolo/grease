@@ -1,12 +1,12 @@
 import * as THREE from "../build/three.module.js";
-import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
+import { OrbitControls } from "../build/OrbitControls.js";
+import { TransformControls } from "../build/TransformControls.js";
 import {
     MeshLine,
     MeshLineMaterial,
     MeshLineRaycast
 } from '../build/meshline.js';
-import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
+import { GLTFExporter } from '../build/GLTFExporter.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
 
 var app = new Vue({
@@ -15,7 +15,8 @@ var app = new Vue({
         selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
         selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
         isAGroupSelected: false, //Transform tools must be restricted if true
-        lineColor: 'rgb(255, 255, 255)', //Rgb value
+        selectedColor: 'lightest', //buffer from the selector so it can be genericized
+        lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 30, //Default 10
         lineWidthEl: undefined, //filled in mount()
         selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
@@ -38,11 +39,24 @@ var app = new Vue({
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
-            //re-add event listeners after a switch
-            // if (app.selectedTool == 'draw') {
-            //     this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
-            //     this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
-            // }
+        },
+        selectedColor: function () {
+            switch (true) {
+                case (app.selectedColor == "lightest"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                    break;
+                case (app.selectedColor == "light"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+                    break;
+                case (app.selectedColor == "medium"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+                    break;
+                case (app.selectedColor == "dark"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
+                    break;
+                default:
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'); //safe
+            }
         }
     },
     methods: {
@@ -749,7 +763,6 @@ let importFrom = {
             }
         }
         input.click();
-
         function decode(canvas, ctx) {
             var json = '';
             for (var y = encodedImageDataStartingAt; y < canvas.height; y++) {
@@ -777,6 +790,10 @@ let importFrom = {
     json: function (json) {
         console.log(json);
         var json = JSON.parse(json);
+        var lightestColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+        var lightColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+        var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+        var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
         json.forEach(importedLine => {
 
             var vertices = [];
@@ -784,9 +801,27 @@ let importFrom = {
                 vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
             };
 
+            var color;
+            switch (true) {
+                case (importedLine.c == 0):
+                    color = lightestColor;
+                    break;
+                case (importedLine.c == 1):
+                    color = lightColor;
+                    break;
+                case (importedLine.c == 2):
+                    color = mediumColor;
+                    break;
+                case (importedLine.c == 3):
+                    color = darkColor;
+                    break;
+                default:
+                    color = lightestColor; //safe
+            }
+
             var l = line.render.fromVertices(
                 vertices,
-                "rgb(" + importedLine.c.r + "," + importedLine.c.g + "," + importedLine.c.b + ")",
+                color,
                 importedLine.w,
                 importedLine.a,
                 true);
@@ -818,15 +853,35 @@ app.exportTo = {
         var itemProcessed = 0;
         var json = [];
         var mirroredObject = [];
+        var lightestColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+        var lightColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+        var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+        var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
         scene.children.forEach(obj => {
             //check if it's a line, if it's in the right layer and that we don't already have its original
             if (obj.geometry && obj.geometry.type == "MeshLine" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
                 var line = {};
-                line.c = {};
-                var color = new THREE.Color(obj.userData.lineColor);
-                line.c.r = color.r * 255;
-                line.c.g = color.g * 255;
-                line.c.b = color.b * 255;
+                line.c = 0;
+                var color = obj.userData.lineColor;
+                console.log(color === lightColor);
+                //console.log(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'));
+                //To enable theming, colors should be stored as numbers: 0 is lightest, 1 is light, 2 is medium, 3 is dark.
+                switch (true) {
+                    case (color === lightestColor):
+                        line.c = 0;
+                        break;
+                    case (color === lightColor):
+                        line.c = 1;
+                        break;
+                    case (color === mediumColor):
+                        line.c = 2;
+                        break;
+                    case (color === darkColor):
+                        line.c = 3;
+                        break;
+                    default:
+                        return //already defined a
+                }
                 line.w = obj.userData.lineWidth;
                 line.g = [];
                 obj.geometry.vertices.forEach(vector3 => {
@@ -865,6 +920,7 @@ app.exportTo = {
         return json
     },
     gltf: function () {
+        app.selection.deselect();
         //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
         var scene2 = new THREE.Scene();
         function exportGLTF(input) {
@@ -956,6 +1012,7 @@ app.exportTo = {
         convertMeshLinetoLine()
     },
     gif: function () {
+        app.selection.deselect();
         makingGif = true;
         app.autoRotate = true;
         controls.autoRotateSpeed = 30.0;
@@ -977,6 +1034,7 @@ app.exportTo = {
         //nothing yet
     },
     imageWithEncodedFile: async function () {
+        app.selection.deselect();
         app.exportTo.json().then(function (json) {
             json = JSON.stringify(json);
             function encodeJsonInCanvas(json, ctx) {
@@ -1008,7 +1066,7 @@ app.exportTo = {
                             var hRatio = canvasWithEncodedImage.width / img.width;
                             var vRatio = canvasWithEncodedImage.height / img.height;
                             var ratio = Math.min(hRatio, vRatio);
-                            ctx.fillStyle = 'rgb(2, 32, 132)';
+                            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
                             ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
                             ctx.drawImage(img,
                                 0,
@@ -1026,7 +1084,7 @@ app.exportTo = {
                             ctx.oImageSmoothingEnabled = false;
                             ctx.webkitImageSmoothingEnabled = false;
                             ctx.msImageSmoothingEnabled = false;
-                            ctx.strokeStyle = 'rgb(255, 255, 255)';
+                            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
                             ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
                             var infoBox = { height: 100, width: 250 };
                             ctx.beginPath();
@@ -1050,7 +1108,7 @@ app.exportTo = {
                                 blueprintImage.height - padding - 2
                             );
                             ctx.stroke();
-                            ctx.fillStyle = 'rgb(255, 255, 255)';
+                            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
                             ctx.font = "12px Courier New";
                             ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
                             ctx.beginPath();
@@ -1075,7 +1133,7 @@ app.exportTo = {
                             );
                             ctx.stroke();
                             ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
-                            ctx.fillStyle = 'rgb(255, 255, 255)';
+                            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
                             ctx.font = "15px Courier New";
                             ctx.fillText("DO NOT MODIFY", 20, 30);
                             ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);

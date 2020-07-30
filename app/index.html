@@ -100,29 +100,26 @@
                 <div id="lineColor" class="button">
                     <span class="toolbarLabel">Color</span>
                     <div>
-                        <input type="radio" id="lightestColor" value="rgb(255, 255, 255)" name="lightestColor"
-                            v-model="lineColor">
+                        <input type="radio" id="lightestColor" value="lightest" name="lightestColor"
+                            v-model="selectedColor">
                         <label for="lightestColor">
                             <span class="colorSelector" id="lightestColorSelector"></span>
                         </label>
                     </div>
                     <div>
-                        <input type="radio" id="lightColor" value="rgb(217, 224, 247)" name="lightColor"
-                            v-model="lineColor">
+                        <input type="radio" id="lightColor" value="light" name="lightColor" v-model="selectedColor">
                         <label for="lightColor">
                             <span class="colorSelector" id="lightColorSelector"></span>
                         </label>
                     </div>
                     <div>
-                        <input type="radio" id="mediumColor" value="rgb(99, 134, 227)" name="mediumColor"
-                            v-model="lineColor">
+                        <input type="radio" id="mediumColor" value="medium" name="mediumColor" v-model="selectedColor">
                         <label for="mediumColor">
                             <span class="colorSelector" id="mediumColorSelector"></span>
                         </label>
                     </div>
                     <div>
-                        <input type="radio" id="darkColor" value="rgb(72, 114, 223)" name="darkColor"
-                            v-model="lineColor">
+                        <input type="radio" id="darkColor" value="dark" name="darkColor" v-model="selectedColor">
                         <label for="darkColor">
                             <span class="colorSelector" id="darkColorSelector"></span>
                         </label>

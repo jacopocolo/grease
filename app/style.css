@@ -1,13 +1,35 @@
 :root {
-  --bg-color: rgb(2, 32, 131);
-  --accent-color: rgb(254, 207, 18);
-  --accent-color-selected: rgb(218, 175, 1);
-  --ui-bg-color: rgb(0, 0, 0);
-  --line-color-lightest: rgb(255, 255, 255);
-  --line-color-light: rgb(217, 224, 247);
-  --line-color-medium: rgb(99, 134, 227);
-  --line-color-dark: rgb(72, 114, 223);
-}
+  --bg-color:rgb(2, 32, 131);
+  --accent-color:rgb(254, 207, 18);
+  --accent-color-selected:rgb(218, 175, 1);
+  --ui-bg-color:rgb(0, 0, 0);
+  --line-color-lightest:rgb(255, 255, 255);
+  --line-color-light:rgb(217, 224, 247);
+  --line-color-medium:rgb(99, 134, 227);
+  --line-color-dark:rgb(72, 114, 223);
+} 
+
+/* :root {
+  --bg-color:rgb(0, 0, 0);
+  --accent-color:rgb(254, 207, 18);
+  --accent-color-selected:rgb(218, 175, 1);
+  --ui-bg-color:rgb(30, 30, 30);
+  --line-color-lightest:rgb(255, 255, 255);
+  --line-color-light:rgb(180, 180, 180);
+  --line-color-medium:rgb(110, 110, 110);
+  --line-color-dark:rgb(70, 70, 70);
+} */
+
+/* :root {
+  --bg-color:rgb(250, 250, 250);
+  --accent-color:rgb(254, 207, 18);
+  --accent-color-selected:rgb(218, 175, 1);
+  --ui-bg-color:rgb(60, 60, 60);
+  --line-color-lightest:rgb(30, 30, 30);
+  --line-color-light:rgb(90, 90, 90);
+  --line-color-medium:rgb(120, 120, 120);
+  --line-color-dark:rgb(170, 170, 170);
+}  */
 
 @font-face {
   font-family: 'Sometype Mono';
