@@ -327,7 +327,7 @@ let eraser = {
         paths[paths.length - 1].push([mouse.cx, mouse.cy]);
         //This is to render line transparency,
         //we are redrawing the line every frame
-        this.redrawLine('rgba(255,255,255, 0.15)');
+        this.redrawLine('rgba(255,255,255)');
 
         try {
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
@@ -353,6 +353,7 @@ let eraser = {
         // clear canvas
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         context.strokeStyle = color;
+        context.globalAlpha = 0.25;
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.lineWidth = 30;
@@ -377,6 +378,7 @@ app.selection = {
     group: undefined,
     transforming: false,
     raycaster: new THREE.Raycaster(),
+    color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected'),
     start: function () {
         if (!this.transforming) {
             paths.push([mouse.cx, mouse.cy]);
@@ -401,7 +403,7 @@ app.selection = {
             paths[paths.length - 1].push([mouse.cx, mouse.cy]);
             //This is to render line transparency,
             //we are redrawing the line every frame
-            this.redrawLine('rgba(254, 207, 18, 0.25)');
+            this.redrawLine(this.color);
             try {
                 this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 //scene.add(new THREE.ArrowHelper( this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff ));
@@ -485,7 +487,7 @@ app.selection = {
         //selection can not be zero so it's either 1 or more than 1
         //It's a single element
         if (selection.length == 1) {
-            this.helper = new THREE.BoxHelper(selection[0], 0xfecf12);
+            this.helper = new THREE.BoxHelper(selection[0], new THREE.Color(this.color));
             scene.add(this.helper);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(selection[0]);
@@ -505,7 +507,7 @@ app.selection = {
         else {
             this.group = new THREE.Group();
             scene.add(this.group);
-            this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
+            this.helper = new THREE.BoxHelper(this.group, new THREE.Color(this.color));
             scene.add(this.helper);
             //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
             var center = new THREE.Vector3();
@@ -590,7 +592,7 @@ app.selection = {
     },
     toggleSelectionColor: function (object, bool) {
         if (bool) {
-            object.material.color = new THREE.Color(0xfecf12);
+            object.material.color = new THREE.Color(this.color);
         } else {
             object.material.color = new THREE.Color(object.userData.lineColor);
         }
@@ -609,6 +611,7 @@ app.selection = {
         // clear canvas
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         context.strokeStyle = color;
+        context.globalAlpha = 0.25;
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.lineWidth = 30;

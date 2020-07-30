@@ -9,6 +9,18 @@
   --line-color-dark:rgb(72, 114, 223);
 } 
 
+
+/* :root {
+  --bg-color:rgb(90, 84, 117);
+  --accent-color:rgb(113, 103, 153);
+  --accent-color-selected:rgb(197, 163, 255);
+  --ui-bg-color:rgb(0, 0, 0);
+  --line-color-lightest:rgb(248, 248, 242);
+  --line-color-light:rgb(255, 184, 209);
+  --line-color-medium:rgb(197, 163, 255);
+  --line-color-dark:rgb(113, 103, 153);
+}  */
+
 /* :root {
   --bg-color:rgb(0, 0, 0);
   --accent-color:rgb(254, 207, 18);
