@@ -798,55 +798,58 @@ let importFrom = {
         var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
         var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
         json.forEach(importedLine => {
+            if (importedLine.g.length > 1) { //Let's make sure there are at least 2 points in the line
+                var vertices = [];
 
-            var vertices = [];
-            for (var i = 0; i < importedLine.g.length; i = i + 3) {
-                vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+                for (var i = 0; i < importedLine.g.length; i = i + 3) {
+                    vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+                }
+
+
+                var color;
+                switch (true) {
+                    case (importedLine.c == 0):
+                        color = lightestColor;
+                        break;
+                    case (importedLine.c == 1):
+                        color = lightColor;
+                        break;
+                    case (importedLine.c == 2):
+                        color = mediumColor;
+                        break;
+                    case (importedLine.c == 3):
+                        color = darkColor;
+                        break;
+                    default:
+                        color = lightestColor; //safe
+                }
+
+                var l = line.render.fromVertices(
+                    vertices,
+                    color,
+                    importedLine.w,
+                    importedLine.a,
+                    true);
+
+                l.position.set(
+                    importedLine.p.x,
+                    importedLine.p.y,
+                    importedLine.p.z
+                );
+                l.quaternion.set(
+                    importedLine.q._x,
+                    importedLine.q._y,
+                    importedLine.q._z,
+                    importedLine.q._w,
+                );
+                l.scale.set(
+                    importedLine.s.x,
+                    importedLine.s.y,
+                    importedLine.s.z
+                );
+
+                mirror.updateMirrorOf(l);
             };
-
-            var color;
-            switch (true) {
-                case (importedLine.c == 0):
-                    color = lightestColor;
-                    break;
-                case (importedLine.c == 1):
-                    color = lightColor;
-                    break;
-                case (importedLine.c == 2):
-                    color = mediumColor;
-                    break;
-                case (importedLine.c == 3):
-                    color = darkColor;
-                    break;
-                default:
-                    color = lightestColor; //safe
-            }
-
-            var l = line.render.fromVertices(
-                vertices,
-                color,
-                importedLine.w,
-                importedLine.a,
-                true);
-
-            l.position.set(
-                importedLine.p.x,
-                importedLine.p.y,
-                importedLine.p.z
-            );
-            l.quaternion.set(
-                importedLine.q._x,
-                importedLine.q._y,
-                importedLine.q._z,
-                importedLine.q._w,
-            );
-            l.scale.set(
-                importedLine.s.x,
-                importedLine.s.y,
-                importedLine.s.z
-            );
-
-            mirror.updateMirrorOf(l);
         })
     }
 };
@@ -1267,7 +1270,7 @@ function onWindowResize() {
     drawingCanvas.width = window.innerWidth;
     drawingCanvas.height = window.innerHeight;
 
-    insetWidth = window.innerHeight / 4; // square
+    insetWidth = window.innerHeight / 4;
     insetHeight = window.innerHeight / 4;
 }
 
