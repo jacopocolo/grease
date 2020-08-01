@@ -112,8 +112,8 @@ margin: 0px;
   height: 250px;
   position: absolute;
   border-radius: 8px;
-  left: 8px;
-  bottom: 100px;
+  left: 10px;
+  top: 10px;
   z-index: 4;
   border-radius: 0px 0px 8px 8px;
 }
@@ -170,7 +170,7 @@ margin: 0px;
   background-color: var(--ui-bg-color);
   position: absolute;
   top: 10px;
-  left: 10px;
+  right: 10px;
   color: white;
   z-index: 5;
   width: 200px;
@@ -188,6 +188,7 @@ margin: 0px;
 
 .toolbarLabel {
   flex-basis: 100%;
+  clear: both;
 }
 
 #toolSelection, #transformationSelection {
@@ -255,7 +256,7 @@ margin: 0px;
   box-sizing: border-box;
  }
 
- #lineWidth, #lineColor, #mirror {
+ #lineWidth, #lineColor, #mirror, #zDepth {
   flex-wrap: wrap;
   height: 80px;
 }
@@ -358,17 +359,6 @@ margin: 0px;
   -ms-user-select: none;
   user-select: none;
 }
-
-/* #lineWidthBg {
-  background-color: rgba(255,255,255,0.1);
-  width: 44px;
-  height: 44px;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 22px;
-} */
 
 #indicator {
   height: 1px;

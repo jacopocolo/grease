@@ -31,6 +31,8 @@ var app = new Vue({
             title: 'This is your save file',
             image: ''
         },
+        experimental: true,
+        zDepth: 0,
     },
     watch: {
         selectedTheme: function () {
@@ -57,6 +59,9 @@ var app = new Vue({
                 default:
                     app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'); //safe
             }
+        },
+        zDepth: function () {
+            app.zDepth = -app.zDepth;  //Doesn't work?
         }
     },
     methods: {
@@ -217,10 +222,10 @@ let mouse = {
 
 let line = {
     start: function () {
-        this.render.start(mouse.tx, mouse.ty, 0, true, app.lineColor, app.lineWidth, app.mirror);
+        this.render.start(mouse.tx, mouse.ty, app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        this.render.update(mouse.tx, mouse.ty, 0, true);
+        this.render.update(mouse.tx, mouse.ty, app.zDepth, true);
     },
     end: function () {
         this.render.end();
@@ -1194,9 +1199,9 @@ function init() {
 
     scene = new THREE.Scene();
     //Set the background based on the css variable;
-    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').match(/\d+/g);
-    scene.background = new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255);
-    scene.fog = new THREE.Fog(new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255), 2, 2.5);
+    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
+    scene.background = new THREE.Color(bgCol);
+    scene.fog = new THREE.Fog(bgCol, 2, 3);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
