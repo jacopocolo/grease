@@ -28,16 +28,15 @@ var app = new Vue({
         exportTo: {},
         modal: {
             show: false,
-            title: 'This is your save file',
+            mode: 'loader', //modal, loader
+            title: '',
+            helptext: '',
             image: ''
         },
-        experimental: true,
-        zDepth: 0,
+        experimental: false,
+        zDepth: 0, //this value is inverted in the code
     },
     watch: {
-        selectedTheme: function () {
-            app.linesNeedThemeUpdate = true;
-        },
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
@@ -61,7 +60,7 @@ var app = new Vue({
             }
         },
         zDepth: function () {
-            app.zDepth = -app.zDepth;  //Doesn't work?
+            line.drawingPlane.position.copy(new THREE.Vector3(0, 0, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
         }
     },
     methods: {
@@ -132,37 +131,58 @@ var app = new Vue({
 Vue.component("modal", {
     //mode: loading, image
     //title:
-    //body
+    //helpText
     //img
-    props: ['title', 'source'],
+    props: ['mode', 'title', 'helptext', 'source'],
     template: `
     <transition name="modal">
     <div class="modal-mask">
         <div class="modal-wrapper">
             <div class="modal-container">
-                <div class="modal-header">
-                    <slot name="header">
-                        {{title}}
-                    </slot>
-                </div>
-                <div class="modal-body">
+                <div v-if="mode == 'modal'" class="modal-body">
                     <slot name="body">
-                        <img :src="source" class="saveImg" id="saveImg">
+                        <div class="modal-left-column">
+                            <img :src="source" class="saveImg" id="saveImg">
+                        </div>
+                        <div class="modal-right-column">
+                        
+                        <div class="modal-header">
+                            <slot name="header">
+                                {{title}}
+                            </slot>
+                        </div>
+
+                        <div class="modal-helptext">
+                            <slot name="helptext">
+                                {{helptext}}
+                            </slot>
+                        </div>
+                        <div class="primaryButton modal-button" @click="$emit('close')">
+                            Done
+                        </div>
+                        </div>
                     </slot>
                 </div>
-                <div class="modal-footer">
-                    <slot name="footer">
-                        default footer
-                        <button class="modal-default-button" @click="$emit('close')">
-                            OK
-                        </button>
-                    </slot>
+
+                <div v-if="mode == 'loader'" class="modal-body modal-centered">
+                            <div class="modal-header">
+                                <slot name="header">
+                                    {{title}}
+                                </slot>
+                            </div>
+
+                            <div class="modal-helptext">
+                                <slot name="helptext">
+                                    {{helptext}}
+                                </slot>
+                            </div>
                 </div>
+
             </div>
         </div>
     </div>
 </transition>
-  `
+`
 });
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
@@ -222,10 +242,10 @@ let mouse = {
 
 let line = {
     start: function () {
-        this.render.start(mouse.tx, mouse.ty, app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
+        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        this.render.update(mouse.tx, mouse.ty, app.zDepth, true);
+        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
     },
     end: function () {
         this.render.end();
@@ -318,6 +338,10 @@ let line = {
                 return l;
             }
         },
+    },
+    drawingPlane: null, //defined in init
+    updateDrawingPlane: function () {
+        this.drawingPlane.rotation.copy(camera.rotation);
     }
 };
 
@@ -716,6 +740,10 @@ let importFrom = {
 
         input.onchange = event => {
 
+            app.modal.show = true;
+            app.modal.mode = 'loader';
+            app.modal.title = "Loading your drawing from image";
+            app.modal.helptext = "This might take a while, please be patient";
             //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well.
 
             //FIREFOX
@@ -856,6 +884,7 @@ let importFrom = {
                 mirror.updateMirrorOf(l);
             };
         })
+        app.modal.show = false;
     }
 };
 
@@ -1024,6 +1053,12 @@ app.exportTo = {
     },
     gif: function () {
         app.selection.deselect();
+
+        app.modal.show = true;
+        app.modal.mode = 'loader';
+        app.modal.title = "Making you a gif";
+        app.modal.helptext = "This might take a moment, please be patient";
+
         makingGif = true;
         app.autoRotate = true;
         controls.autoRotateSpeed = 30.0;
@@ -1035,7 +1070,9 @@ app.exportTo = {
         });
 
         gif.on("finished", function (blob) {
-            app.modal.show = true;
+            app.modal.title = "Here’s your gif";
+            app.modal.helptext = "Long press on the picture on tablet or right click on desktop to save it.";
+            app.modal.mode = "modal";
             app.modal.image = URL.createObjectURL(blob);
             console.log("rendered");
             app.autoRotate = false;
@@ -1045,8 +1082,14 @@ app.exportTo = {
         //nothing yet
     },
     imageWithEncodedFile: async function () {
-        app.selection.deselect();
         app.exportTo.json().then(function (json) {
+
+            app.selection.deselect();
+            app.modal.show = true;
+            app.modal.mode = 'loader';
+            app.modal.title = "Saving your drawing";
+            app.modal.helptext = "This might take a moment, please be patient";
+
             json = JSON.stringify(json);
             function encodeJsonInCanvas(json, ctx) {
                 console.log('Encoding…')
@@ -1073,7 +1116,11 @@ app.exportTo = {
                             ctx.fillRect(x, y, 1, 1);
                             count = count + 1;
                         } else {
+                            app.modal.mode = 'modal';
                             app.modal.show = true;
+                            app.modal.title = 'Save this picture, it’s your save file';
+                            app.modal.helptext = 'Long press on the picture on tablet or right click on desktop to save. The bottom part of this picture contains all the data needed to recreate your 3d sketch, so don’t compress it or modify it.';
+
                             var hRatio = canvasWithEncodedImage.width / img.width;
                             var vRatio = canvasWithEncodedImage.height / img.height;
                             var ratio = Math.min(hRatio, vRatio);
@@ -1201,7 +1248,7 @@ function init() {
     //Set the background based on the css variable;
     var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
     scene.background = new THREE.Color(bgCol);
-    scene.fog = new THREE.Fog(bgCol, 2, 3);
+    //scene.fog = new THREE.Fog(bgCol, 2, 3);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
@@ -1253,6 +1300,23 @@ function init() {
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
+    if (app.experimental) {
+        var geometry = new THREE.PlaneGeometry(1, 1, 32);
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.7 });
+        var planeBg = new THREE.Mesh(geometry, material);
+        var planeGrid = new THREE.GridHelper(
+            1,
+            40,
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        );
+        planeGrid.rotation.x = Math.PI / 2;
+        line.drawingPlane = new THREE.Group();
+        line.drawingPlane.add(planeBg);
+        line.drawingPlane.add(planeGrid);
+        scene.add(line.drawingPlane);
+    }
+
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
@@ -1281,6 +1345,9 @@ function onWindowResize() {
 
 function animate() {
     updateminiAxisCamera();
+    if (app.experimental) {
+        line.updateDrawingPlane();
+    }
     //updateFade();
     requestAnimationFrame(animate);
     //may need to wrap this in a function

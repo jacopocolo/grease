@@ -1,4 +1,4 @@
-:root {
+/* :root {
   --bg-color:rgb(2, 32, 131);
   --accent-color:rgb(254, 207, 18);
   --accent-color-selected:rgb(218, 175, 1);
@@ -7,9 +7,9 @@
   --line-color-light:rgb(217, 224, 247);
   --line-color-medium:rgb(99, 134, 227);
   --line-color-dark:rgb(72, 114, 223);
-} 
+}  */
 
-/* :root {
+:root {
   --bg-color:rgb(90, 84, 117);
   --accent-color:rgb(197, 163, 255);
   --accent-color-selected:rgb(113, 103, 153);
@@ -18,7 +18,7 @@
   --line-color-light:rgb(255, 184, 209);
   --line-color-medium:rgb(197, 163, 255);
   --line-color-dark:rgb(113, 103, 153);
-}  */
+} 
 
 /* :root {
   --bg-color:rgb(0, 0, 0);
@@ -150,14 +150,27 @@ margin: 0px;
 
 .button {
   z-index: 5;
-  background: var(--ui-bg-color); /* Grey background */
-  outline: none; /* Remove outline */
+  background: var(--ui-bg-color);
+  outline: none;
   padding: 0px 8px;
   border-radius: 40px;
   box-sizing: border-box;
   color: white;
   display: flex;
   align-items: center;
+  height: 44px;
+}
+
+.primaryButton {
+  background-color: var(--accent-color);
+  outline: none;
+  padding: 0px 8px;
+  border-radius: 6px;
+  box-sizing: border-box;
+  color: var(--ui-bg-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   height: 44px;
 }
 
@@ -360,6 +373,10 @@ margin: 0px;
   user-select: none;
 }
 
+.depthLabel {
+  font-size: 0.6em;
+}
+
 #indicator {
   height: 1px;
   width: 1px;
@@ -430,28 +447,27 @@ margin: 0px;
 }
 
 .modal-container {
-  width: 300px;
+  width: 33%;
+  height: auto;
   margin: 0px auto;
-  padding: 20px 30px;
-  background-color: #fff;
+  padding: 20px;
+  background-color: var(--ui-bg-color);
+  color: #ffffff;
   border-radius: 2px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+  box-sizing: content-box;
   transition: all 0.3s ease;
-  font-family: Helvetica, Arial, sans-serif;
+  font-weight: 400;
   -webkit-touch-callout: default;
   -webkit-user-select: default;
   -khtml-user-select: default;
   -moz-user-select: default;
   -ms-user-select: default;
-}
-
-.modal-header h3 {
-  margin-top: 0;
-  color: #42b983;
 }
 
 .modal-body {
   margin: 20px 0;
+  display: inline-block;
   -webkit-touch-callout: default;
   -webkit-user-select: default;
   -khtml-user-select: default;
@@ -459,8 +475,51 @@ margin: 0px;
   -ms-user-select: default;
 }
 
-.modal-default-button {
+.modal-centered {
+  width: 100%;
+  text-align: center;
+  margin: 0;
+}
+
+.modal-header {
+  font-size: 1.1em;
+  line-height: 1.3em;
+  display: block;
+  margin-bottom: 1em;
+}
+
+.modal-helptext {
+  font-size: 1.1em;
+  line-height: 1.3em;
+  display: block;
+  margin-bottom: 1em;
+}
+
+.modal-centered .modal-helptext{
+  margin-bottom: 0;
+}
+
+.modal-left-column {
+  width: 50%;
+  float: left;
+}
+
+.modal-left-column>img {
+  max-width: 90%;
+}
+
+.modal-right-column {
+  width: 50%;
   float: right;
+}
+
+.modal-button {
+  width: 50%;
+  float: right;
+}
+
+.modal-footer {
+  height: fit-content;
 }
 
 /*
