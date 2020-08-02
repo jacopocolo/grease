@@ -167,7 +167,7 @@ Vue.component("modal", {
                 <div v-if="mode == 'loader'" class="modal-body modal-centered">
                             <div class="modal-header">
                                 <slot name="header">
-                                    {{title}}
+                                {{title}}
                                 </slot>
                             </div>
 
@@ -890,6 +890,7 @@ let importFrom = {
 
 app.exportTo = {
     json: async function () {
+
         var itemProcessed = 0;
         var json = [];
         var mirroredObject = [];
@@ -1082,14 +1083,14 @@ app.exportTo = {
         //nothing yet
     },
     imageWithEncodedFile: async function () {
+        //I have some issues showing the data, it seems like the async nature of this function causes problems in Chrome and Firefox… on first run?
+        app.selection.deselect();
+        app.modal.title = "Saving your drawing";
+        app.modal.helptext = "This might take a moment, please be patient";
+        app.modal.mode = 'loader';
+        app.modal.show = true;
+
         app.exportTo.json().then(function (json) {
-
-            app.selection.deselect();
-            app.modal.show = true;
-            app.modal.mode = 'loader';
-            app.modal.title = "Saving your drawing";
-            app.modal.helptext = "This might take a moment, please be patient";
-
             json = JSON.stringify(json);
             function encodeJsonInCanvas(json, ctx) {
                 console.log('Encoding…')
@@ -1496,7 +1497,7 @@ let miniAxisMouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     updateCoordinates: function (event) {
-        let canvasBounds = miniAxisRenderer.context.canvas.getBoundingClientRect();
+        let canvasBounds = miniAxisRenderer.getContext().canvas.getBoundingClientRect();
         if (event.touches) {
             this.tx = ((event.changedTouches[0].pageX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1;
             this.ty = - ((event.changedTouches[0].pageY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1;

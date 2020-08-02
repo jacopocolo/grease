@@ -1,4 +1,4 @@
-/* :root {
+:root {
   --bg-color:rgb(2, 32, 131);
   --accent-color:rgb(254, 207, 18);
   --accent-color-selected:rgb(218, 175, 1);
@@ -7,9 +7,9 @@
   --line-color-light:rgb(217, 224, 247);
   --line-color-medium:rgb(99, 134, 227);
   --line-color-dark:rgb(72, 114, 223);
-}  */
+} 
 
-:root {
+/* :root {
   --bg-color:rgb(90, 84, 117);
   --accent-color:rgb(197, 163, 255);
   --accent-color-selected:rgb(113, 103, 153);
@@ -18,7 +18,7 @@
   --line-color-light:rgb(255, 184, 209);
   --line-color-medium:rgb(197, 163, 255);
   --line-color-dark:rgb(113, 103, 153);
-} 
+}  */
 
 /* :root {
   --bg-color:rgb(0, 0, 0);
@@ -447,10 +447,11 @@ margin: 0px;
 }
 
 .modal-container {
-  width: 33%;
+  width: 40%;
+  max-width: 600px;
   height: auto;
   margin: 0px auto;
-  padding: 20px;
+  padding: 14px;
   background-color: var(--ui-bg-color);
   color: #ffffff;
   border-radius: 2px;
@@ -466,7 +467,6 @@ margin: 0px;
 }
 
 .modal-body {
-  margin: 20px 0;
   display: inline-block;
   -webkit-touch-callout: default;
   -webkit-user-select: default;
@@ -482,14 +482,14 @@ margin: 0px;
 }
 
 .modal-header {
-  font-size: 1.1em;
+  font-size: 1em;
   line-height: 1.3em;
   display: block;
   margin-bottom: 1em;
 }
 
 .modal-helptext {
-  font-size: 1.1em;
+  font-size: 1em;
   line-height: 1.3em;
   display: block;
   margin-bottom: 1em;
@@ -506,6 +506,7 @@ margin: 0px;
 
 .modal-left-column>img {
   max-width: 90%;
+  border: 1px solid white;
 }
 
 .modal-right-column {
@@ -514,6 +515,7 @@ margin: 0px;
 }
 
 .modal-button {
+  margin-top: 3em;
   width: 50%;
   float: right;
 }
