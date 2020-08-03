@@ -29,8 +29,8 @@ var app = new Vue({
         modal: {
             show: false,
             mode: 'loader', //modal, loader
-            title: '',
-            helptext: '',
+            title: 'Saving your drawing',
+            helptext: 'This might take a moment, please be patient',
             image: ''
         },
         experimental: false,
@@ -135,10 +135,10 @@ Vue.component("modal", {
     //img
     props: ['mode', 'title', 'helptext', 'source'],
     template: `
-    <transition name="modal">
     <div class="modal-mask">
         <div class="modal-wrapper">
             <div class="modal-container">
+
                 <div v-if="mode == 'modal'" class="modal-body">
                     <slot name="body">
                         <div class="modal-left-column">
@@ -164,7 +164,7 @@ Vue.component("modal", {
                     </slot>
                 </div>
 
-                <div v-if="mode == 'loader'" class="modal-body modal-centered">
+                <div v-else class="modal-body modal-centered">
                             <div class="modal-header">
                                 <slot name="header">
                                 {{title}}
@@ -181,7 +181,6 @@ Vue.component("modal", {
             </div>
         </div>
     </div>
-</transition>
 `
 });
 
@@ -407,7 +406,7 @@ app.selection = {
     group: undefined,
     transforming: false,
     raycaster: new THREE.Raycaster(),
-    color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected'),
+    color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (!this.transforming) {
             paths.push([mouse.cx, mouse.cy]);
@@ -890,7 +889,6 @@ let importFrom = {
 
 app.exportTo = {
     json: async function () {
-
         var itemProcessed = 0;
         var json = [];
         var mirroredObject = [];
@@ -957,7 +955,6 @@ app.exportTo = {
                 return
             }
         });
-        console.log(json);
         return json
     },
     gltf: function () {
@@ -1082,142 +1079,141 @@ app.exportTo = {
     image: function () {
         //nothing yet
     },
-    imageWithEncodedFile: async function () {
-        //I have some issues showing the data, it seems like the async nature of this function causes problems in Chrome and Firefox… on first run?
+    imageWithEncodedFile: function () {
         app.selection.deselect();
+        app.modal.mode = 'loader';
         app.modal.title = "Saving your drawing";
         app.modal.helptext = "This might take a moment, please be patient";
-        app.modal.mode = 'loader';
         app.modal.show = true;
 
         app.exportTo.json().then(function (json) {
-            json = JSON.stringify(json);
-            function encodeJsonInCanvas(json, ctx) {
-                console.log('Encoding…')
-                var pixels = [];
-                for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
-                    var pixel = {};
-                    pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
-                    pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
-                    pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
-                    // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
-                    pixels.push(pixel);
-                }
-                var count = 0
-                for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
-                    for (var x = 0; x < canvasWithEncodedImage.width; x++) {
-                        if (count < pixels.length) {
-                            ctx.fillStyle = "rgb(" +
-                                pixels[count].r
-                                + "," +
-                                pixels[count].g
-                                + "," +
-                                pixels[count].b
-                                + ")";
-                            ctx.fillRect(x, y, 1, 1);
-                            count = count + 1;
-                        } else {
-                            app.modal.mode = 'modal';
-                            app.modal.show = true;
-                            app.modal.title = 'Save this picture, it’s your save file';
-                            app.modal.helptext = 'Long press on the picture on tablet or right click on desktop to save. The bottom part of this picture contains all the data needed to recreate your 3d sketch, so don’t compress it or modify it.';
 
-                            var hRatio = canvasWithEncodedImage.width / img.width;
-                            var vRatio = canvasWithEncodedImage.height / img.height;
-                            var ratio = Math.min(hRatio, vRatio);
-                            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
-                            ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-                            ctx.drawImage(img,
-                                0,
-                                0,
-                                img.width,
-                                img.height,
-                                padding,
-                                padding,
-                                (img.width * ratio) - padding * 2,
-                                (img.height * ratio) - padding * 2
-                            );
-                            let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
-                            var padding = 10;
-                            ctx.imageSmoothingEnabled = false;
-                            ctx.oImageSmoothingEnabled = false;
-                            ctx.webkitImageSmoothingEnabled = false;
-                            ctx.msImageSmoothingEnabled = false;
-                            ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-                            ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
-                            var infoBox = { height: 100, width: 250 };
-                            ctx.beginPath();
-                            ctx.moveTo(
-                                blueprintImage.width - infoBox.width,
-                                blueprintImage.height - infoBox.height
-                            );
-                            ctx.lineTo(
-                                blueprintImage.width - padding - 1,
-                                blueprintImage.height - infoBox.height
-                            );
-                            ctx.stroke();
+            function encodeImage() {
+                json = JSON.stringify(json);
+                //generate stringified json from scene
+                var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+                renderer.render(scene, camera);
+                var imgData = renderer.domElement.toDataURL();
+                var img = new Image();
+                //Do a quick calulation of the height of the image based on how many characters are in the JSON
+                encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
+                var canvasWithEncodedImage = document.createElement('canvas');
+                canvasWithEncodedImage.width = encodedImageWidth;
+                canvasWithEncodedImage.height = encodedImageHeigth;
+                var ctx = canvasWithEncodedImage.getContext("2d");
+                img.src = imgData;
+                img.onload = function () {
+                    var pixels = [];
+                    for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
+                        var pixel = {};
+                        pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
+                        pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
+                        pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
+                        // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
+                        pixels.push(pixel);
+                    }
+                    var count = 0
+                    for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
+                        for (var x = 0; x < canvasWithEncodedImage.width; x++) {
+                            if (count < pixels.length) {
+                                ctx.fillStyle = "rgb(" +
+                                    pixels[count].r
+                                    + "," +
+                                    pixels[count].g
+                                    + "," +
+                                    pixels[count].b
+                                    + ")";
+                                ctx.fillRect(x, y, 1, 1);
+                                count = count + 1;
+                            } else {
+                                app.modal.mode = 'modal';
+                                app.modal.title = 'Save this picture, it’s your save file';
+                                app.modal.helptext = 'Long press on the picture on tablet or right click on desktop to save. The bottom part of this picture contains all the data needed to recreate your 3d sketch, so don’t compress it or modify it.';
 
-                            ctx.beginPath();
-                            ctx.moveTo(
-                                blueprintImage.width - infoBox.width,
-                                blueprintImage.height - infoBox.height
-                            );
-                            ctx.lineTo(
-                                blueprintImage.width - infoBox.width,
-                                blueprintImage.height - padding - 2
-                            );
-                            ctx.stroke();
-                            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-                            ctx.font = "12px Courier New";
-                            ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
-                            ctx.beginPath();
-                            ctx.moveTo(
-                                blueprintImage.width - infoBox.width,
-                                blueprintImage.height - infoBox.height + (padding * 3)
-                            );
-                            ctx.lineTo(
-                                blueprintImage.width - padding - 1,
-                                blueprintImage.height - infoBox.height + (padding * 3)
-                            );
-                            ctx.stroke();
-                            ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
-                            ctx.beginPath();
-                            ctx.moveTo(
-                                blueprintImage.width - infoBox.width,
-                                blueprintImage.height - infoBox.height + (padding * 6)
-                            );
-                            ctx.lineTo(
-                                blueprintImage.width - padding - 1,
-                                blueprintImage.height - infoBox.height + (padding * 6)
-                            );
-                            ctx.stroke();
-                            ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
-                            ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-                            ctx.font = "15px Courier New";
-                            ctx.fillText("DO NOT MODIFY", 20, 30);
-                            ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
-                            ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
-                            app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
+                                var hRatio = canvasWithEncodedImage.width / img.width;
+                                var vRatio = canvasWithEncodedImage.height / img.height;
+                                var ratio = Math.min(hRatio, vRatio);
+                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
+                                ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
+                                ctx.drawImage(img,
+                                    0,
+                                    0,
+                                    img.width,
+                                    img.height,
+                                    padding,
+                                    padding,
+                                    (img.width * ratio) - padding * 2,
+                                    (img.height * ratio) - padding * 2
+                                );
+                                let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
+                                var padding = 10;
+                                ctx.imageSmoothingEnabled = false;
+                                ctx.oImageSmoothingEnabled = false;
+                                ctx.webkitImageSmoothingEnabled = false;
+                                ctx.msImageSmoothingEnabled = false;
+                                ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                                ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
+                                var infoBox = { height: 100, width: 250 };
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - padding - 1,
+                                    blueprintImage.height - infoBox.height
+                                );
+                                ctx.stroke();
+
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - padding - 2
+                                );
+                                ctx.stroke();
+                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                                ctx.font = "12px Courier New";
+                                ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height + (padding * 3)
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - padding - 1,
+                                    blueprintImage.height - infoBox.height + (padding * 3)
+                                );
+                                ctx.stroke();
+                                ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height + (padding * 6)
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - padding - 1,
+                                    blueprintImage.height - infoBox.height + (padding * 6)
+                                );
+                                ctx.stroke();
+                                ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
+                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                                ctx.font = "15px Courier New";
+                                ctx.fillText("DO NOT MODIFY", 20, 30);
+                                ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
+                                ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
+                                app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
+                            }
                         }
                     }
-                }
+                };
             }
-            //generate stringified json from scene
-            var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-            renderer.render(scene, camera);
-            var imgData = renderer.domElement.toDataURL();
-            var img = new Image();
-            //Do a quick calulation of the height of the image based on how many characters are in the JSON
-            encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
-            var canvasWithEncodedImage = document.createElement('canvas');
-            canvasWithEncodedImage.width = encodedImageWidth;
-            canvasWithEncodedImage.height = encodedImageHeigth;
-            var ctx = canvasWithEncodedImage.getContext("2d");
-            img.src = imgData;
-            img.onload = function () {
-                encodeJsonInCanvas(json, ctx);
-            };
+            setTimeout(encodeImage, 500); //This is a bad hack to account for the fact that Chrome and Firefox do not show the modal properly. I assume it has something to do with the fact that the encode image function is overwhelming;
         });
+
     }
 }
 
