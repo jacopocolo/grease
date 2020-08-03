@@ -12,16 +12,16 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/inobounce/0.2.0/inobounce.min.js"
-        integrity="sha256-Fc0S35M2Uo4ZMUBJy7ZWT+fkxv5Vpk8k1+cToMBUze4=" crossorigin="anonymous"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script> -->
     <script src="../build/gif.js" defer></script>
     <script src="../build/pngcrush-class.js" defer></script>
     <script src="../src/script.js" type="module" defer></script>
     <script src="../build/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="reset.css" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" type="text/css" href="https://connary.com/_fontvue/cartograph_full.css">
 </head>
+
+<div id="welcome">Loading…</div>
 
 <body>
     <div id="app">
@@ -201,27 +201,6 @@
             <button id="makeGif" @click="exportTo.gif">Make gif</button>
         </div>
     </div>
-
-    <!--<div id=" themeSelection">
-                <span>
-                    <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
-                        checked /><label for="blueprintTheme">Blueprint</label>
-                </span>
-                <span>
-                    <input type="radio" id="lightTheme" name="themes" value="light" v-model="selectedTheme" /><label
-                        for="lightTheme">Light</label>
-                </span>
-                <span>
-                    <input type="radio" id="darkTheme" name="themes" value="dark" v-model="selectedTheme" /><label
-                        for="darkTheme">Dark</label>
-                </span>
-        </div>
-
-        <div id="autoRotate">
-            <input type="checkbox" id="autoRotate" v-model="autoRotate">
-            <label for="autoRotate">Autorotate</label>
-        </div>
-        -->
 </body>
 <script>
     document.body.addEventListener('touchmove', function (event) {
@@ -242,3 +221,18 @@
 </script>
 
 </html>
+
+<script>
+        (function (d, t) {
+            var BASE_URL = "https://app.chatwoot.com";
+            var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+            g.src = BASE_URL + "/packs/js/sdk.js";
+            s.parentNode.insertBefore(g, s);
+            g.onload = function () {
+                window.chatwootSDK.run({
+                    websiteToken: '3JCrKwZRhQ94uUDyoWa3fghr',
+                    baseUrl: BASE_URL
+                })
+            }
+        })(document, "script");
+</script>

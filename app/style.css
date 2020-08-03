@@ -1,4 +1,4 @@
-/* :root {
+:root {
   --bg-color:rgb(2, 32, 131);
   --accent-color:rgb(254, 207, 18);
   --accent-color-selected:rgb(218, 175, 1);
@@ -7,9 +7,9 @@
   --line-color-light:rgb(217, 224, 247);
   --line-color-medium:rgb(99, 134, 227);
   --line-color-dark:rgb(72, 114, 223);
-}  */
+} 
 
-:root {
+/* :root {
   --bg-color:rgb(90, 84, 117);
   --accent-color:rgb(197, 163, 255);
   --accent-color-selected:rgb(113, 103, 153);
@@ -18,7 +18,7 @@
   --line-color-light:rgb(255, 184, 209);
   --line-color-medium:rgb(197, 163, 255);
   --line-color-dark:rgb(113, 103, 153);
-} 
+}  */
 
 /* :root {
   --bg-color:rgb(0, 0, 0);
@@ -66,7 +66,8 @@ body, html, #app {
   height: 100%;
   overflow: hidden;
   font-family: "Sometype Mono", monospace;
-  font-weight: 500;
+  /* font-family: "cartograph", monospace; */
+  font-weight: 400;
   font-size: 14px;
 }
 
@@ -82,6 +83,22 @@ html {
 body {
 background-color: black;
 margin: 0px;
+}
+
+#welcome {
+  z-index: 7;
+  position: absolute;
+  margin: 0 auto;
+  height: 100%;
+  width: 100%;
+  color: white;
+  background-color: var(--ui-bg-color);
+  opacity: 0.9;
+  display: flex;
+  text-align: center;
+  align-items: center;
+  justify-content: center;
+  vertical-align: middle;
 }
 
 .blueprint {
@@ -222,7 +239,7 @@ margin: 0px;
 #toolSelection input[type="radio"]:checked + label, #transformationSelection input[type="radio"]:checked + label {
   background-color: var(--accent-color-selected);
   border-radius: 6px;
-  font-weight: bold;
+  font-weight: 600;
 }
 
 #transformationSelection {
@@ -417,8 +434,17 @@ margin: 0px;
 #saveLoad {
   position: absolute;
   bottom: 10px;
-  right: 10px;
+  left: 10px;
   z-index: 5;
+}
+
+#saveLoad>button {
+  font-family: inherit;
+  color: white;
+  background-color: var(--ui-bg-color);
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
 }
 
 #share {

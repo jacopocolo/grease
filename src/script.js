@@ -17,8 +17,7 @@ var app = new Vue({
         isAGroupSelected: false, //Transform tools must be restricted if true
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
-        lineWidth: 30, //Default 10
-        lineWidthEl: undefined, //filled in mount()
+        lineWidth: 3, //Default 3
         selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
         linesNeedThemeUpdate: false,
         controlsLocked: false,
@@ -123,9 +122,13 @@ var app = new Vue({
             }
             drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
             drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
-        },
-
+        }
     },
+    mounted() {
+        document.getElementById('welcome').style.zIndex = -1;
+        var element = document.getElementById("welcome")
+        element.parentNode.removeChild(element);
+    }
 });
 
 Vue.component("modal", {
