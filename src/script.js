@@ -69,6 +69,10 @@ var app = new Vue({
         deselect: function () {
             app.selection.deselectFromButton()
         },
+        resetCamera: function () {
+            camera.position.set(0, 0, 2);
+            controls.reset();
+        },
         //MOUSE HANDLERS
         onTapStart: function (event) {
             if (event.which == 3) return;
@@ -1240,7 +1244,7 @@ function init() {
         alpha: true
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
-    miniAxisRenderer.setClearColor(0x000000, 0.4);
+    miniAxisRenderer.setClearColor(new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), 0.4);
     miniAxisRenderer.setSize(250, 250);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
@@ -1248,7 +1252,7 @@ function init() {
     //Set the background based on the css variable;
     var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
     scene.background = new THREE.Color(bgCol);
-    //scene.fog = new THREE.Fog(bgCol, 2, 3);
+    scene.fog = new THREE.Fog(bgCol, 2, 3);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
@@ -1290,8 +1294,9 @@ function init() {
     controls.rotateSpeed = 0.5;
     controls.autoRotateSpeed = 30.0;
     camera.zoom = 900;
-    controls.zoomEnabled = false;
-    controls.panEnabled = false;
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    controls.saveState();
     transformControls = new TransformControls(camera, drawingCanvas);
 
     miniAxisCamera = new THREE.OrthographicCamera();
