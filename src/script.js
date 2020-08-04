@@ -75,24 +75,26 @@ var app = new Vue({
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
-            if (event.which == 3) return;
-            mouse.updateCoordinates(event);
-            //DRAW
-            if (this.selectedTool == "draw") {
-                line.start();
+            if (event.touches.length > 1) { }
+            else {
+                mouse.updateCoordinates(event);
+                //DRAW
+                if (this.selectedTool == "draw") {
+                    line.start();
+                }
+                //ERASER
+                else if (this.selectedTool == "erase") {
+                    eraser.start();
+                }
+                //SELECT
+                else if (this.selectedTool == "select") {
+                    app.selection.start();
+                }
+                drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+                drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+                drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+                drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
             }
-            //ERASER
-            else if (this.selectedTool == "erase") {
-                eraser.start();
-            }
-            //SELECT
-            else if (this.selectedTool == "select") {
-                app.selection.start();
-            }
-            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         },
         onTapMove: function (event) {
             mouse.updateCoordinates(event);
@@ -192,7 +194,7 @@ Vue.component("modal", {
 });
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
-var controls, transformControls;
+var controls, directControls, transformControls;
 
 var paths = []; //For canvas rendering of selection and eraser
 
@@ -1285,8 +1287,9 @@ function init() {
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
-
+    camera.zoom = 900;
     camera.position.set(0, 0, 2);
+
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.enabled = true;
     controls.minDistance = 1;
@@ -1298,6 +1301,11 @@ function init() {
     controls.enablePan = false;
     controls.saveState();
     transformControls = new TransformControls(camera, drawingCanvas);
+
+    directControls = new OrbitControls(camera, drawingCanvas);
+    directControls.enableRotate = false;
+    directControls.enableZoom = false;
+    directControls.enablePan = false;
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
