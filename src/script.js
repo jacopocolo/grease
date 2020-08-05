@@ -1,10 +1,12 @@
 import * as THREE from "../build/three.module.js";
-import { OrbitControls } from "https://threejs.org/examples/jsm/controls/OrbitControls.js";
-import { TransformControls } from "https://threejs.org/examples/jsm/controls/TransformControls.js";
-import { Line2 } from "https://threejs.org/examples/jsm/lines/Line2.js";
-import { LineMaterial } from "https://threejs.org/examples/jsm/lines/LineMaterial.js";
-import { LineGeometry } from "https://threejs.org/examples/jsm/lines/LineGeometry.js";
-import { GLTFExporter } from 'https://threejs.org/examples/jsm/exporters/GLTFExporter.js';
+import { OrbitControls } from "../build/OrbitControls.js";
+import { TransformControls } from "../build/TransformControls.js";
+import {
+    MeshLine,
+    MeshLineMaterial,
+    MeshLineRaycast
+} from '../build/meshline.js';
+import { GLTFExporter } from '../build/GLTFExporter.js';
 import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
 
 var app = new Vue({
@@ -13,328 +15,84 @@ var app = new Vue({
         selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
         selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
         isAGroupSelected: false, //Transform tools must be restricted if true
-        lineColor: 'rgb(255, 255, 255)', //Rgb value
-        lineWidth: 3, //Default 10
-        lineWidthEl: undefined, //filled in mount()
+        selectedColor: 'lightest', //buffer from the selector so it can be genericized
+        lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
+        lineWidth: 3, //Default 3
         selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
         linesNeedThemeUpdate: false,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
         selection: {}, //to be filled from init
+        exportTo: {},
         modal: {
             show: false,
-            title: 'This is your save file',
+            mode: 'loader', //modal, loader
+            title: 'Saving your drawing',
+            helptext: 'This might take a moment, please be patient',
             image: ''
         },
-        exportTo: {
-            json: async function () {
-                var itemProcessed = 0;
-                var json = [];
-                var mirroredObject = [];
-                scene.children.forEach(obj => {
-                    //check if it's a line, if it's in the right layer and that we don't already have its original
-                    if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
-                        var line = {};
-                        line.c = {};
-                        //Color could be replaced by a single number 1-4
-                        //Where 1 is lightest and 4 is dark
-                        //This would reduce the length significantly
-                        line.c.r = obj.material.color.r * 255;
-                        line.c.g = obj.material.color.g * 255;
-                        line.c.b = obj.material.color.b * 255;
-                        line.w = obj.material.linewidth;
-                        line.g = obj.geometry.userData;
-
-                        var position = new THREE.Vector3();
-                        position = obj.getWorldPosition(position);
-                        line.p = position;
-
-                        var quaternion = new THREE.Quaternion();
-                        quaternion = obj.getWorldQuaternion(quaternion);
-                        line.q = quaternion;
-
-                        var scale = new THREE.Vector3();
-                        scale = obj.getWorldScale(scale);
-                        line.s = scale;
-
-                        if (obj.userData.mirror) {
-                            //Push the id of the mirrored line in the array to exclude mirrors
-                            mirroredObject.push(obj.userData.mirror);
-                        };
-                        //This is all we need to restore its mirror, the renderLine takes care of it
-                        if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
-
-                        json.push(line);
-                    }
-                    itemProcessed = itemProcessed + 1;
-                    if (itemProcessed >= scene.children.length) {
-                        return
-                    }
-                });
-                return json
-            },
-            gltf: function () {
-                //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
-                var scene2 = new THREE.Scene();
-                function exportGLTF(input) {
-                    var gltfExporter = new GLTFExporter();
-                    var options = {
-                    };
-                    gltfExporter.parse(input, function (result) {
-                        if (result instanceof ArrayBuffer) {
-                            saveArrayBuffer(result, 'scene.glb');
-                        } else {
-                            var output = JSON.stringify(result, null, 2);
-                            // console.log(output);
-                            saveString(output, 'scene.gltf');
-                        }
-                    }, options);
-
-                    scene2.traverse(object => {
-                        if (!object.isMesh) return
-
-                        console.log('dispose geometry!')
-                        object.geometry.dispose()
-
-                        if (object.material.isMaterial) {
-                            cleanMaterial(object.material)
-                        } else {
-                            // an array of materials
-                            for (const material of object.material) cleanMaterial(material)
-                        }
-                    })
-                    const cleanMaterial = material => {
-                        console.log('dispose material!')
-                        material.dispose()
-                        // dispose textures
-                        for (const key of Object.keys(material)) {
-                            const value = material[key]
-                            if (value && typeof value === 'object' && 'minFilter' in value) {
-                                console.log('dispose texture!')
-                                value.dispose()
-                            }
-                        }
-                    }
-                    scene2.dispose();
-                }
-                var link = document.createElement('a');
-                link.style.display = 'none';
-                document.body.appendChild(link); // Firefox workaround, see #6594
-                function save(blob, filename) {
-                    link.href = URL.createObjectURL(blob);
-                    link.download = filename;
-                    link.click();
-                    // URL.revokeObjectURL( url ); breaks Firefox...
-                }
-                function saveString(text, filename) {
-                    save(new Blob([text], {
-                        type: 'text/plain'
-                    }), filename);
-                }
-                function saveArrayBuffer(buffer, filename) {
-                    save(new Blob([buffer], {
-                        type: 'application/octet-stream'
-                    }), filename);
-                }
-                //may need to scale up a bit
-                function convertLine2toLine() {
-                    var itemProcessed = 0;
-                    scene.children.forEach(obj => {
-                        if (obj.geometry && obj.geometry.type == "LineGeometry" && obj.layers.mask == 2) {
-                            var material = new THREE.LineBasicMaterial({
-                                color: obj.material.color,
-                                linewidth: obj.material.linewidth
-                            });
-                            var geometry = new THREE.BufferGeometry();
-                            var vertices = new Float32Array(obj.geometry.userData);
-                            geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-                            var convertedLine = new THREE.Line(geometry, material);
-                            var position = obj.getWorldPosition(position);
-                            var quaternion = obj.getWorldQuaternion(quaternion);
-                            var scale = obj.getWorldScale(scale);
-                            convertedLine.position.set(position.x, position.y, position.z)
-                            convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
-                            convertedLine.scale.set(scale.x, scale.y, scale.z)
-                            scene2.add(convertedLine);
-                            convertedLine.geometry.center();
-                        }
-                        itemProcessed = itemProcessed + 1;
-                        if (itemProcessed === scene.children.length) {
-                            exportGLTF(scene2);
-                        }
-                    })
-                }
-                convertLine2toLine()
-            },
-            gif: function () {
-                makingGif = true;
-                app.autoRotate = true;
-                controls.autoRotateSpeed = 30.0;
-
-                gif = new GIF({
-                    workers: 10,
-                    quality: 10,
-                    workerScript: '../build/gif.worker.js'
-                });
-
-                gif.on("finished", function (blob) {
-                    app.modal.show = true;
-                    app.modal.image = URL.createObjectURL(blob);
-                    console.log("rendered");
-                    app.autoRotate = false;
-                });
-            },
-            image: function () {
-                //nothing yet
-            },
-            imageWithEncodedFile: async function () {
-                app.exportTo.json().then(function (json) {
-                    json = JSON.stringify(json);
-                    function encodeJsonInCanvas(json, ctx) {
-                        console.log('Encoding…')
-                        var pixels = [];
-                        for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
-                            var pixel = {};
-                            pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
-                            pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
-                            pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
-                            // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
-                            pixels.push(pixel);
-                        }
-                        var count = 0
-                        for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
-                            for (var x = 0; x < canvasWithEncodedImage.width; x++) {
-                                if (count < pixels.length) {
-                                    ctx.fillStyle = "rgb(" +
-                                        pixels[count].r
-                                        + "," +
-                                        pixels[count].g
-                                        + "," +
-                                        pixels[count].b
-                                        + ")";
-                                    ctx.fillRect(x, y, 1, 1);
-                                    count = count + 1;
-                                } else {
-                                    app.modal.show = true;
-                                    var hRatio = canvasWithEncodedImage.width / img.width;
-                                    var vRatio = canvasWithEncodedImage.height / img.height;
-                                    var ratio = Math.min(hRatio, vRatio);
-                                    ctx.drawImage(img,
-                                        0,
-                                        0,
-                                        img.width,
-                                        img.height,
-                                        padding,
-                                        padding,
-                                        (img.width * ratio) - padding * 2,
-                                        (img.height * ratio) - padding * 2
-                                    );
-                                    app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
-                                }
-                            }
-                        }
-                    }
-                    //generate stringified json from scene
-                    var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-                    renderer.render(scene, camera);
-                    var imgData = renderer.domElement.toDataURL();
-                    var img = new Image();
-                    //Do a quick calulation of the height of the image based on how many characters are in the JSON
-                    encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
-                    var canvasWithEncodedImage = document.createElement('canvas');
-                    canvasWithEncodedImage.width = encodedImageWidth;
-                    canvasWithEncodedImage.height = encodedImageHeigth;
-                    let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
-                    var ctx = canvasWithEncodedImage.getContext("2d");
-                    var padding = 10;
-                    ctx.imageSmoothingEnabled = false;
-                    ctx.oImageSmoothingEnabled = false;
-                    ctx.webkitImageSmoothingEnabled = false;
-                    ctx.msImageSmoothingEnabled = false;
-                    ctx.fillStyle = 'rgb(2, 32, 132)';
-                    ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-                    ctx.strokeStyle = 'rgb(255, 255, 255)';
-                    ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
-                    var infoBox = { height: 100, width: 250 };
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - padding - 1,
-                        blueprintImage.height - infoBox.height
-                    );
-                    ctx.stroke();
-
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - padding - 2
-                    );
-                    ctx.stroke();
-                    ctx.fillStyle = 'rgb(255, 255, 255)';
-                    ctx.font = "12px Courier New";
-                    ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height + (padding * 3)
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - padding - 1,
-                        blueprintImage.height - infoBox.height + (padding * 3)
-                    );
-                    ctx.stroke();
-                    ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
-                    ctx.beginPath();
-                    ctx.moveTo(
-                        blueprintImage.width - infoBox.width,
-                        blueprintImage.height - infoBox.height + (padding * 6)
-                    );
-                    ctx.lineTo(
-                        blueprintImage.width - padding - 1,
-                        blueprintImage.height - infoBox.height + (padding * 6)
-                    );
-                    ctx.stroke();
-                    ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
-                    ctx.fillStyle = 'rgb(255, 255, 255)';
-                    ctx.font = "15px Courier New";
-                    ctx.fillText("DO NOT MODIFY", 20, 30);
-                    ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
-                    ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
-                    img.src = imgData;
-                    img.onload = function () {
-                        encodeJsonInCanvas(json, ctx);
-                    };
-                });
-            }
-        }
+        experimental: false,
+        zDepth: 0, //this value is inverted in the code
     },
     watch: {
-        selectedTheme: function () {
-            app.linesNeedThemeUpdate = true;
-        },
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
-            //re-add event listeners after a switch
-            // if (app.selectedTool == 'draw') {
-            //     this.lineWidthEl.addEventListener('mousedown', this.lineWidthStartDrag);
-            //     this.lineWidthEl.addEventListener('touchstart', this.lineWidthStartDrag);
-            // }
+        },
+        selectedColor: function () {
+            switch (true) {
+                case (app.selectedColor == "lightest"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                    break;
+                case (app.selectedColor == "light"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+                    break;
+                case (app.selectedColor == "medium"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+                    break;
+                case (app.selectedColor == "dark"):
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
+                    break;
+                default:
+                    app.lineColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'); //safe
+            }
+        },
+        zDepth: function () {
+            line.drawingPlane.position.copy(new THREE.Vector3(0, 0, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
         }
     },
     methods: {
         duplicateSelected: function () {
             app.selection.duplicate()
         },
+        deselect: function () {
+            app.selection.deselectFromButton()
+        },
+        resetCamera: function () {
+            camera.position.set(0, 0, 2);
+            controls.reset();
+        },
         //MOUSE HANDLERS
+        onTapStart: function (event) {
+            mouse.updateCoordinates(event);
+            //DRAW
+            if (this.selectedTool == "draw") {
+                line.start();
+            }
+            //ERASER
+            else if (this.selectedTool == "erase") {
+                eraser.start();
+            }
+            //SELECT
+            else if (this.selectedTool == "select") {
+                app.selection.start();
+            }
+            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
+        },
         onTapMove: function (event) {
             mouse.updateCoordinates(event);
             //DRAW
@@ -367,78 +125,79 @@ var app = new Vue({
             }
             drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
             drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
-        },
-        onTapStart: function (event) {
-            if (event.which == 3) return;
-            mouse.updateCoordinates(event);
-            //DRAW
-            if (this.selectedTool == "draw") {
-                line.start();
-            }
-            //ERASER
-            else if (this.selectedTool == "erase") {
-                eraser.start();
-            }
-            //SELECT
-            else if (this.selectedTool == "select") {
-                app.selection.start();
-            }
-            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         }
     },
+    mounted() {
+        document.getElementById('welcome').style.zIndex = -1;
+        var element = document.getElementById("welcome")
+        element.parentNode.removeChild(element);
+    }
 });
 
 Vue.component("modal", {
     //mode: loading, image
     //title:
-    //body
+    //helpText
     //img
-    props: ['title', 'source'],
+    props: ['mode', 'title', 'helptext', 'source'],
     template: `
-    <transition name="modal">
     <div class="modal-mask">
         <div class="modal-wrapper">
             <div class="modal-container">
-                <div class="modal-header">
-                    <slot name="header">
-                        {{title}}
-                    </slot>
-                </div>
-                <div class="modal-body">
+
+                <div v-if="mode == 'modal'" class="modal-body">
                     <slot name="body">
-                        <img :src="source" class="saveImg" id="saveImg">
+                        <div class="modal-left-column">
+                            <img :src="source" class="saveImg" id="saveImg">
+                        </div>
+                        <div class="modal-right-column">
+                        
+                        <div class="modal-header">
+                            <slot name="header">
+                                {{title}}
+                            </slot>
+                        </div>
+
+                        <div class="modal-helptext">
+                            <slot name="helptext">
+                                {{helptext}}
+                            </slot>
+                        </div>
+                        <div class="primaryButton modal-button" @click="$emit('close')">
+                            Done
+                        </div>
+                        </div>
                     </slot>
                 </div>
-                <div class="modal-footer">
-                    <slot name="footer">
-                        default footer
-                        <button class="modal-default-button" @click="$emit('close')">
-                            OK
-                        </button>
-                    </slot>
+
+                <div v-else class="modal-body modal-centered">
+                            <div class="modal-header">
+                                <slot name="header">
+                                {{title}}
+                                </slot>
+                            </div>
+
+                            <div class="modal-helptext">
+                                <slot name="helptext">
+                                    {{helptext}}
+                                </slot>
+                            </div>
                 </div>
+
             </div>
         </div>
     </div>
-</transition>
-  `
+`
 });
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
-var controls, transformControls;
-var matLine, matLineBasic;
-var matLineDrawn;
-var materials = [];
+var controls, directControls, transformControls;
 
-var paths = [];
+var paths = []; //For canvas rendering of selection and eraser
 
-//var selection = app.selection;
-var transforming;
 var raycaster;
 var raycastObject;
+var threshold = 0.001;
 
 var insetWidth;
 var insetHeight;
@@ -464,11 +223,13 @@ var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
 let mouse = {
+    down: false,
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     updateCoordinates: function (event) {
+        //This seems like a simple enough implementation of a smoothing approach https://github.com/dulnan/lazy-brush/blob/master/src/LazyBrush.js
         if (event.touches) {
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
@@ -485,106 +246,114 @@ let mouse = {
 };
 
 let line = {
-    linepositions: [],
     start: function () {
-        this.linepositions = []; //reset array
-        //draw line
-        context.beginPath();
-        context.lineWidth = app.lineWidth;
-        context.strokeStyle = app.lineColor;
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.moveTo(mouse.cx, mouse.cy);
-        //Start
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        //Draw on canvas
-        context.lineTo(mouse.cx, mouse.cy);
-        context.stroke();
-        //Add line elements
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        this.linepositions.push(vNow.x, vNow.y, vNow.z);
+        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
     },
     end: function () {
-        //render line
-        context.lineTo(mouse.cx, mouse.cy);
-        context.stroke();
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        //Close and add line to scene
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        this.linepositions.push(vNow.x, vNow.y, vNow.z);
-        this.renderLine(this.linepositions, app.lineColor, app.lineWidth, app.mirror, false);
+        this.render.end();
     },
-    renderLine: function (positions, lineColor, lineWidth, mirrorOn, returnLineBool) {
-        var matLineDrawn = new LineMaterial({
-            color: new THREE.Color(lineColor),
-            linewidth: lineWidth, // in pixels
-            vertexColors: false,
-            wireframe: false,
-            side: THREE.DoubleSide,
-            depthWrite: true
-        });
-        materials.push(matLineDrawn); //this is needed to set the resolution in the renderer properly
-        var geometry = new LineGeometry();
-        var positions = this.rejectPalm(positions);
-        geometry.setPositions(positions);
-        geometry.userData = positions;
-        var l = new Line2(geometry, matLineDrawn);
-        l.position.set(
-            l.geometry.boundingSphere.center.x,
-            l.geometry.boundingSphere.center.y,
-            l.geometry.boundingSphere.center.z
-        );
-        l.geometry.center();
-        l.needsUpdate = true;
-        l.computeLineDistances();
-        l.scale.set(1, 1, 1);
-        l.layers.set(1);
-        var lposition = l.getWorldPosition(lposition);
-        var lquaternion = l.getWorldQuaternion(lquaternion);
-        var lscale = l.getWorldScale(lscale);
-        scene.add(l);
-        switch (mirrorOn) {
-            case "x":
-                mirror.object(l, 'x')
-                break;
-            case "y":
-                mirror.object(l, 'y')
-                break;
-            case "z":
-                mirror.object(l, 'z')
-                break;
-            default:
-            //it's false, do nothing
-        }
-        if (returnLineBool == true) {
-            return l;
-        }
-    },
-    rejectPalm: function (positions) {
-        //rudimentary approach to palm rejection
-        //if two points are are too far apart
-        //they are artifacts of palm rejection failing
-        var arr = positions;
-        for (var i = 0; i < arr.length - 2; i = i + 2) {
-            if (arr.length[i] - arr.length[i + 2] > 0.1) {
-                arr = arr.slice(i)
+    render: {
+        line: null,
+        geometry: null,
+        uuid: null,
+        start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
+            var vNow = new THREE.Vector3(x, y, z);
+            if (unproject) { vNow.unproject(camera) };
+            this.geometry = new THREE.Geometry();
+            this.line = new MeshLine();
+            var material = new MeshLineMaterial({
+                lineWidth: lineWidth / 1500, //kind of eyballing it
+                sizeAttenuation: 0,
+                color: new THREE.Color(lineColor),
+                side: THREE.DoubleSide,
+                fog: true,
+                //resolution: new THREE.Vector2(insetWidth, insetHeight)
+            });
+            var mesh = new THREE.Mesh(this.line.geometry, material);
+            mesh.raycast = MeshLineRaycast;
+            scene.add(mesh);
+
+            mesh.userData.lineColor = lineColor;
+            mesh.userData.lineWidth = lineWidth;
+
+            switch (mirrorOn) {
+                case "x":
+                    mirror.object(mesh, 'x')
+                    break;
+                case "y":
+                    mirror.object(mesh, 'y')
+                    break;
+                case "z":
+                    mirror.object(mesh, 'z')
+                    break;
+                default:
+                //it's false, do nothing
             }
-        }
-        return arr
+
+            mesh.layers.set(1);
+            this.uuid = mesh.uuid;
+        },
+        update: function (x, y, z, unproject) {
+            var vNow = new THREE.Vector3(x, y, z);
+            if (unproject) { vNow.unproject(camera) };
+            this.geometry.vertices.push(vNow);
+            this.setGeometry();
+        },
+        end: function () {
+            this.geometry.userData = this.geometry.vertices;
+            this.setGeometry('mouseup');
+            //reset
+            this.line = null;
+            this.geometry = null;
+            this.uuid = null;
+        },
+        setGeometry(mouseup) {
+            this.line.setGeometry(this.geometry, function (p) {
+                return Math.pow(2 * p * (1 - p), 0.5) * 4
+            });
+
+            if (mouseup) {
+                var mesh = scene.getObjectByProperty('uuid', this.uuid);
+                mesh.position.set(
+                    mesh.geometry.boundingSphere.center.x,
+                    mesh.geometry.boundingSphere.center.y,
+                    mesh.geometry.boundingSphere.center.z
+                );
+                this.geometry.center();
+                this.setGeometry();
+                this.geometry.verticesNeedsUpdate = true;
+                this.geometry.needsUpdate = true;
+
+                if (mesh.userData.mirror) {
+                    mirror.updateMirrorOf(mesh);
+                }
+            }
+        },
+        fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
+            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
+            for (var i = 1; i < vertices.length; i++) {
+                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
+            }
+            var l = scene.getObjectByProperty('uuid', this.uuid);
+            line.render.end();
+            if (returnLineBool == true) {
+                return l;
+            }
+        },
+    },
+    drawingPlane: null, //defined in init
+    updateDrawingPlane: function () {
+        this.drawingPlane.rotation.copy(camera.rotation);
     }
-}
+};
 
 let eraser = {
     start: function () {
         raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = 0.1;
+        raycaster.params.Line.threshold = threshold;
         raycaster.layers.set(1);
         paths.push([mouse.cx, mouse.cy]);
     },
@@ -592,7 +361,7 @@ let eraser = {
         paths[paths.length - 1].push([mouse.cx, mouse.cy]);
         //This is to render line transparency,
         //we are redrawing the line every frame
-        this.redrawLine('rgba(255,20,147, 0.15)');
+        this.redrawLine('rgba(255,255,255)');
 
         try {
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
@@ -618,6 +387,7 @@ let eraser = {
         // clear canvas
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         context.strokeStyle = color;
+        context.globalAlpha = 0.25;
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.lineWidth = 30;
@@ -632,171 +402,91 @@ let eraser = {
         }
         context.stroke();
     },
-}
+};
 
 app.selection = {
     array: [],
-    current: [],
-    selecting: [],
-    somethingSelected: false,
+    selection: [],
+    selected: [],
     helper: undefined,
     group: undefined,
+    transforming: false,
+    raycaster: new THREE.Raycaster(),
+    color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        if (!transforming) {
+        if (!this.transforming) {
             paths.push([mouse.cx, mouse.cy]);
-            raycaster = new THREE.Raycaster();
-            raycaster.layers.set(1);
-            raycaster.params.Line.threshold = 1;
-            try {
-                raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                if (intersectObject.geometry.type == "LineGeometry"
-                    && this.selecting.indexOf(intersectObject) < 0
-                    && !intersectObject.material.dashed
-                ) {
-                    this.deselect();
-                    this.toggleDash(intersectObject, true);
-                    this.selecting.push(intersectObject);
-                }
-            } catch (err) {
-                //if there's an error here, it just means that the raycaster found nothing
-            }
+            this.raycaster = new THREE.Raycaster();
+            this.raycaster.params.Line.threshold = threshold;
+            this.raycaster.layers.set(1);
         }
     },
     move: function () {
-        //If we are not transforming
-        if (!transforming) {
+        if (!this.transforming && this.selected.length == 0) {
             paths[paths.length - 1].push([mouse.cx, mouse.cy]);
             //This is to render line transparency,
             //we are redrawing the line every frame
-            this.redrawLine('rgba(255, 255, 255, 0.15)');
-        }
-        //If nothing is already selected we add to the selection
-        if (this.current.length === 0) {
+            this.redrawLine(this.color);
             try {
-                raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                var intersectObject = raycaster.intersectObjects(scene.children)[0].object;
-                //Check if the object is a line, is not in the array already and it not a mirror
-                if (intersectObject.geometry.type == "LineGeometry"
-                    && this.selecting.indexOf(intersectObject) < 0
-                    && !intersectObject.material.dashed) {
-                    this.toggleDash(intersectObject, true);
-                    this.selecting.push(intersectObject);
+                this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+                //scene.add(new THREE.ArrowHelper( this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff ));
+                var intersectedObject = this.raycaster.intersectObjects(scene.children)[0].object;
+                if (intersectedObject != undefined && this.selection.indexOf(intersectedObject) < 0 && this.selected.indexOf(intersectedObject) < 0) {
+                    this.selection.push(intersectedObject);
+                    this.toggleSelectionColor(intersectedObject, true);
                 }
             } catch (err) {
-                //if there's an error here, it just means that the raycaster found nothing
+                //console.log(err);
             }
         }
     },
     end: function () {
-        if (!transforming) {
+        if (!this.transforming) {
             context.closePath();
             context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
             paths = [];
+            if (this.selection.length == 0 || this.selected.length > 0) {
+                this.deselect()
+            } else {
+                this.select(this.selection)
+            }
         }
-        //If selecting array is empty and we are not transforming: it means we selected nothing and we deselect
-        if (this.selecting.length == 0 && !transforming) {
-            this.deselect();
-        } else {
-            this.addTransformControls(this.selecting);
-        }
-        // //If tempArray has one selected object,
-        // //we attach the controls only to that object
-        // //and push that object into the current array
-        // else if (this.selecting.length == 1) {
-        //     //somethingSelected = true;
-        //     this.helper = new THREE.BoxHelper(this.selecting[0], 0xfecf12);
-        //     scene.add(this.helper);
-        //     transformControls = new TransformControls(camera, drawingCanvas);
-        //     transformControls.attach(this.selecting[0]);
-        //     this.current.push(this.selecting[0]);
-        //     scene.add(transformControls);
-        //     transformControls.addEventListener("mouseDown", function () {
-        //         transforming = true;
-        //     });
-        //     transformControls.addEventListener("change", function () {
-        //         if (transforming == true) { mirror.updateMirrorOf(transformControls.object) }
-        //         app.selection.helper.update();
-        //     }
-        //     );
-        //     transformControls.addEventListener("mouseUp", function () {
-        //         transforming = false;
-        //     });
-        //     this.selecting = []; //reset
-        // }
-        // //If selecting has several selected objects,
-        // //we group them together and attach transform controls to the group
-        // //and push them to the group array
-        // else if (this.selecting.length > 1) {
-        //     this.group = new THREE.Group();
-        //     scene.add(this.group);
-        //     this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
-        //     scene.add(this.helper);
-        //     //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
-        //     var center = new THREE.Vector3();
-        //     this.selecting.forEach(obj => {
-        //         center.add(obj.position);
-        //     })
-        //     center.divideScalar(this.selecting.length);
-        //     this.group.position.set(center.x, center.y, center.z);
-        //     //Add all the selected elements to the temporary groups
-        //     this.selecting.forEach(element => {
-        //         this.toggleDash(element, true)
-        //         this.group.attach(element); //attach and not add manages transform controls super well
-        //         this.current.push(element); //we also add it to the current selection in case we need it for duplication
-        //     })
-        //     this.helper.update();
-        //     //Attach controls to the temporary group
-        //     transformControls = new TransformControls(camera, drawingCanvas);
-        //     transformControls.attach(this.group);
-        //     scene.add(transformControls);
-        //     transformControls.addEventListener("mouseDown", function () {
-        //         transforming = true;
-        //     });
-        //     transformControls.addEventListener("change", function () {
-        //         if (transforming == true) {
-        //             mirror.updateMirrorOf(transformControls.object);
-        //         }
-        //         app.selection.helper.update();
-        //     });
-        //     transformControls.addEventListener("mouseUp", function () {
-        //         transforming = false;
-        //     });
-        //     this.selecting = []; //reset
-        // }
     },
     duplicate: function () {
         //it's a group
-        if (this.current.length > 1) {
+        if (this.selected.length > 1) {
             var sourcePosition = this.group.position;
             var duplicateArray = [];
-            this.current.forEach(object => {
+            console.log(app.selection.selection);
+            this.selected.forEach(object => {
                 var duplicate = object.clone();
+                duplicate.layers.set(1);
+                duplicate.raycast = MeshLineRaycast;
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
                 duplicateArray.push(duplicate);
+                scene.add(duplicate);
                 mirror.object(duplicate, duplicate.userData.mirrorAxis);
             })
-            //deselect current group
+            console.log(duplicateArray);
+            //deselect selected group
             this.deselect();
-            this.current = duplicateArray;
-            console.log(this.current)
-            // //Add all the selected elements to the temporary groups
-            this.current.forEach(element => {
-                this.toggleDash(element, true)
+            app.selection.selection = duplicateArray;
+            app.selection.selection.forEach(element => {
+                this.toggleSelectionColor(element, true)
             })
-            this.addTransformControls(this.current);
-            this.group.position.set(
-                sourcePosition.x + 0.1,
-                sourcePosition.y,
-                sourcePosition.z
-            )
+            this.select(app.selection.selection);
+            // this.group.position.set(
+            //     sourcePosition.x + 0.1,
+            //     sourcePosition.y,
+            //     sourcePosition.z
+            // );
             this.helper.update();
             mirror.updateMirrorOf(this.group);
         }
         //it's a single objet
-        else if (this.current.length == 1) {
-            var duplicate = this.current[0].clone();
+        else if (this.selected.length == 1) {
+            var duplicate = this.selected[0].clone();
             var originalPosition = duplicate.position;
             var duplicateMaterial = duplicate.material.clone();
             duplicate.material = duplicateMaterial;
@@ -806,87 +496,135 @@ app.selection = {
                 originalPosition.z
             )
             scene.add(duplicate);
+            duplicate.raycast = MeshLineRaycast;
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
-            //deselect current object
+            //deselect selected object
             this.deselect();
-            this.selecting.push(duplicate);
-            this.addTransformControls(this.selecting);
-            this.selecting = [];
+            this.selection.push(duplicate);
+            this.select(this.selection);
+            this.selection = [];
             this.helper.update();
         }
     },
-    deselect: function () {
-        //Ungroup if we have a group selection
-        if (typeof this.group !== 'undefined') {
-            var ungroupArray = [];
-            for (var i = 0; i < this.group.children.length; i++) {
-                var object = this.group.children[i];
-                var position = new THREE.Vector3();
-                object.getWorldPosition(position);
-                var quaternion = new THREE.Quaternion();
-                object.getWorldQuaternion(quaternion);
-                var scale = new THREE.Vector3();
-                object.getWorldScale(scale);
-                this.toggleDash(object, false)
-                var objectToUngroup = {
-                    obj: object,
-                    worldPosition: position,
-                    worldQuaternion: quaternion,
-                    worldScale: scale
-                }
-                ungroupArray.push(objectToUngroup);
-            }
-            ungroupArray.forEach(objectToUngroup => {
-                let obj = objectToUngroup.obj
-                scene.add(obj);
-                obj.position.set(
-                    objectToUngroup.worldPosition.x,
-                    objectToUngroup.worldPosition.y,
-                    objectToUngroup.worldPosition.z
-                );
-                obj.quaternion.set(
-                    objectToUngroup.worldQuaternion.x,
-                    objectToUngroup.worldQuaternion.y,
-                    objectToUngroup.worldQuaternion.z,
-                    objectToUngroup.worldQuaternion.w
-                );
-                obj.scale.set(
-                    objectToUngroup.worldScale.x,
-                    objectToUngroup.worldScale.y,
-                    objectToUngroup.worldScale.z
-                );
+    select: function (selection) {
+        //selection can not be zero so it's either 1 or more than 1
+        //It's a single element
+        if (selection.length == 1) {
+            this.helper = new THREE.BoxHelper(selection[0], new THREE.Color(this.color));
+            scene.add(this.helper);
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(selection[0]);
+            transformControls.addEventListener("mouseDown", function () {
+                app.selection.transforming = true;
+            });
+            transformControls.addEventListener("touchstart", function () {
+                app.selection.transforming = true;
+            });
+            transformControls.addEventListener("objectChange", function () {
+                mirror.updateMirrorOf(app.selection.selected[0])
+            });
+            transformControls.addEventListener("mouseUp", function () {
+                app.selection.transforming = false;
+            });
+            transformControls.addEventListener("touchend", function () {
+                app.selection.transforming = false;
+            });
+            this.selected.push(selection[0])
+            this.helper.update();
+        }
+        //It's a group
+        else {
+            this.group = new THREE.Group();
+            scene.add(this.group);
+            this.helper = new THREE.BoxHelper(this.group, new THREE.Color(this.color));
+            scene.add(this.helper);
+            //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
+            var center = new THREE.Vector3();
+            selection.forEach(obj => {
+                center.add(obj.position);
             })
-            this.current = [];
-            this.group = undefined;
-            transformControls.detach();
-            transforming = false;
-            scene.remove(this.group);
+            center.divideScalar(selection.length);
+            this.group.position.set(center.x, center.y, center.z);
+            //Clone all the elements in the selection to the temporary groups
+            selection.forEach(element => {
+                var clone = element.clone()
+                scene.add(clone);
+                this.group.attach(clone);
+                clone.userData.uuid = element.uuid;
+                clone.visible = false;
+                this.selected.push(element);
+            })
+            this.helper.update();
+            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls.attach(this.group);
         }
-        else if (this.current.length == 1) {
-            var object = this.current[0];
-            console.log(object)
-            //blueprint.updateBlueprintLine(object);
-            this.toggleDash(object, false);
-        }
-        transformControls.detach();
-        transformControls.dispose();
-        this.current = [];
-        scene.remove(app.selection.helper);
+        transformControls.addEventListener("mouseDown", function () {
+            app.selection.transforming = true;
+        });
+        transformControls.addEventListener("touchstart", function () {
+            app.selection.transforming = true;
+        });
+        transformControls.addEventListener("objectChange", function () {
+            app.selection.helper.update();
+            transformControls.object.children.forEach(obj => {
+                var position = new THREE.Vector3();
+                obj.getWorldPosition(position);
+                var quaternion = new THREE.Quaternion();
+                obj.getWorldQuaternion(quaternion);
+                var scale = new THREE.Vector3();
+                obj.getWorldScale(scale);
+                var selectedObj = scene.getObjectByProperty('uuid', obj.userData.uuid);
+                selectedObj.position.set(position.x, position.y, position.z)
+                selectedObj.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
+                selectedObj.scale.set(scale.x, scale.y, scale.z)
+                mirror.updateMirrorOf(selectedObj)
+            });
+        });
+        transformControls.addEventListener("mouseUp", function () {
+            app.selection.transforming = false;
+        });
+        transformControls.addEventListener("touchend", function () {
+            app.selection.transforming = true;
+        });
+        scene.add(transformControls);
+        this.selection = [];
     },
-    toggleDash: function (object, bool) {
-        var material = object.material;
-        material.dashed = bool;
-        var ratio = 1000;
-        // dashed is implemented as a defines -- not as a uniform. this could be changed.
-        // ... or THREE.LineDashedMaterial could be implemented as a separate material
-        // temporary hack - renderer should do this eventually
-        if (bool) material.defines.USE_DASH = "";
-        else delete material.defines.USE_DASH;
-        material.dashSize = bool ? material.linewidth / ratio : 1000;
-        material.gapSize = bool ? material.linewidth / ratio : 1000;
-        //material.wireframe = bool;
-        material.dashScale = bool ? 1 : 1000;
-        material.needsUpdate = true;
+    deselect: function () {
+        transformControls.detach();
+        scene.remove(transformControls);
+        scene.remove(this.helper);
+
+        switch (true) {
+            case (this.selected.length == 0):
+                break;
+            case (this.selected.length == 1):
+
+                this.toggleSelectionColor(this.selected[0], false);
+
+                break;
+            case (this.selected.length > 1):
+                var ungroupArray = [];
+
+                for (var i = 0; i < this.selected.length; i++) {
+                    var obj = this.selected[i];
+                    this.toggleSelectionColor(obj, false);
+                }
+
+                scene.remove(this.group);
+                this.group = undefined;
+
+                break;
+            default:
+        }
+        this.selected = [];
+        this.selection = [];
+    },
+    toggleSelectionColor: function (object, bool) {
+        if (bool) {
+            object.material.color = new THREE.Color(this.color);
+        } else {
+            object.material.color = new THREE.Color(object.userData.lineColor);
+        }
     },
     computeGroupCenter: function () {
         var center = new THREE.Vector3();
@@ -902,6 +640,7 @@ app.selection = {
         // clear canvas
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         context.strokeStyle = color;
+        context.globalAlpha = 0.25;
         context.lineCap = 'round';
         context.lineJoin = 'round';
         context.lineWidth = 30;
@@ -915,70 +654,8 @@ app.selection = {
                 context.lineTo(path[j][0], path[j][1]);
         }
         context.stroke();
-    },
-    addTransformControls: function (selectionArray) {
-        //It's a single element
-        if (selectionArray.length == 1) {
-            this.helper = new THREE.BoxHelper(selectionArray[0], 0xfecf12);
-            scene.add(this.helper);
-            transformControls = new TransformControls(camera, drawingCanvas);
-            transformControls.attach(selectionArray[0]);
-            this.current.push(selectionArray[0]);
-            scene.add(transformControls);
-            transformControls.rotationSnap = 0.0174533;  //1 degree
-            transformControls.addEventListener("mouseDown", function () {
-                transforming = true;
-            });
-            transformControls.addEventListener("change", function () {
-                if (transforming == true) { mirror.updateMirrorOf(transformControls.object) }
-                app.selection.helper.update();
-            }
-            );
-            transformControls.addEventListener("mouseUp", function () {
-                transforming = false;
-            });
-            this.selecting = []; //reset
-            //It's a group element
-        } else if (selectionArray.length > 1) {
-            this.group = new THREE.Group();
-            scene.add(this.group);
-            this.helper = new THREE.BoxHelper(this.group, 0xfecf12);
-            scene.add(this.helper);
-            //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
-            var center = new THREE.Vector3();
-            selectionArray.forEach(obj => {
-                center.add(obj.position);
-            })
-            center.divideScalar(selectionArray.length);
-            this.group.position.set(center.x, center.y, center.z);
-            //Add all the selected elements to the temporary groups
-            selectionArray.forEach(element => {
-                this.toggleDash(element, true)
-                this.group.attach(element); //attach and not add manages transform controls super well
-                this.current.push(element); //we also add it to the current selection in case we need it for duplication
-            })
-            this.helper.update();
-            //Attach controls to the temporary group
-            transformControls = new TransformControls(camera, drawingCanvas);
-            transformControls.attach(this.group);
-            scene.add(transformControls);
-            transformControls.rotationSnap = 0.0174533; //1 degree
-            transformControls.addEventListener("mouseDown", function () {
-                transforming = true;
-            });
-            transformControls.addEventListener("change", function () {
-                if (transforming == true) {
-                    mirror.updateMirrorOf(transformControls.object);
-                }
-                app.selection.helper.update();
-            });
-            transformControls.addEventListener("mouseUp", function () {
-                transforming = false;
-            });
-            this.selecting = []; //reset
-        }
     }
-}
+};
 
 let mirror = {
     updateMirrorOf: function (obj) {
@@ -1014,11 +691,14 @@ let mirror = {
                 default:
                     return
             }
+            obj.matrixWorldNeedsUpdate = true;
         }
     },
     object: function (obj, axis) {
         console.log('mirror')
         var clone = obj.clone();
+        clone.layers.set(1);
+        clone.raycast = MeshLineRaycast;
         clone.userData.mirror = obj.uuid;
         clone.userData.mirrorAxis = axis;
         obj.userData.mirror = clone.uuid;
@@ -1044,8 +724,10 @@ let mirror = {
             scene.remove(mirroredObject);
         }
     }
-}
+};
 
+//TODO improvements to the save and restore:
+//the image should maintain the correct aspect ratio
 let importFrom = {
     imageWithEncodedFile: function () {
         console.log('importing')
@@ -1058,6 +740,10 @@ let importFrom = {
 
         input.onchange = event => {
 
+            app.modal.show = true;
+            app.modal.mode = 'loader';
+            app.modal.title = "Loading your drawing from image";
+            app.modal.helptext = "This might take a while, please be patient";
             //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well.
 
             //FIREFOX
@@ -1113,7 +799,6 @@ let importFrom = {
             }
         }
         input.click();
-
         function decode(canvas, ctx) {
             var json = '';
             for (var y = encodedImageDataStartingAt; y < canvas.height; y++) {
@@ -1139,42 +824,399 @@ let importFrom = {
         }
     },
     json: function (json) {
+        console.log(json);
         var json = JSON.parse(json);
+        var lightestColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+        var lightColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+        var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+        var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
         json.forEach(importedLine => {
-            var l = line.renderLine(
-                importedLine.g,
-                "rgb(" + importedLine.c.r + "," + importedLine.c.g + "," + importedLine.c.b + ")",
-                importedLine.w,
-                importedLine.a,
-                true);
+            if (importedLine.g.length > 1) { //Let's make sure there are at least 2 points in the line
+                var vertices = [];
 
-            l.position.set(
-                importedLine.p.x,
-                importedLine.p.y,
-                importedLine.p.z
-            );
-            l.quaternion.set(
-                importedLine.q._x,
-                importedLine.q._y,
-                importedLine.q._z,
-                importedLine.q._w,
-            );
-            l.scale.set(
-                importedLine.s.x,
-                importedLine.s.y,
-                importedLine.s.z
-            );
+                for (var i = 0; i < importedLine.g.length; i = i + 3) {
+                    vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+                }
 
-            mirror.updateMirrorOf(l);
+
+                var color;
+                switch (true) {
+                    case (importedLine.c == 0):
+                        color = lightestColor;
+                        break;
+                    case (importedLine.c == 1):
+                        color = lightColor;
+                        break;
+                    case (importedLine.c == 2):
+                        color = mediumColor;
+                        break;
+                    case (importedLine.c == 3):
+                        color = darkColor;
+                        break;
+                    default:
+                        color = lightestColor; //safe
+                }
+
+                var l = line.render.fromVertices(
+                    vertices,
+                    color,
+                    importedLine.w,
+                    importedLine.a,
+                    true);
+
+                l.position.set(
+                    importedLine.p.x,
+                    importedLine.p.y,
+                    importedLine.p.z
+                );
+                l.quaternion.set(
+                    importedLine.q._x,
+                    importedLine.q._y,
+                    importedLine.q._z,
+                    importedLine.q._w,
+                );
+                l.scale.set(
+                    importedLine.s.x,
+                    importedLine.s.y,
+                    importedLine.s.z
+                );
+
+                mirror.updateMirrorOf(l);
+            };
         })
+        app.modal.show = false;
+    }
+};
+
+app.exportTo = {
+    json: async function () {
+        var itemProcessed = 0;
+        var json = [];
+        var mirroredObject = [];
+        var lightestColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+        var lightColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+        var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+        var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
+        scene.children.forEach(obj => {
+            //check if it's a line, if it's in the right layer and that we don't already have its original
+            if (obj.geometry && obj.geometry.type == "MeshLine" && obj.layers.mask == 2 && mirroredObject.indexOf(obj.uuid) == -1) {
+                var line = {};
+                line.c = 0;
+                var color = obj.userData.lineColor;
+                console.log(color === lightColor);
+                //console.log(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'));
+                //To enable theming, colors should be stored as numbers: 0 is lightest, 1 is light, 2 is medium, 3 is dark.
+                switch (true) {
+                    case (color === lightestColor):
+                        line.c = 0;
+                        break;
+                    case (color === lightColor):
+                        line.c = 1;
+                        break;
+                    case (color === mediumColor):
+                        line.c = 2;
+                        break;
+                    case (color === darkColor):
+                        line.c = 3;
+                        break;
+                    default:
+                        return //already defined a
+                }
+                line.w = obj.userData.lineWidth;
+                line.g = [];
+                obj.geometry.vertices.forEach(vector3 => {
+                    line.g.push(vector3.x);
+                    line.g.push(vector3.y);
+                    line.g.push(vector3.z);
+                });
+
+                var position = new THREE.Vector3();
+                position = obj.getWorldPosition(position);
+                line.p = position;
+
+                var quaternion = new THREE.Quaternion();
+                quaternion = obj.getWorldQuaternion(quaternion);
+                line.q = quaternion;
+
+                var scale = new THREE.Vector3();
+                scale = obj.getWorldScale(scale);
+                line.s = scale;
+
+                if (obj.userData.mirror) {
+                    //Push the id of the mirrored line in the array to exclude mirrors
+                    mirroredObject.push(obj.userData.mirror);
+                };
+                //This is all we need to restore its mirror, the renderLine takes care of it
+                if (obj.userData.mirrorAxis) { line.a = obj.userData.mirrorAxis };
+
+                json.push(line);
+            }
+            itemProcessed = itemProcessed + 1;
+            if (itemProcessed >= scene.children.length) {
+                return
+            }
+        });
+        return json
+    },
+    gltf: function () {
+        app.selection.deselect();
+        //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
+        var scene2 = new THREE.Scene();
+        function exportGLTF(input) {
+            var gltfExporter = new GLTFExporter();
+            var options = {
+            };
+            gltfExporter.parse(input, function (result) {
+                if (result instanceof ArrayBuffer) {
+                    saveArrayBuffer(result, 'scene.glb');
+                } else {
+                    var output = JSON.stringify(result, null, 2);
+                    // console.log(output);
+                    saveString(output, 'scene.gltf');
+                }
+            }, options);
+
+            scene2.traverse(object => {
+                if (!object.isMesh) return
+
+                console.log('dispose geometry!')
+                object.geometry.dispose()
+
+                if (object.material.isMaterial) {
+                    cleanMaterial(object.material)
+                } else {
+                    // an array of materials
+                    for (const material of object.material) cleanMaterial(material)
+                }
+            })
+            const cleanMaterial = material => {
+                console.log('dispose material!')
+                material.dispose()
+                // dispose textures
+                for (const key of Object.keys(material)) {
+                    const value = material[key]
+                    if (value && typeof value === 'object' && 'minFilter' in value) {
+                        console.log('dispose texture!')
+                        value.dispose()
+                    }
+                }
+            }
+            scene2.dispose();
+        }
+        var link = document.createElement('a');
+        link.style.display = 'none';
+        document.body.appendChild(link); // Firefox workaround, see #6594
+        function save(blob, filename) {
+            link.href = URL.createObjectURL(blob);
+            link.download = filename;
+            link.click();
+            // URL.revokeObjectURL( url ); breaks Firefox...
+        }
+        function saveString(text, filename) {
+            save(new Blob([text], {
+                type: 'text/plain'
+            }), filename);
+        }
+        function saveArrayBuffer(buffer, filename) {
+            save(new Blob([buffer], {
+                type: 'application/octet-stream'
+            }), filename);
+        }
+        //may need to scale up a bit
+        function convertMeshLinetoLine() {
+            var itemProcessed = 0;
+            scene.children.forEach(obj => {
+                if (obj.geometry && obj.geometry.type == "MeshLine" && obj.layers.mask == 2) {
+                    var material = new THREE.LineBasicMaterial({
+                        color: obj.material.color,
+                        linewidth: obj.material.linewidth
+                    });
+                    var geometry = new THREE.BufferGeometry().setFromPoints(obj.geometry.vertices);
+                    var convertedLine = new THREE.Line(geometry, material);
+                    var position = obj.getWorldPosition(position);
+                    var quaternion = obj.getWorldQuaternion(quaternion);
+                    var scale = obj.getWorldScale(scale);
+                    convertedLine.position.set(position.x, position.y, position.z)
+                    convertedLine.quaternion.set(quaternion.x, quaternion.y, quaternion.z, quaternion.w)
+                    convertedLine.scale.set(scale.x, scale.y, scale.z)
+                    scene2.add(convertedLine);
+                    convertedLine.geometry.center();
+                }
+                itemProcessed = itemProcessed + 1;
+                if (itemProcessed === scene.children.length) {
+                    exportGLTF(scene2);
+                }
+            })
+        }
+        convertMeshLinetoLine()
+    },
+    gif: function () {
+        app.selection.deselect();
+
+        app.modal.show = true;
+        app.modal.mode = 'loader';
+        app.modal.title = "Making you a gif";
+        app.modal.helptext = "This might take a moment, please be patient";
+
+        makingGif = true;
+        app.autoRotate = true;
+        controls.autoRotateSpeed = 30.0;
+
+        gif = new GIF({
+            workers: 10,
+            quality: 10,
+            workerScript: '../build/gif.worker.js'
+        });
+
+        gif.on("finished", function (blob) {
+            app.modal.title = "Here’s your gif";
+            app.modal.helptext = "Long press on the picture on tablet or right click on desktop to save it.";
+            app.modal.mode = "modal";
+            app.modal.image = URL.createObjectURL(blob);
+            console.log("rendered");
+            app.autoRotate = false;
+        });
+    },
+    image: function () {
+        //nothing yet
+    },
+    imageWithEncodedFile: function () {
+        app.selection.deselect();
+        app.modal.mode = 'loader';
+        app.modal.title = "Saving your drawing";
+        app.modal.helptext = "This might take a moment, please be patient";
+        app.modal.show = true;
+
+        app.exportTo.json().then(function (json) {
+
+            function encodeImage() {
+                json = JSON.stringify(json);
+                //generate stringified json from scene
+                var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
+                renderer.render(scene, camera);
+                var imgData = renderer.domElement.toDataURL();
+                var img = new Image();
+                //Do a quick calulation of the height of the image based on how many characters are in the JSON
+                encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
+                var canvasWithEncodedImage = document.createElement('canvas');
+                canvasWithEncodedImage.width = encodedImageWidth;
+                canvasWithEncodedImage.height = encodedImageHeigth;
+                var ctx = canvasWithEncodedImage.getContext("2d");
+                img.src = imgData;
+                img.onload = function () {
+                    var pixels = [];
+                    for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
+                        var pixel = {};
+                        pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
+                        pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
+                        pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
+                        // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
+                        pixels.push(pixel);
+                    }
+                    var count = 0
+                    for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
+                        for (var x = 0; x < canvasWithEncodedImage.width; x++) {
+                            if (count < pixels.length) {
+                                ctx.fillStyle = "rgb(" +
+                                    pixels[count].r
+                                    + "," +
+                                    pixels[count].g
+                                    + "," +
+                                    pixels[count].b
+                                    + ")";
+                                ctx.fillRect(x, y, 1, 1);
+                                count = count + 1;
+                            } else {
+                                app.modal.mode = 'modal';
+                                app.modal.title = 'Save this picture, it’s your save file';
+                                app.modal.helptext = 'Long press on the picture on tablet or right click on desktop to save. The bottom part of this picture contains all the data needed to recreate your 3d sketch, so don’t compress it or modify it.';
+
+                                var hRatio = canvasWithEncodedImage.width / img.width;
+                                var vRatio = canvasWithEncodedImage.height / img.height;
+                                var ratio = Math.min(hRatio, vRatio);
+                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
+                                ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
+                                ctx.drawImage(img,
+                                    0,
+                                    0,
+                                    img.width,
+                                    img.height,
+                                    padding,
+                                    padding,
+                                    (img.width * ratio) - padding * 2,
+                                    (img.height * ratio) - padding * 2
+                                );
+                                let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
+                                var padding = 10;
+                                ctx.imageSmoothingEnabled = false;
+                                ctx.oImageSmoothingEnabled = false;
+                                ctx.webkitImageSmoothingEnabled = false;
+                                ctx.msImageSmoothingEnabled = false;
+                                ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                                ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
+                                var infoBox = { height: 100, width: 250 };
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - padding - 1,
+                                    blueprintImage.height - infoBox.height
+                                );
+                                ctx.stroke();
+
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - padding - 2
+                                );
+                                ctx.stroke();
+                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                                ctx.font = "12px Courier New";
+                                ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height + (padding * 3)
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - padding - 1,
+                                    blueprintImage.height - infoBox.height + (padding * 3)
+                                );
+                                ctx.stroke();
+                                ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
+                                ctx.beginPath();
+                                ctx.moveTo(
+                                    blueprintImage.width - infoBox.width,
+                                    blueprintImage.height - infoBox.height + (padding * 6)
+                                );
+                                ctx.lineTo(
+                                    blueprintImage.width - padding - 1,
+                                    blueprintImage.height - infoBox.height + (padding * 6)
+                                );
+                                ctx.stroke();
+                                ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
+                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                                ctx.font = "15px Courier New";
+                                ctx.fillText("DO NOT MODIFY", 20, 30);
+                                ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
+                                ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
+                                app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
+                            }
+                        }
+                    }
+                };
+            }
+            setTimeout(encodeImage, 500); //This is a bad hack to account for the fact that Chrome and Firefox do not show the modal properly. I assume it has something to do with the fact that the encode image function is overwhelming;
+        });
+
     }
 }
-
-//Improvements to the save and restore:
-//the image should maintain the correct aspect ratio
-//It should be possible to discard the mirrored elements, the renderLine function _should_ take care of them
-//And if that's the case, UUID could just be removed. We'll generate new ones
-//Color could be vastly simplified and genericized (so it's eventually theme independent)
 
 init();
 animate();
@@ -1196,23 +1238,26 @@ function init() {
         alpha: true
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
-    miniAxisRenderer.setClearColor(0x000000, 0.4);
+    miniAxisRenderer.setClearColor(new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), 0.4);
     miniAxisRenderer.setSize(250, 250);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
     //Set the background based on the css variable;
-    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color').match(/\d+/g);
-    scene.background = new THREE.Color(bgCol[0] / 255, bgCol[1] / 255, bgCol[2] / 255);
+    var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
+    scene.background = new THREE.Color(bgCol);
+    scene.fog = new THREE.Fog(bgCol, 2, 3);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
     axesHelper.layers.set(0);
+    axesHelper.material.fog = false;
     scene.add(axesHelper);
 
     var axesHelperFlipped = new THREE.AxesHelper();
     axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
     axesHelperFlipped.layers.set(0);
+    axesHelperFlipped.material.fog = false;
     scene.add(axesHelperFlipped);
 
     drawAxisHelperControls();
@@ -1221,6 +1266,7 @@ function init() {
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
     gridHelper.layers.set(0);
+    gridHelper.material.fog = false;
     scene.add(gridHelper);
 
     camera = new THREE.OrthographicCamera(
@@ -1233,8 +1279,9 @@ function init() {
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
-
+    camera.zoom = 900;
     camera.position.set(0, 0, 2);
+
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.enabled = true;
     controls.minDistance = 1;
@@ -1242,15 +1289,38 @@ function init() {
     controls.rotateSpeed = 0.5;
     controls.autoRotateSpeed = 30.0;
     camera.zoom = 900;
-    controls.zoomEnabled = false;
-    controls.panEnabled = false;
+    controls.enableZoom = false;
+    controls.enablePan = false;
+    controls.saveState();
     transformControls = new TransformControls(camera, drawingCanvas);
+
+    directControls = new OrbitControls(camera, drawingCanvas);
+    directControls.enableRotate = false;
+    directControls.enableZoom = false;
+    directControls.enablePan = false;
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.zoom = 75;
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
+
+    if (app.experimental) {
+        var geometry = new THREE.PlaneGeometry(1, 1, 32);
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.7 });
+        var planeBg = new THREE.Mesh(geometry, material);
+        var planeGrid = new THREE.GridHelper(
+            1,
+            40,
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        );
+        planeGrid.rotation.x = Math.PI / 2;
+        line.drawingPlane = new THREE.Group();
+        line.drawingPlane.add(planeBg);
+        line.drawingPlane.add(planeGrid);
+        scene.add(line.drawingPlane);
+    }
 
     window.addEventListener("resize", onWindowResize, false);
     onWindowResize();
@@ -1274,12 +1344,16 @@ function onWindowResize() {
     drawingCanvas.width = window.innerWidth;
     drawingCanvas.height = window.innerHeight;
 
-    insetWidth = window.innerHeight / 4; // square
+    insetWidth = window.innerHeight / 4;
     insetHeight = window.innerHeight / 4;
 }
 
 function animate() {
     updateminiAxisCamera();
+    if (app.experimental) {
+        line.updateDrawingPlane();
+    }
+    //updateFade();
     requestAnimationFrame(animate);
     //may need to wrap this in a function
     if (transformControls) {
@@ -1298,13 +1372,6 @@ function animate() {
             camera.layers.enable(0)
             app.controlsLocked = false;
         }
-    }
-    //this sets the resolution of the materials correctly every frame
-    //seems to be needed based on examples
-    if (materials) {
-        materials.forEach(material =>
-            material.resolution.set(window.innerWidth, window.innerHeight)
-        );
     }
     //Update colors of lines based on theme?
     if (app.linesNeedThemeUpdate) {
@@ -1327,7 +1394,6 @@ function animate() {
         })
         app.linesNeedThemeUpdate = false;
     }
-
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     miniAxisRenderer.setViewport(0, 0, 250, 250);
     renderer.render(scene, camera);
@@ -1362,6 +1428,7 @@ function updateminiAxisCamera() {
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.quaternion.copy(camera.quaternion);
 }
+
 function drawAxisHelperControls() {
     let handlesSize = 0.15;
     let handlesDistance = 0.6
@@ -1434,7 +1501,7 @@ let miniAxisMouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     updateCoordinates: function (event) {
-        let canvasBounds = miniAxisRenderer.context.canvas.getBoundingClientRect();
+        let canvasBounds = miniAxisRenderer.getContext().canvas.getBoundingClientRect();
         if (event.touches) {
             this.tx = ((event.changedTouches[0].pageX - canvasBounds.left) / (canvasBounds.right - canvasBounds.left)) * 2 - 1;
             this.ty = - ((event.changedTouches[0].pageY - canvasBounds.top) / (canvasBounds.bottom - canvasBounds.top)) * 2 + 1;
@@ -1503,6 +1570,3 @@ function repositionCamera() {
 };
 
 document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
-
-// document.getElementById("Export").addEventListener("click", exportTo.gltf);
-// document.getElementById("makeGif").addEventListener("click", exportTo.gif);

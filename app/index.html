@@ -12,20 +12,21 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/inobounce/0.2.0/inobounce.min.js"
-        integrity="sha256-Fc0S35M2Uo4ZMUBJy7ZWT+fkxv5Vpk8k1+cToMBUze4=" crossorigin="anonymous"></script> -->
-    <!-- <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script> -->
     <script src="../build/gif.js" defer></script>
     <script src="../build/pngcrush-class.js" defer></script>
     <script src="../src/script.js" type="module" defer></script>
     <script src="../build/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="reset.css" />
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" type="text/css" href="https://connary.com/_fontvue/cartograph_full.css">
 </head>
+
+<div id="welcome">Loading…</div>
 
 <body>
     <div id="app">
-        <modal v-if="modal.show" @close="modal.show = false" :title="modal.title" :source="modal.image">
+        <modal v-if="modal.show" @close="modal.show = false" :mode="modal.mode" :title="modal.title"
+            :helptext="modal.helptext" :source="modal.image">
         </modal>
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>
@@ -34,6 +35,7 @@
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
             </div>
+            <span class="reset-camera" @click="resetCamera()">Reset</span>
             <div id="toolSelection">
                 <span>
                     <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
@@ -71,7 +73,7 @@
                     <div id="lineWidth" class="button">
                         <span class="toolbarLabel">Width</span>
                         <div>
-                            <input type="radio" id="smallestLineWidth" value="1" name="smallestLineWidth"
+                            <input type="radio" id="smallestLineWidth" value="2" name="smallestLineWidth"
                                 v-model="lineWidth">
                             <label for="smallestLineWidth">
                                 <span id="smallestLineWidthIndicator"></span>
@@ -93,36 +95,32 @@
                                 v-model="lineWidth">
                             <label for="largeLineWidth"><span id="largeLineWidthIndicator"></span></label>
                         </div>
-
                     </div>
                 </div>
 
                 <div id="lineColor" class="button">
                     <span class="toolbarLabel">Color</span>
                     <div>
-                        <input type="radio" id="lightestColor" value="rgb(255, 255, 255)" name="lightestColor"
-                            v-model="lineColor">
+                        <input type="radio" id="lightestColor" value="lightest" name="lightestColor"
+                            v-model="selectedColor">
                         <label for="lightestColor">
                             <span class="colorSelector" id="lightestColorSelector"></span>
                         </label>
                     </div>
                     <div>
-                        <input type="radio" id="lightColor" value="rgb(217, 224, 247)" name="lightColor"
-                            v-model="lineColor">
+                        <input type="radio" id="lightColor" value="light" name="lightColor" v-model="selectedColor">
                         <label for="lightColor">
                             <span class="colorSelector" id="lightColorSelector"></span>
                         </label>
                     </div>
                     <div>
-                        <input type="radio" id="mediumColor" value="rgb(99, 134, 227)" name="mediumColor"
-                            v-model="lineColor">
+                        <input type="radio" id="mediumColor" value="medium" name="mediumColor" v-model="selectedColor">
                         <label for="mediumColor">
                             <span class="colorSelector" id="mediumColorSelector"></span>
                         </label>
                     </div>
                     <div>
-                        <input type="radio" id="darkColor" value="rgb(72, 114, 223)" name="darkColor"
-                            v-model="lineColor">
+                        <input type="radio" id="darkColor" value="dark" name="darkColor" v-model="selectedColor">
                         <label for="darkColor">
                             <span class="colorSelector" id="darkColorSelector"></span>
                         </label>
@@ -157,6 +155,19 @@
                     </div>
 
                 </div>
+                <div class="button" id="zDepth" v-if="experimental">
+                    <span class="toolbarLabel">Depth</span>
+                    <div>
+                        <label for="distance">
+                            <span class="depthLabel">Far</span>
+                        </label>
+                        <input type="range" id="distance" name="distance" min="-0.5" max="0.5" step="0.01" value="0"
+                            v-model="zDepth">
+                        <label for="distance">
+                            <span class="depthLabel">Near</span>
+                        </label>
+                    </div>
+                </div>
             </div>
 
             <div id="transformationSelection" v-if="selectedTool === 'select'">
@@ -180,39 +191,17 @@
                 </span>
             </div>
             <div v-if="selectedTool === 'select'" id="duplicate" class="button"
-                v-bind:class="[selection.current.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
+                v-bind:class="[selection.selected.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
             </div>
         </div>
 
         <div id="saveLoad">
-            <button id="Save" @click="exportTo.imageWithEncodedFile">Save</button>
-            <button id="Load">Load</button>
-            <button id="Export" style="display: none;">Export geometry</button>
+            <button id="Save" @click="exportTo.imageWithEncodedFile">Save…</button>
+            <button id="Load">Load…</button>
+            <!-- <button id="Export" @click="exportTo.gltf">Export geometry</button> -->
+            <button id="makeGif" @click="exportTo.gif">Make gif</button>
         </div>
-
-        <div id="share"><button id="makeGif" @click="exportTo.gif">Make gif</button></div>
     </div>
-
-    <!--<div id="themeSelection">
-            <span>
-                <input type="radio" id="blueprintTheme" name="themes" value="blueprint" v-model="selectedTheme"
-                    checked /><label for="blueprintTheme">Blueprint</label>
-            </span>
-            <span>
-                <input type="radio" id="lightTheme" name="themes" value="light" v-model="selectedTheme" /><label
-                    for="lightTheme">Light</label>
-            </span>
-            <span>
-                <input type="radio" id="darkTheme" name="themes" value="dark" v-model="selectedTheme" /><label
-                    for="darkTheme">Dark</label>
-            </span>
-        </div>
-
-        <div id="autoRotate">
-            <input type="checkbox" id="autoRotate" v-model="autoRotate">
-            <label for="autoRotate">Autorotate</label>
-        </div>
-    -->
 </body>
 <script>
     document.body.addEventListener('touchmove', function (event) {
@@ -233,3 +222,18 @@
 </script>
 
 </html>
+
+<script>
+        (function (d, t) {
+            var BASE_URL = "https://app.chatwoot.com";
+            var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
+            g.src = BASE_URL + "/packs/js/sdk.js";
+            s.parentNode.insertBefore(g, s);
+            g.onload = function () {
+                window.chatwootSDK.run({
+                    websiteToken: '3JCrKwZRhQ94uUDyoWa3fghr',
+                    baseUrl: BASE_URL
+                })
+            }
+        })(document, "script");
+</script>
