@@ -75,26 +75,23 @@ var app = new Vue({
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
-            if (event.touches.length > 1) { }
-            else {
-                mouse.updateCoordinates(event);
-                //DRAW
-                if (this.selectedTool == "draw") {
-                    line.start();
-                }
-                //ERASER
-                else if (this.selectedTool == "erase") {
-                    eraser.start();
-                }
-                //SELECT
-                else if (this.selectedTool == "select") {
-                    app.selection.start();
-                }
-                drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
-                drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
-                drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
-                drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
+            mouse.updateCoordinates(event);
+            //DRAW
+            if (this.selectedTool == "draw") {
+                line.start();
             }
+            //ERASER
+            else if (this.selectedTool == "erase") {
+                eraser.start();
+            }
+            //SELECT
+            else if (this.selectedTool == "select") {
+                app.selection.start();
+            }
+            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         },
         onTapMove: function (event) {
             mouse.updateCoordinates(event);
@@ -422,21 +419,10 @@ app.selection = {
             this.raycaster = new THREE.Raycaster();
             this.raycaster.params.Line.threshold = threshold;
             this.raycaster.layers.set(1);
-            try {
-                this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                //scene.add(new THREE.ArrowHelper(this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff));
-                var intersectedObject = this.raycaster.intersectObjects(scene.children)[0].object;
-                if (intersectedObject != undefined && this.selection.indexOf(intersectedObject) < 0 && this.selected.indexOf(intersectedObject) < 0) {
-                    this.selection.push(intersectedObject);
-                    this.toggleSelectionColor(intersectedObject, true);
-                }
-            } catch (err) {
-                //console.log(err);
-            }
         }
     },
     move: function () {
-        if (!this.transforming) {
+        if (!this.transforming && this.selected.length == 0) {
             paths[paths.length - 1].push([mouse.cx, mouse.cy]);
             //This is to render line transparency,
             //we are redrawing the line every frame
@@ -531,10 +517,16 @@ app.selection = {
             transformControls.addEventListener("mouseDown", function () {
                 app.selection.transforming = true;
             });
+            transformControls.addEventListener("touchstart", function () {
+                app.selection.transforming = true;
+            });
             transformControls.addEventListener("objectChange", function () {
                 mirror.updateMirrorOf(app.selection.selected[0])
             });
             transformControls.addEventListener("mouseUp", function () {
+                app.selection.transforming = false;
+            });
+            transformControls.addEventListener("touchend", function () {
                 app.selection.transforming = false;
             });
             this.selected.push(selection[0])
