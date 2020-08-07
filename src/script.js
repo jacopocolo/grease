@@ -75,6 +75,9 @@ var app = new Vue({
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
+
+            if (event.touches && event.touches.length > 1) { return }
+
             mouse.updateCoordinates(event);
             //DRAW
             if (this.selectedTool == "draw") {
@@ -94,6 +97,9 @@ var app = new Vue({
             drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         },
         onTapMove: function (event) {
+
+            if (event.touches && event.touches.length > 1) { return }
+
             mouse.updateCoordinates(event);
             //DRAW
             if (this.selectedTool == "draw") {
@@ -265,8 +271,8 @@ let line = {
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
             var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 1500, //kind of eyballing it
-                sizeAttenuation: 0,
+                lineWidth: lineWidth / 3000, //kind of eyballing it
+                sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
                 fog: true,
@@ -1296,12 +1302,12 @@ function init() {
 
     directControls = new OrbitControls(camera, drawingCanvas);
     directControls.enableRotate = false;
-    directControls.enableZoom = false;
-    directControls.enablePan = false;
+    directControls.enableZoom = true;
+    directControls.enablePan = true;
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
-    miniAxisCamera.zoom = 75;
+    //miniAxisCamera.zoom = 750;
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
@@ -1424,7 +1430,8 @@ function checkIfHelperObject(object) {
 
 //CAMERA CONTROLS
 function updateminiAxisCamera() {
-    miniAxisCamera.zoom = camera.zoom;
+    //miniAxisCamera.zoom = camera.zoom;
+    //miniAxisCamera.position.set(0, 0, 0)
     miniAxisCamera.position.copy(camera.position);
     miniAxisCamera.quaternion.copy(camera.quaternion);
 }
