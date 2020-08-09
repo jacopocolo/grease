@@ -1288,7 +1288,13 @@ function init() {
     camera.zoom = 900;
     camera.position.set(0, 0, 2);
 
+    directControls = new OrbitControls(camera, drawingCanvas);
+    directControls.enableRotate = false;
+    directControls.enableZoom = true;
+    directControls.enablePan = true;
+
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
+    controls.target = directControls.target;
     controls.enabled = true;
     controls.minDistance = 1;
     controls.maxDistance = 3;
@@ -1299,11 +1305,6 @@ function init() {
     controls.enablePan = false;
     controls.saveState();
     transformControls = new TransformControls(camera, drawingCanvas);
-
-    directControls = new OrbitControls(camera, drawingCanvas);
-    directControls.enableRotate = false;
-    directControls.enableZoom = true;
-    directControls.enablePan = true;
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
@@ -1355,7 +1356,7 @@ function onWindowResize() {
 }
 
 function animate() {
-    updateminiAxisCamera();
+    updateminiAxisScene();
     if (app.experimental) {
         line.updateDrawingPlane();
     }
@@ -1429,11 +1430,8 @@ function checkIfHelperObject(object) {
 }
 
 //CAMERA CONTROLS
-function updateminiAxisCamera() {
-    //miniAxisCamera.zoom = camera.zoom;
-    //miniAxisCamera.position.set(0, 0, 0)
-    miniAxisCamera.position.copy(camera.position);
-    miniAxisCamera.quaternion.copy(camera.quaternion);
+function updateminiAxisScene() {
+    miniAxisScene.quaternion.copy(camera.quaternion).inverse()
 }
 
 function drawAxisHelperControls() {
@@ -1533,40 +1531,43 @@ function repositionCamera() {
         var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
         if (checkIfHelperObject(object)) {
         } else {
+            var x = directControls.target.x;
+            var y = directControls.target.y;
+            var z = directControls.target.z;
             switch (object.name) {
                 case 'z':
                     controls.enabled = false;
-                    camera.position.set(0, 0, 2);
+                    camera.position.set(x, y, 2);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case 'x':
                     controls.enabled = false;
-                    camera.position.set(2, 0, 0);
+                    camera.position.set(2, y, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case 'y':
                     controls.enabled = false;
-                    camera.position.set(0, 2, 0);
+                    camera.position.set(x, 2, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-x':
                     controls.enabled = false;
-                    camera.position.set(-2, 0, 0);
+                    camera.position.set(-2, y, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-y':
                     controls.enabled = false;
-                    camera.position.set(0, -2, 0);
+                    camera.position.set(x, -2, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-z':
                     controls.enabled = false;
-                    camera.position.set(0, 0, -2);
+                    camera.position.set(x, y, -2);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
