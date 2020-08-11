@@ -234,19 +234,28 @@ let mouse = {
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
+    smoothing: 3, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
-        //This seems like a simple enough implementation of a smoothing approach https://github.com/dulnan/lazy-brush/blob/master/src/LazyBrush.js
-        if (event.touches) {
+        if (event.touches
+            &&
+            new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing
+        ) {
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
             this.cy = event.changedTouches[0].pageY;
-            //handler if it's a mouse event
-        } else {
-            this.tx = (event.clientX / window.innerWidth) * 2 - 1;
-            this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
-            this.cx = event.clientX;
-            this.cy = event.clientY;
+        }
+        else {
+            if (
+                event.button == 0
+                &&
+                new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing
+            ) {
+                this.tx = (event.clientX / window.innerWidth) * 2 - 1;
+                this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
+                this.cx = event.clientX;
+                this.cy = event.clientY;
+            }
         }
     }
 };
@@ -303,6 +312,7 @@ let line = {
             this.uuid = mesh.uuid;
         },
         update: function (x, y, z, unproject) {
+            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry.vertices.push(vNow);
@@ -964,7 +974,7 @@ app.exportTo = {
         });
         return json
     },
-    gltf: function () {
+    geometry: function () {
         app.selection.deselect();
         //Essentially this function creates a new scene from scratch, iterates through all the line2 in Scene 1, converts them to line1 that the GLTF exporter can export and Blender can import and exports the scene. Then deletes the scene.
         var scene2 = new THREE.Scene();
@@ -1055,6 +1065,9 @@ app.exportTo = {
             })
         }
         convertMeshLinetoLine()
+    },
+    mesh: function () {
+        //It might be possible to extrude lines into meshes to allow exporting into meshes like here https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
     },
     gif: function () {
         app.selection.deselect();
