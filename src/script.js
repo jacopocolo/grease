@@ -234,11 +234,13 @@ let mouse = {
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
-    smoothing: 3, //Smoothing can create artifacts if it's too high. Might need to play around with it
+    smoothing: function () {
+        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
+    }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
         if (event.touches
             &&
-            new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing
+            new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
         ) {
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
@@ -249,7 +251,7 @@ let mouse = {
             if (
                 event.button == 0
                 &&
-                new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing
+                new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
             ) {
                 this.tx = (event.clientX / window.innerWidth) * 2 - 1;
                 this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
