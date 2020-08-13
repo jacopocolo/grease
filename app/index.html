@@ -18,7 +18,6 @@
     <script src="../build/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="reset.css" />
     <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" type="text/css" href="https://connary.com/_fontvue/cartograph_full.css">
 
 </head>
 <div id="welcome">Loading…</div>
@@ -161,7 +160,7 @@
                         <label for="distance">
                             <span class="depthLabel">Far</span>
                         </label>
-                        <input type="range" id="distance" name="distance" min="-0.5" max="0.5" step="0.01" value="0"
+                        <input type="range" id="distance" name="distance" min="-0.25" max="0.25" step="0.01" value="0"
                             v-model="zDepth">
                         <label for="distance">
                             <span class="depthLabel">Near</span>
@@ -198,7 +197,7 @@
         <div id="saveLoad">
             <button id="Save" @click="exportTo.imageWithEncodedFile">Save…</button>
             <button id="Load">Load…</button>
-            <!-- <button id="Export" @click="exportTo.gltf">Export geometry</button> -->
+            <button v-if="experimental" id="Export" @click="exportTo.geometry">Export geometry</button>
             <button id="makeGif" @click="exportTo.gif">Make gif</button>
         </div>
     </div>

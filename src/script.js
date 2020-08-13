@@ -7,7 +7,7 @@ import {
     MeshLineRaycast
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
-import Vue from 'https://cdn.jsdelivr.net/npm/vue@2.6.11/dist/vue.esm.browser.js';
+import Vue from '../build/vue.esm.browser.js';
 
 var app = new Vue({
     el: '#app',
@@ -32,7 +32,7 @@ var app = new Vue({
             helptext: 'This might take a moment, please be patient',
             image: ''
         },
-        experimental: false,
+        experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
     },
     watch: {
@@ -59,7 +59,7 @@ var app = new Vue({
             }
         },
         zDepth: function () {
-            line.drawingPlane.position.copy(new THREE.Vector3(0, 0, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
+            line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
         }
     },
     methods: {
@@ -1295,8 +1295,8 @@ function init() {
         window.innerWidth / 2,
         window.innerHeight / 2,
         window.innerHeight / -2,
-        1,
-        3
+        0,
+        4
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
@@ -1307,6 +1307,7 @@ function init() {
     directControls.enableRotate = false;
     directControls.enableZoom = true;
     directControls.enablePan = true;
+    directControls.minZoom = 450; //Limit the zoom out to roughly the fog limit
 
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.target = directControls.target;
@@ -1328,20 +1329,23 @@ function init() {
     miniAxisCamera.layers.enable(1);
 
     if (app.experimental) {
-        var geometry = new THREE.PlaneGeometry(1, 1, 32);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.7 });
+        var geometry = new THREE.PlaneGeometry(4, 4, 240);
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), transparent: true, opacity: 0.5 });
         var planeBg = new THREE.Mesh(geometry, material);
-        var planeGrid = new THREE.GridHelper(
-            1,
-            40,
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
-        );
-        planeGrid.rotation.x = Math.PI / 2;
+        // var planeGrid = new THREE.GridHelper(
+        //     4,
+        //     240,
+        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        // );
+        // planeGrid.rotation.x = Math.PI / 2;
         line.drawingPlane = new THREE.Group();
         line.drawingPlane.add(planeBg);
-        line.drawingPlane.add(planeGrid);
+        // line.drawingPlane.add(planeGrid);
         scene.add(line.drawingPlane);
+        // controls.addEventListener("change", function () {
+        //     line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
+        // });
     }
 
     window.addEventListener("resize", onWindowResize, false);
