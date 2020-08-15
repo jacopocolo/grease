@@ -25,12 +25,20 @@ var app = new Vue({
         autoRotate: false,
         selection: {}, //to be filled from init
         exportTo: {},
+        ui: {
+            show: true,
+            theme: '',
+        },
         modal: {
             show: false,
             mode: 'loader', //modal, loader
             title: 'Saving your drawing',
             helptext: 'This might take a moment, please be patient',
             image: ''
+        },
+        toast: {
+            show: false,
+            text: "Selection duplicated"
         },
         experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
@@ -65,6 +73,11 @@ var app = new Vue({
     methods: {
         duplicateSelected: function () {
             app.selection.duplicate()
+            app.toast.show = true;
+            app.toast.text = "Selection duplicated";
+            setTimeout(function () {
+                app.toast.show = false;
+            }, 700)
         },
         deselect: function () {
             app.selection.deselectFromButton()
@@ -72,6 +85,9 @@ var app = new Vue({
         resetCamera: function () {
             camera.position.set(0, 0, 2);
             controls.reset();
+        },
+        toggleUi: function () {
+            app.ui.show = !app.ui.show;
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
@@ -193,6 +209,13 @@ Vue.component("modal", {
             </div>
         </div>
     </div>
+`
+});
+
+Vue.component("toast", {
+    props: ['text'],
+    template: `
+<div class="toast">{{text}}</div>
 `
 });
 
@@ -508,11 +531,11 @@ app.selection = {
             var originalPosition = duplicate.position;
             var duplicateMaterial = duplicate.material.clone();
             duplicate.material = duplicateMaterial;
-            duplicate.position.set(
-                originalPosition.x + 0.1,
-                originalPosition.y,
-                originalPosition.z
-            )
+            // duplicate.position.set(
+            //     originalPosition.x + 0.1,
+            //     originalPosition.y,
+            //     originalPosition.z
+            // )
             scene.add(duplicate);
             duplicate.raycast = MeshLineRaycast;
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
@@ -1330,7 +1353,7 @@ function init() {
 
     if (app.experimental) {
         var geometry = new THREE.PlaneGeometry(4, 4, 240);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), transparent: true, opacity: 0.5 });
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: false, opacity: 0.5 });
         var planeBg = new THREE.Mesh(geometry, material);
         // var planeGrid = new THREE.GridHelper(
         //     4,

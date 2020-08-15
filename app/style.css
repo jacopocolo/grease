@@ -1,4 +1,4 @@
-:root {
+/* :root {
   --bg-color:rgb(2, 32, 131);
   --accent-color:rgb(254, 207, 18);
   --accent-color-selected:rgb(218, 175, 1);
@@ -7,7 +7,7 @@
   --line-color-light:rgb(217, 224, 247);
   --line-color-medium:rgb(99, 134, 227);
   --line-color-dark:rgb(72, 114, 223);
-} 
+}  */
 
 /* :root {
   --bg-color:rgb(90, 84, 117);
@@ -21,7 +21,7 @@
 }  */
 
 /* Full orange */
-/* :root {
+:root {
   --bg-color:rgb(60,57,60);
   --accent-color:rgb(255, 176, 0);
   --accent-color-selected:rgb(228, 156, 0);
@@ -30,7 +30,7 @@
   --line-color-light:rgb(255, 231, 178);
   --line-color-medium:rgb(255, 220, 142);
   --line-color-dark:rgb(255, 209, 107);
-} */
+}
 
 /* Orange and green */
 /* :root {
@@ -452,6 +452,10 @@ margin: 0px;
   opacity: 0.6;
 }
 
+.hidden {
+  display: none;
+}
+
 #saveLoad {
   position: absolute;
   bottom: 10px;
@@ -459,13 +463,20 @@ margin: 0px;
   z-index: 5;
 }
 
-#saveLoad>button {
+.blackButton {
   font-family: inherit;
   color: white;
   background-color: var(--ui-bg-color);
   border: none;
   border-radius: 6px;
   padding: 8px;
+}
+
+#toggleUi {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 4;
 }
 
 #share {
@@ -601,4 +612,22 @@ margin: 0px;
   -khtml-user-select: default;
   -moz-user-select: default;
   -ms-user-select: default;
+}
+
+/*TOAST*/
+.toast {
+  position: absolute;
+  top: 90%;
+  left: calc(50% - 100px);
+  width: 200px;
+  z-index: 9999;
+  padding: 14px;
+  background-color: var(--ui-bg-color);
+  color: #ffffff;
+  border-radius: 2px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+  box-sizing: content-box;
+  transition: all 0.3s ease;
+  font-weight: 400;
+  text-align: center;
 }
