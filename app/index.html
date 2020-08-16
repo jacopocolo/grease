@@ -152,16 +152,16 @@
 
                 </div>
                 <div class="button" id="zDepth" v-if="experimental">
-                    <span class="toolbarLabel">Depth</span>
+                    <span class="toolbarLabel">Drawing plane</span>
                     <div>
                         <label for="distance">
                             <span class="depthLabel">Far</span>
                         </label>
+                        <label for="distance">
+                            <span class="depthLabel near">Near</span>
+                        </label>
                         <input type="range" id="distance" name="distance" min="-0.25" max="0.25" step="0.01" value="0"
                             v-model="zDepth">
-                        <label for="distance">
-                            <span class="depthLabel">Near</span>
-                        </label>
                     </div>
                 </div>
             </div>

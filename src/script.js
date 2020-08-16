@@ -386,8 +386,28 @@ let line = {
         },
     },
     drawingPlane: null, //defined in init
+    addDrawingPlane: function () {
+        var geometry = new THREE.PlaneGeometry(1, 1, 1);
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.8, fog: false });
+        var planeBg = new THREE.Mesh(geometry, material);
+        var planeGrid = new THREE.GridHelper(
+            1,
+            1,
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        );
+        planeGrid.rotation.x = Math.PI / 2;
+        this.drawingPlane = new THREE.Group();
+        this.drawingPlane.add(planeBg);
+        this.drawingPlane.add(planeGrid);
+        scene.add(this.drawingPlane);
+        // controls.addEventListener("change", function () {
+        //     line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
+        // });
+    },
     updateDrawingPlane: function () {
         this.drawingPlane.rotation.copy(camera.rotation);
+        //camera zoom has a minimum of 450 and a maximum of infinity
     }
 };
 
@@ -1352,23 +1372,7 @@ function init() {
     miniAxisCamera.layers.enable(1);
 
     if (app.experimental) {
-        var geometry = new THREE.PlaneGeometry(4, 4, 240);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: false, opacity: 0.5 });
-        var planeBg = new THREE.Mesh(geometry, material);
-        // var planeGrid = new THREE.GridHelper(
-        //     4,
-        //     240,
-        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
-        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
-        // );
-        // planeGrid.rotation.x = Math.PI / 2;
-        line.drawingPlane = new THREE.Group();
-        line.drawingPlane.add(planeBg);
-        // line.drawingPlane.add(planeGrid);
-        scene.add(line.drawingPlane);
-        // controls.addEventListener("change", function () {
-        //     line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
-        // });
+        line.addDrawingPlane()
     }
 
     window.addEventListener("resize", onWindowResize, false);

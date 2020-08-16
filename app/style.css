@@ -411,8 +411,17 @@ margin: 0px;
   user-select: none;
 }
 
+#distance {
+  width: 100%;
+  background-color: var(--accent-color);
+}
+
 .depthLabel {
   font-size: 0.6em;
+}
+
+.near {
+  float: right;
 }
 
 #indicator {
