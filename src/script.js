@@ -345,6 +345,9 @@ let line = {
         },
         end: function () {
             this.geometry.userData = this.geometry.vertices;
+            var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.2);
+            var points = curve.getPoints(this.geometry.vertices.length * 3);
+            this.geometry.vertices = points;
             this.setGeometry('mouseup');
             //reset
             this.line = null;
