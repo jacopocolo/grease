@@ -18,6 +18,7 @@
     <script src="../build/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="reset.css" />
     <link rel="stylesheet" href="style.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
 
 </head>
 <div id="welcome">Loading…</div>
@@ -72,24 +73,27 @@
                             <input type="radio" id="smallestLineWidth" value="1" name="smallestLineWidth"
                                 v-model="lineWidth">
                             <label for="smallestLineWidth">
-                                <span id="smallestLineWidthIndicator"></span>
+                                <span id="smallestLineWidthIndicator"
+                                    v-bind:style="{backgroundColor: lineColor}"></span>
                             </label>
                         </div>
                         <div>
                             <input type="radio" id="smallLineWidth" value="3" name="smallLineWidth" v-model="lineWidth">
                             <label for="smallLineWidth">
-                                <span id="smallLineWidthIndicator"></span>
+                                <span id="smallLineWidthIndicator" v-bind:style="{backgroundColor: lineColor}"></span>
                             </label>
                         </div>
                         <div>
                             <input type="radio" id="mediumLineWidth" value="10" name="mediumLineWidth"
                                 v-model="lineWidth">
-                            <label for="mediumLineWidth"><span id="mediumLineWidthIndicator"></span></label>
+                            <label for="mediumLineWidth"><span id="mediumLineWidthIndicator"
+                                    v-bind:style="{backgroundColor: lineColor}"></span></label>
                         </div>
                         <div>
                             <input type="radio" id="largeLineWidth" value="30" name="largeLineWidth"
                                 v-model="lineWidth">
-                            <label for="largeLineWidth"><span id="largeLineWidthIndicator"></span></label>
+                            <label for="largeLineWidth"><span id="largeLineWidthIndicator"
+                                    v-bind:style="{backgroundColor: lineColor}"></span></label>
                         </div>
                     </div>
                 </div>
@@ -216,7 +220,7 @@
 </script>
 
 </html>
-
+<!-- 
 <script>
         (function (d, t) {
             var BASE_URL = "https://app.chatwoot.com";
@@ -230,4 +234,4 @@
                 })
             }
         })(document, "script");
-</script>
+</script> -->

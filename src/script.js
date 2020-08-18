@@ -1491,7 +1491,7 @@ function drawAxisHelperControls() {
 
     //Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var material = new THREE.MeshBasicMaterial({ color: 0x0099ff });
     var sphereZ = new THREE.Mesh(geometry, material);
     sphereZ.position.set(0, 0, handlesDistance)
     sphereZ.name = "z";
@@ -1499,7 +1499,7 @@ function drawAxisHelperControls() {
     miniAxisScene.add(sphereZ);
     //Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    var material = new THREE.MeshBasicMaterial({ color: 0x99ff00 });
     var sphereY = new THREE.Mesh(geometry, material);
     sphereY.position.set(0, handlesDistance, 0)
     sphereY.name = "y";
@@ -1507,7 +1507,7 @@ function drawAxisHelperControls() {
     miniAxisScene.add(sphereY);
     //X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    var material = new THREE.MeshBasicMaterial({ color: 0xff6600 });
     var sphereX = new THREE.Mesh(geometry, material);
     sphereX.position.set(handlesDistance, 0, 0)
     sphereX.name = "x";
@@ -1522,7 +1522,7 @@ function drawAxisHelperControls() {
 
     //-Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var material = new THREE.MeshBasicMaterial({ color: 0x0099FF });
     var sphereZFlipped = new THREE.Mesh(geometry, material);
     sphereZFlipped.position.set(0, 0, -handlesDistance)
     sphereZFlipped.name = "-z";
@@ -1530,7 +1530,7 @@ function drawAxisHelperControls() {
     sphereZFlipped.layers.set(1);
     //-Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    var material = new THREE.MeshBasicMaterial({ color: 0x99ff00 });
     var sphereYFlipped = new THREE.Mesh(geometry, material);
     sphereYFlipped.position.set(0, -handlesDistance, 0)
     sphereYFlipped.name = "-y";
@@ -1538,7 +1538,7 @@ function drawAxisHelperControls() {
     sphereYFlipped.layers.set(1);
     //-X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    var material = new THREE.MeshBasicMaterial({ color: 0xff6600 });
     var sphereXFlipped = new THREE.Mesh(geometry, material);
     sphereXFlipped.position.set(-handlesDistance, 0, 0)
     sphereXFlipped.name = "-x";
