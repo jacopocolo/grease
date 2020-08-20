@@ -29,7 +29,7 @@
             :helptext="modal.helptext" :source="modal.image">
         </modal>
         <toast v-if="toast.show" :text=toast.text></toast>
-        <button class="blackButton" id="toggleUi" @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
+        <button id="toggleUi" @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
 
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>
@@ -45,116 +45,127 @@
                         for="toolDraw">
                         Draw
                     </label>
+                    <div></div>
                 </span><span>
                     <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
                         for="toolEraser">
                         Erase
                     </label>
+                    <div></div>
                 </span><span>
                     <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool"
                         checked /><label for="toolSelect">
                         Select
                     </label>
+                    <div></div>
                 </span>
             </div>
         </div>
 
         <div class="toolbar" id="toolbar" v-bind:class="[ui.show ? '' : 'hidden']">
-            <div class=" handle" id="toolbarHandle">
+            <div class="verticalHandle" id="toolbarHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
             </div>
 
-            <div class="lineTools" v-if="selectedTool == 'draw'">
-                <div id="lineSelection">
-                    <div id="lineWidth" class="button">
-                        <span class="toolbarLabel">Width</span>
-                        <div>
-                            <input type="radio" id="smallestLineWidth" value="1" name="smallestLineWidth"
-                                v-model="lineWidth">
-                            <label for="smallestLineWidth">
-                                <span id="smallestLineWidthIndicator"
-                                    v-bind:style="{backgroundColor: lineColor}"></span>
-                            </label>
-                        </div>
-                        <div>
-                            <input type="radio" id="smallLineWidth" value="3" name="smallLineWidth" v-model="lineWidth">
-                            <label for="smallLineWidth">
-                                <span id="smallLineWidthIndicator" v-bind:style="{backgroundColor: lineColor}"></span>
-                            </label>
-                        </div>
-                        <div>
-                            <input type="radio" id="mediumLineWidth" value="10" name="mediumLineWidth"
-                                v-model="lineWidth">
-                            <label for="mediumLineWidth"><span id="mediumLineWidthIndicator"
-                                    v-bind:style="{backgroundColor: lineColor}"></span></label>
-                        </div>
-                        <div>
-                            <input type="radio" id="largeLineWidth" value="30" name="largeLineWidth"
-                                v-model="lineWidth">
-                            <label for="largeLineWidth"><span id="largeLineWidthIndicator"
-                                    v-bind:style="{backgroundColor: lineColor}"></span></label>
-                        </div>
-                    </div>
-                </div>
+            <span class="lineTools" v-if="selectedTool == 'draw'">
+                <span id="lineWidth">
+                    <!-- <span class="toolbarLabel">Width</span> -->
+                    <span>
+                        <input type="radio" id="smallestLineWidth" value="1" name="smallestLineWidth"
+                            v-model="lineWidth">
+                        <label for="smallestLineWidth">
+                            <span id="smallestLineWidthIndicator" class="indicator"
+                                v-bind:style="{backgroundColor: lineColor}"></span>
+                        </label>
+                        <div></div>
+                    </span>
+                    <span>
+                        <input type="radio" id="smallLineWidth" value="3" name="smallLineWidth" v-model="lineWidth">
+                        <label for="smallLineWidth">
+                            <span id="smallLineWidthIndicator" class="indicator"
+                                v-bind:style="{backgroundColor: lineColor}"></span>
+                        </label>
+                        <div></div>
+                    </span>
+                    <span>
+                        <input type="radio" id="mediumLineWidth" value="10" name="mediumLineWidth" v-model="lineWidth">
+                        <label for="mediumLineWidth"><span id="mediumLineWidthIndicator" class="indicator"
+                                v-bind:style="{backgroundColor: lineColor}"></span></label>
+                        <div></div>
+                    </span>
+                    <span>
+                        <input type="radio" id="largeLineWidth" value="30" name="largeLineWidth" v-model="lineWidth">
+                        <label for="largeLineWidth"><span id="largeLineWidthIndicator" class="indicator"
+                                v-bind:style="{backgroundColor: lineColor}"></span></label>
+                        <div></div>
+                    </span>
+                </span>
 
-                <div id="lineColor" class="button">
-                    <span class="toolbarLabel">Color</span>
-                    <div>
+                <span id="lineColor">
+                    <!-- <span class="toolbarLabel">Color</span> -->
+                    <span>
                         <input type="radio" id="lightestColor" value="lightest" name="lightestColor"
                             v-model="selectedColor">
                         <label for="lightestColor">
-                            <span class="colorSelector" id="lightestColorSelector"></span>
+                            <span class="colorSelector indicator" id="lightestColorSelector"></span>
                         </label>
-                    </div>
-                    <div>
+                        <div></div>
+                    </span>
+                    <span>
                         <input type="radio" id="lightColor" value="light" name="lightColor" v-model="selectedColor">
                         <label for="lightColor">
-                            <span class="colorSelector" id="lightColorSelector"></span>
+                            <span class="colorSelector indicator" id="lightColorSelector"></span>
                         </label>
-                    </div>
-                    <div>
+                        <div></div>
+                    </span>
+                    <span>
                         <input type="radio" id="mediumColor" value="medium" name="mediumColor" v-model="selectedColor">
                         <label for="mediumColor">
-                            <span class="colorSelector" id="mediumColorSelector"></span>
+                            <span class="colorSelector indicator" id="mediumColorSelector"></span>
                         </label>
-                    </div>
-                    <div>
+                        <div></div>
+                    </span>
+                    <span>
                         <input type="radio" id="darkColor" value="dark" name="darkColor" v-model="selectedColor">
                         <label for="darkColor">
-                            <span class="colorSelector" id="darkColorSelector"></span>
+                            <span class="colorSelector indicator" id="darkColorSelector"></span>
                         </label>
-                    </div>
+                        <div></div>
+                    </span>
 
-                </div>
-                <div id="mirror" class="button">
-                    <span class="toolbarLabel">Mirror</span>
-                    <div>
+                </span>
+                <span id="mirror" class="button">
+                    <span>
                         <input type="radio" value="false" name="noMirror" id="noMirror" v-model="mirror">
                         <label for="noMirror">
-                            <span class='mirrorRadio'>No</span>
+                            <span class='mirrorRadio indicator'>No</span>
                         </label>
-                    </div>
-                    <div>
+                        <div></div>
+                    </span>
+                    <span>
                         <input type="radio" value="x" name="mirrorX" id='mirrorX' v-model="mirror">
                         <label for="mirrorX">
-                            <span class='mirrorRadio'>X</span>
+                            <span class='mirrorRadio indicator'>X</span>
                         </label>
-                    </div>
-                    <div>
+                        <div></div>
+                    </span>
+                    <span>
                         <input type="radio" value="y" name="mirrorY" id='mirrorY' v-model="mirror">
                         <label for="mirrorY">
-                            <span class='mirrorRadio'>Y</span>
+                            <span class='mirrorRadio indicator'>Y</span>
                         </label>
-                    </div>
-                    <div>
+                        <div></div>
+                    </span>
+                    <span>
                         <input type="radio" value="z" name="mirrorZ" id='mirrorZ' v-model="mirror">
                         <label for="mirrorZ">
-                            <span class='mirrorRadio'>Z</span>
+                            <span class='mirrorRadio indicator'>Z</span>
                         </label>
-                    </div>
+                        <div></div>
+                    </span>
 
-                </div>
+                </span>
                 <div class="button" id="zDepth" v-if="experimental">
                     <span class="toolbarLabel">Drawing plane</span>
                     <div>
@@ -168,7 +179,8 @@
                             v-model="zDepth">
                     </div>
                 </div>
-            </div>
+
+            </span>
 
             <div id="transformationSelection" v-if="selectedTool === 'select'">
                 <span>
@@ -193,11 +205,11 @@
         </div>
 
         <div id="saveLoad" v-bind:class="[ui.show ? '' : 'hidden']">
-            <button id="Save" @click="exportTo.imageWithEncodedFile" class="blackButton">Save…</button>
-            <button id="Load" class="blackButton">Load…</button>
-            <button v-if="experimental" id="Export" @click="exportTo.geometry" class="blackButton">Export
+            <button id="Save" @click="exportTo.imageWithEncodedFile">Save…</button>
+            <button id="Load">Load…</button>
+            <button v-if="experimental" id="Export" @click="exportTo.geometry">Export
                 geometry</button>
-            <button id="makeGif" @click="exportTo.gif" class="blackButton">Make gif</button>
+            <button id="makeGif" @click="exportTo.gif">Make gif</button>
         </div>
     </div>
 </body>
