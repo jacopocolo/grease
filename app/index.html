@@ -62,7 +62,8 @@
             </div>
         </div>
 
-        <div class="toolbar" id="toolbar" v-bind:class="[ui.show ? '' : 'hidden']">
+        <div class="toolbar" id="toolbar"
+            v-bind:class="[ui.show == true ? '' : 'hidden', selectedTool != 'erase' ? '' : 'hidden']">
             <div class="handle" id="toolbarHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
