@@ -1,4 +1,4 @@
-/* :root {
+:root {
   --bg-color:rgb(2, 32, 131);
   --accent-color:rgb(254, 207, 18);
   --accent-color-selected:rgb(218, 175, 1);
@@ -7,7 +7,7 @@
   --line-color-light:rgb(217, 224, 247);
   --line-color-medium:rgb(99, 134, 227);
   --line-color-dark:rgb(72, 114, 223);
-}  */
+} 
 
 /* :root {
   --bg-color:rgb(90, 84, 117);
@@ -33,7 +33,7 @@
 } */
 
 /* Orange and green */
-:root {
+/* :root {
   --bg-color:rgb(30,25,30);
   --accent-color:rgb(255, 176, 0);
   --accent-color-selected:rgb(228, 156, 0);
@@ -42,7 +42,7 @@
   --line-color-light:#0ADE5F;
   --line-color-medium:#14BD58;
   --line-color-dark:#287B4A;
-}
+} */
 
 /* :root {
   --bg-color:rgb(255, 255, 255);
@@ -147,6 +147,10 @@ margin: 0px;
   z-index: 5;
 }
 
+#miniAxisHandle {
+  padding: 16px 8px;
+}
+
 .reset-camera {
   position: absolute;
   color:var(--accent-color);
@@ -161,7 +165,7 @@ margin: 0px;
   background-color: var(--ui-bg-color);
   border-radius: 6px 6px 0px 0px;
   z-index: 6;
-  padding: 13px;
+  padding: 16px 0px;
   cursor: move;
   box-sizing: border-box;
 }
@@ -230,17 +234,18 @@ button {
   position: absolute;
   top: 10px;
   right: 10px;
-  padding: 7px 0 4px 0;
+  padding: 0px 8px 8px 8px;
   color: white;
   z-index: 5;
-  display: flex;
-  border-radius: 6px;
+  display: block;
+  border-radius: 6px; 
+  width: -moz-fit-content;
   width: fit-content;
 }
 
-.toolsButton radio {
+/* .toolsButton radio {
   margin-right: 8px;
-}
+} */
 
 #toolSelection {
   background-color: var(--ui-bg-color);
@@ -256,25 +261,26 @@ button {
 }
 
 .lineTools {
-  display: flex;
-  padding: 0px 8px;
+  display: block;
 }
 
-.lineTools>span:not(:last-of-type) {
-  margin-right: 8px;
+.toolbarLabel {
+  margin-top: 10px;
+  margin-bottom: 7px;
 }
 
 #lineWidth, #lineColor, #mirror {
   display: flex;
 }
 
-#lineWidth span, #lineColor>span, #mirror>span {
+#lineWidth span, #lineColor>span, #mirror>span, #transformationSelection>span {
   box-sizing: border-box;
 }
 
 #toolSelection, #transformationSelection {
   position: relative;
   white-space: discard;
+  display: flex;
 }
 
 #toolSelection input[type="radio"],#transformationSelection input[type="radio"], #lineWidth input[type="radio"], #mirror input[type="radio"], #lineColor input[type="radio"] {
@@ -293,8 +299,8 @@ input[type="radio"] + label {
   border-top: 1px solid #444;
   box-sizing: border-box;
   align-items: center;
-  min-width: 33px;
-  min-height: 33px;
+  min-width: 40px;
+  min-height: 40px;
   display: flex;
 }
 
@@ -315,8 +321,7 @@ input[type="radio"]:checked + label {
   color: var(--accent-color);
   text-shadow: 0px 0px 1px var(--accent-color);
   background: #333333;
-  box-shadow: inset 1px 1px 6px #111, 
-            inset -1px -1px 6px #555;
+  box-shadow: inset 1px 1px 6px #111, inset -1px -1px 6px #555;
 }
 
 /* input[type="radio"]:checked + label {
@@ -353,10 +358,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   content: '';
 }
 
-#transformationSelection {
-  background-color: var(--accent-color);
-}
-#transformationSelection span {
+/* #transformationSelection span {
   display: grid;
   width: 100%;
   box-sizing: border-box;
@@ -365,31 +367,28 @@ span:last-child > input[type="radio"]:checked + label + div {
 }
 #transformationSelection span label {
   color: var(--ui-bg-color);
-}
+} */
 
-#toolSelection span img, #transformationSelection span img {
-    pointer-events: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  -khtml-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
 #toolSelection span label, #transformationSelection span label {
   display: grid;
   align-items: center;
   box-sizing: border-box;
   width: 100%;
   height: 44px;
+  min-width: 60px;
   box-sizing: border-box;
+  text-align: center;
  }
+
+ #duplicate {
+  margin-top: 10px;
+  width: 100%;
+  display: grid;
+  align-content: center;
+  vertical-align: center;
+  text-align: center;
+  color: var(--accent-color);
+}
 
 .indicator {
   margin: 0 auto;
@@ -502,7 +501,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   display: inline;
   border-radius: 40px;
 }
-
+/* 
 #themeSelection {
   top: auto;
   bottom: 40px;
@@ -517,15 +516,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   background-color:var(--ui-bg-color);
   padding: 16px;
   z-index: 5;
-}
-
-#duplicate {
-  display: grid;
-  align-content: center;
-  vertical-align: center;
-  text-align: center;
-  color: var(--accent-color);
-}
+} */
 
 .disabled {
   pointer-events: none;

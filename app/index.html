@@ -63,14 +63,14 @@
         </div>
 
         <div class="toolbar" id="toolbar" v-bind:class="[ui.show ? '' : 'hidden']">
-            <div class="verticalHandle" id="toolbarHandle">
+            <div class="handle" id="toolbarHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
             </div>
 
             <span class="lineTools" v-if="selectedTool == 'draw'">
+                <div class="toolbarLabel">Width</div>
                 <span id="lineWidth">
-                    <!-- <span class="toolbarLabel">Width</span> -->
                     <span>
                         <input type="radio" id="smallestLineWidth" value="1" name="smallestLineWidth"
                             v-model="lineWidth">
@@ -102,8 +102,8 @@
                     </span>
                 </span>
 
+                <div class="toolbarLabel">Color</div>
                 <span id="lineColor">
-                    <!-- <span class="toolbarLabel">Color</span> -->
                     <span>
                         <input type="radio" id="lightestColor" value="lightest" name="lightestColor"
                             v-model="selectedColor">
@@ -135,6 +135,8 @@
                     </span>
 
                 </span>
+
+                <div class="toolbarLabel">Mirror</div>
                 <span id="mirror" class="button">
                     <span>
                         <input type="radio" value="false" name="noMirror" id="noMirror" v-model="mirror">
@@ -182,26 +184,30 @@
 
             </span>
 
-            <div id="transformationSelection" v-if="selectedTool === 'select'">
+            <span id="transformationSelection" v-if="selectedTool === 'select'">
                 <span>
                     <input type="radio" id="translate" name="transformations" value="translate"
                         v-model="selectedTransformation" checked /><label for="translate">
                         Move</label>
+                    <div></div>
                 </span>
                 <span>
                     <input type="radio" id="rotate" name="transformations" value="rotate"
                         v-model="selectedTransformation" /><label for="rotate">
                         Rotate</label>
+                    <div></div>
                 </span>
                 <span>
                     <input type="radio" id="scale" name="transformations" value="scale"
                         v-model="selectedTransformation" /><label for="scale">
                         Scale</label>
+                    <div></div>
                 </span>
-            </div>
-            <div v-if="selectedTool === 'select'" id="duplicate" class="button"
+            </span>
+            <button v-if="selectedTool === 'select'" id="duplicate" class="button"
                 v-bind:class="[selection.selected.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
-            </div>
+                selection
+            </button>
         </div>
 
         <div id="saveLoad" v-bind:class="[ui.show ? '' : 'hidden']">
