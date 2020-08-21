@@ -1375,7 +1375,8 @@ function init() {
         line.addDrawingPlane()
     }
 
-    window.addEventListener("resize", onWindowResize, false);
+    window.addEventListener("resize", onWindowResize);
+    window.addEventListener("orientationchange", onWindowResize);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
     drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
@@ -1391,6 +1392,11 @@ function init() {
 
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
+    camera.left = 900 * camera.aspect / - 2;
+    camera.right = 900 * camera.aspect / 2;
+    camera.top = 900 / 2;
+    camera.bottom = - 900 / 2;
+
     camera.updateProjectionMatrix();
 
     renderer.setSize(window.innerWidth, window.innerHeight);
