@@ -47982,9 +47982,12 @@ function AxesHelper(size) {
 	];
 
 	var colors = [
-		1, 0, 0, 1, 0.6, 0,
-		0, 1, 0, 0.6, 1, 0,
-		0, 0, 1, 0, 0.6, 1
+		1, 0.6, 0,
+		1, 0.6, 0,
+		0.6, 1, 0,
+		0.6, 1, 0,
+		0, 0.6, 1,
+		0, 0.6, 1
 	];
 
 	var geometry = new BufferGeometry();

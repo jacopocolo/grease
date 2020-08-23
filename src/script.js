@@ -389,8 +389,28 @@ let line = {
         },
     },
     drawingPlane: null, //defined in init
+    addDrawingPlane: function () {
+        var geometry = new THREE.PlaneGeometry(1, 1, 1);
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.8, fog: false });
+        var planeBg = new THREE.Mesh(geometry, material);
+        var planeGrid = new THREE.GridHelper(
+            1,
+            1,
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        );
+        planeGrid.rotation.x = Math.PI / 2;
+        this.drawingPlane = new THREE.Group();
+        this.drawingPlane.add(planeBg);
+        this.drawingPlane.add(planeGrid);
+        scene.add(this.drawingPlane);
+        // controls.addEventListener("change", function () {
+        //     line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
+        // });
+    },
     updateDrawingPlane: function () {
         this.drawingPlane.rotation.copy(camera.rotation);
+        //camera zoom has a minimum of 450 and a maximum of infinity
     }
 };
 
@@ -1355,26 +1375,11 @@ function init() {
     miniAxisCamera.layers.enable(1);
 
     if (app.experimental) {
-        var geometry = new THREE.PlaneGeometry(4, 4, 240);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: false, opacity: 0.5 });
-        var planeBg = new THREE.Mesh(geometry, material);
-        // var planeGrid = new THREE.GridHelper(
-        //     4,
-        //     240,
-        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
-        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
-        // );
-        // planeGrid.rotation.x = Math.PI / 2;
-        line.drawingPlane = new THREE.Group();
-        line.drawingPlane.add(planeBg);
-        // line.drawingPlane.add(planeGrid);
-        scene.add(line.drawingPlane);
-        // controls.addEventListener("change", function () {
-        //     line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
-        // });
+        line.addDrawingPlane()
     }
 
-    window.addEventListener("resize", onWindowResize, false);
+    window.addEventListener("resize", onWindowResize);
+    window.addEventListener("orientationchange", onWindowResize);
     onWindowResize();
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
     drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
@@ -1390,6 +1395,11 @@ function init() {
 
 function onWindowResize() {
     camera.aspect = window.innerWidth / window.innerHeight;
+    camera.left = 900 * camera.aspect / - 2;
+    camera.right = 900 * camera.aspect / 2;
+    camera.top = 900 / 2;
+    camera.bottom = - 900 / 2;
+
     camera.updateProjectionMatrix();
 
     renderer.setSize(window.innerWidth, window.innerHeight);
@@ -1490,7 +1500,7 @@ function drawAxisHelperControls() {
 
     //Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var material = new THREE.MeshBasicMaterial({ color: 0x0099ff });
     var sphereZ = new THREE.Mesh(geometry, material);
     sphereZ.position.set(0, 0, handlesDistance)
     sphereZ.name = "z";
@@ -1498,7 +1508,7 @@ function drawAxisHelperControls() {
     miniAxisScene.add(sphereZ);
     //Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    var material = new THREE.MeshBasicMaterial({ color: 0x99ff00 });
     var sphereY = new THREE.Mesh(geometry, material);
     sphereY.position.set(0, handlesDistance, 0)
     sphereY.name = "y";
@@ -1506,7 +1516,7 @@ function drawAxisHelperControls() {
     miniAxisScene.add(sphereY);
     //X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    var material = new THREE.MeshBasicMaterial({ color: 0xff6600 });
     var sphereX = new THREE.Mesh(geometry, material);
     sphereX.position.set(handlesDistance, 0, 0)
     sphereX.name = "x";
@@ -1521,7 +1531,7 @@ function drawAxisHelperControls() {
 
     //-Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+    var material = new THREE.MeshBasicMaterial({ color: 0x0099FF });
     var sphereZFlipped = new THREE.Mesh(geometry, material);
     sphereZFlipped.position.set(0, 0, -handlesDistance)
     sphereZFlipped.name = "-z";
@@ -1529,7 +1539,7 @@ function drawAxisHelperControls() {
     sphereZFlipped.layers.set(1);
     //-Y axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    var material = new THREE.MeshBasicMaterial({ color: 0x99ff00 });
     var sphereYFlipped = new THREE.Mesh(geometry, material);
     sphereYFlipped.position.set(0, -handlesDistance, 0)
     sphereYFlipped.name = "-y";
@@ -1537,7 +1547,7 @@ function drawAxisHelperControls() {
     sphereYFlipped.layers.set(1);
     //-X axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+    var material = new THREE.MeshBasicMaterial({ color: 0xff6600 });
     var sphereXFlipped = new THREE.Mesh(geometry, material);
     sphereXFlipped.position.set(-handlesDistance, 0, 0)
     sphereXFlipped.name = "-x";
