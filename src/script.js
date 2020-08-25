@@ -258,7 +258,8 @@ let mouse = {
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     smoothing: function () {
-        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
+        return 0
+        //if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 10 } else { return 5 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
         if (event.touches
@@ -337,7 +338,6 @@ let line = {
             this.uuid = mesh.uuid;
         },
         update: function (x, y, z, unproject) {
-            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry.vertices.push(vNow);
@@ -345,8 +345,11 @@ let line = {
         },
         end: function () {
             this.geometry.userData = this.geometry.vertices;
-            var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.2);
-            var points = curve.getPoints(this.geometry.vertices.length * 3);
+            //this setup might even work but mouse on my system doesn't produce enough points so the result suck, with the apple pencil it actually works very well. 
+            var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'centripetal', 1);
+            var points = curve.getPoints(this.geometry.vertices.length / 2);
+            var curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 1);
+            var points = curve.getPoints(this.geometry.vertices.length * 20);
             this.geometry.vertices = points;
             this.setGeometry('mouseup');
             //reset

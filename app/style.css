@@ -9,7 +9,7 @@
   --line-color-dark:rgb(72, 114, 223);
 }  */
 
-:root {
+/* :root {
   --bg-color:rgb(90, 84, 117);
   --accent-color:rgb(197, 163, 255);
   --accent-color-selected:rgb(113, 103, 153);
@@ -18,7 +18,7 @@
   --line-color-light:rgb(255, 184, 209);
   --line-color-medium:rgb(197, 163, 255);
   --line-color-dark:rgb(113, 103, 153);
-} 
+}  */
 
 /* Full orange */
 /* :root {
@@ -54,6 +54,17 @@
   --line-color-medium:rgb(120, 120, 120);
   --line-color-dark:rgb(170, 170, 170);
 }  */
+
+:root {
+  --bg-color:rgb(244, 235, 234);
+  --accent-color:rgb(254, 207, 18);
+  --accent-color-selected:rgb(218, 175, 1);
+  --ui-bg-color:rgb(0, 0, 0);
+  --line-color-lightest:rgb(201, 191, 190);
+  --line-color-light:rgb(133, 135, 139);
+  --line-color-medium:rgb(87, 103, 122);
+  --line-color-dark:rgb(25, 51, 78);
+} 
 
 
 @font-face {
