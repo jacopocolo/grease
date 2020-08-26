@@ -252,20 +252,21 @@ var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
 let mouse = {
-    down: false,
+    type: undefined,
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     smoothing: function () {
-        return 0
+        return 1
         //if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 10 } else { return 5 }
-    }, //Smoothing can create artifacts if it's too high. Might need to play around with it
+    },
     updateCoordinates: function (event) {
         if (event.touches
             &&
             new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
         ) {
+            this.type = 'touch';
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
@@ -277,6 +278,7 @@ let mouse = {
                 &&
                 new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
             ) {
+                this.type = 'mouse';
                 this.tx = (event.clientX / window.innerWidth) * 2 - 1;
                 this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
                 this.cx = event.clientX;
@@ -344,13 +346,20 @@ let line = {
             this.setGeometry();
         },
         end: function () {
-            this.geometry.userData = this.geometry.vertices;
-            //this setup might even work but mouse on my system doesn't produce enough points so the result suck, with the apple pencil it actually works very well. 
-            var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'centripetal', 1);
-            var points = curve.getPoints(this.geometry.vertices.length / 2);
-            var curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 1);
-            var points = curve.getPoints(this.geometry.vertices.length * 20);
-            this.geometry.vertices = points;
+            var mesh = scene.getObjectByProperty('uuid', this.uuid);
+            mesh.geometry.userData.vertices = this.geometry.vertices;
+            //If the input is touch we do extra smoothing
+            if (mouse.type == "touch") {
+                var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'centripetal', 1);
+                var points = curve.getPoints(this.geometry.vertices.length / 2);
+                var curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 1);
+                var points = curve.getPoints(this.geometry.vertices.length * 20);
+                this.geometry.vertices = points;
+            } else {
+                var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.5);
+                var points = curve.getPoints(this.geometry.vertices.length * 2);
+                this.geometry.vertices = points;
+            }
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -991,7 +1000,7 @@ app.exportTo = {
                 }
                 line.w = obj.userData.lineWidth;
                 line.g = [];
-                obj.geometry.vertices.forEach(vector3 => {
+                obj.geometry.userData.vertices.forEach(vector3 => {
                     line.g.push(vector3.x);
                     line.g.push(vector3.y);
                     line.g.push(vector3.z);
