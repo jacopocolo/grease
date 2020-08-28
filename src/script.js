@@ -258,8 +258,7 @@ let mouse = {
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     smoothing: function () {
-        return 1
-        //if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 10 } else { return 5 }
+        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 2 }
     },
     updateCoordinates: function (event) {
         if (event.touches
@@ -342,24 +341,38 @@ let line = {
         update: function (x, y, z, unproject) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
-            this.geometry.vertices.push(vNow);
+
+            var newVertices = [];
+
+            if (this.geometry.length > 3) {
+                newVertices.push(this.geometry[this.geometry.length - 1]);
+                newVertices.push(vNow);
+                var curve = new THREE.CatmullRomCurve3(newVertices, false, 'catmullrom', 1);
+                var points = curve.getPoints(newVertices.length * 2);
+                points.forEach(point => { this.geometry.vertices.push(point) });
+            } else {
+                this.geometry.vertices.push(vNow);
+
+            }
             this.setGeometry();
         },
         end: function () {
             var mesh = scene.getObjectByProperty('uuid', this.uuid);
             mesh.geometry.userData.vertices = this.geometry.vertices;
+
             //If the input is touch we do extra smoothing
-            if (mouse.type == "touch") {
-                var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'centripetal', 1);
-                var points = curve.getPoints(this.geometry.vertices.length / 2);
-                var curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 1);
-                var points = curve.getPoints(this.geometry.vertices.length * 20);
-                this.geometry.vertices = points;
-            } else {
-                var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.5);
-                var points = curve.getPoints(this.geometry.vertices.length * 2);
-                this.geometry.vertices = points;
-            }
+            // if (mouse.type == "touch") {
+            //     var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'centripetal', 1);
+            //     var points = curve.getPoints(this.geometry.vertices.length / 2);
+            //     var curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 1);
+            //     var points = curve.getPoints(this.geometry.vertices.length * 20);
+            //     this.geometry.vertices = points;
+            // } else {
+            //     var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.1);
+            //     var points = curve.getPoints(this.geometry.vertices.length * 2);
+            //     this.geometry.vertices = points;
+            // }
+
             this.setGeometry('mouseup');
             //reset
             this.line = null;
