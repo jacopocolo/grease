@@ -258,7 +258,8 @@ let mouse = {
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     smoothing: function () {
-        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 2 }
+        return 1
+        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 2 }
     },
     updateCoordinates: function (event) {
         if (event.touches
