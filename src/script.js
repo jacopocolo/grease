@@ -1303,7 +1303,7 @@ function init() {
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
     miniAxisRenderer.setClearColor(new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), 0.4);
-    miniAxisRenderer.setSize(250, 250);
+    miniAxisRenderer.setSize(200, 200);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
@@ -1454,7 +1454,7 @@ function animate() {
         app.linesNeedThemeUpdate = false;
     }
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    miniAxisRenderer.setViewport(0, 0, 250, 250);
+    miniAxisRenderer.setViewport(0, 0, 200, 200);
     renderer.render(scene, camera);
     if (makingGif) {
         if (count < gifLength) {
@@ -1493,7 +1493,7 @@ function drawAxisHelperControls() {
     var controlAxesHelper = new THREE.AxesHelper();
     miniAxisScene.add(controlAxesHelper);
     miniAxisScene.layers.set(0);
-    controlAxesHelper.scale.set(0.5, 0.5, 0.5)
+    controlAxesHelper.scale.set(0.7, 0.7, 0.7)
 
     //Z axis
     var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
