@@ -29,37 +29,38 @@
             :helptext="modal.helptext" :source="modal.image">
         </modal>
         <toast v-if="toast.show" :text=toast.text></toast>
-        <button id="toggleUi" @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
 
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>
+
+        <div id="toolSelection">
+            <span>
+                <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
+                    for="toolDraw">
+                    Draw
+                </label>
+                <div></div>
+            </span><span>
+                <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
+                    for="toolEraser">
+                    Erase
+                </label>
+                <div></div>
+            </span><span>
+                <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool" checked /><label
+                    for="toolSelect">
+                    Select
+                </label>
+                <div></div>
+            </span>
+        </div>
+
         <div id="miniAxis" v-bind:class="[ui.show ? '' : 'hidden']">
             <div class="handle" id="miniAxisHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
             </div>
             <span class="reset-camera" @click="resetCamera()">Reset</span>
-            <div id="toolSelection">
-                <span>
-                    <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
-                        for="toolDraw">
-                        Draw
-                    </label>
-                    <div></div>
-                </span><span>
-                    <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
-                        for="toolEraser">
-                        Erase
-                    </label>
-                    <div></div>
-                </span><span>
-                    <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool"
-                        checked /><label for="toolSelect">
-                        Select
-                    </label>
-                    <div></div>
-                </span>
-            </div>
         </div>
 
         <div class="toolbar" id="toolbar"
@@ -211,12 +212,15 @@
             </button>
         </div>
 
-        <div id="saveLoad" v-bind:class="[ui.show ? '' : 'hidden']">
-            <button id="Save" @click="exportTo.imageWithEncodedFile">Save…</button>
-            <button id="Load">Load…</button>
-            <button v-if="experimental" id="Export" @click="exportTo.geometry">Export
+        <div id="saveLoad">
+            <button id="Save" @click="exportTo.imageWithEncodedFile"
+                v-bind:class="[ui.show ? '' : 'hidden']">Save…</button>
+            <button id="Load" v-bind:class="[ui.show ? '' : 'hidden']">Load…</button>
+            <button v-if="experimental" id="Export" @click="exportTo.geometry"
+                v-bind:class="[ui.show ? '' : 'hidden']">Export
                 geometry</button>
-            <button id="makeGif" @click="exportTo.gif">Make gif</button>
+            <button id="makeGif" @click="exportTo.gif" v-bind:class="[ui.show ? '' : 'hidden']">Make gif</button>
+            <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
         </div>
     </div>
 </body>
