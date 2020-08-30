@@ -259,13 +259,34 @@ let mouse = {
     cy: 0, //y coord for canvas
     smoothing: function () {
         return 1
-        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 2 }
     },
+    // updateCoordinates: function (event) {
+    //     if (event.touches
+    //         &&
+    //         new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
+    //     ) {
+    //         this.type = 'touch';
+    //         this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
+    //         this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
+    //         this.cx = event.changedTouches[0].pageX;
+    //         this.cy = event.changedTouches[0].pageY;
+    //     }
+    //     else {
+    //         if (
+    //             event.button == 0
+    //             &&
+    //             new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
+    //         ) {
+    //             this.type = 'mouse';
+    //             this.tx = (event.clientX / window.innerWidth) * 2 - 1;
+    //             this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
+    //             this.cx = event.clientX;
+    //             this.cy = event.clientY;
+    //         }
+    //     }
+    // }
     updateCoordinates: function (event) {
-        if (event.touches
-            &&
-            new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
-        ) {
+        if (event.touches) {
             this.type = 'touch';
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
@@ -273,11 +294,7 @@ let mouse = {
             this.cy = event.changedTouches[0].pageY;
         }
         else {
-            if (
-                event.button == 0
-                &&
-                new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
-            ) {
+            if (event.button == 0) {
                 this.type = 'mouse';
                 this.tx = (event.clientX / window.innerWidth) * 2 - 1;
                 this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -344,36 +361,38 @@ let line = {
             if (unproject) { vNow.unproject(camera) };
 
             var newVertices = [];
-
-            if (this.geometry.length > 3) {
-                newVertices.push(this.geometry[this.geometry.length - 1]);
+            if (this.geometry.vertices.length > 3) {
+                if (this.geometry.vertices.length > 6) { newVertices.push(this.geometry.vertices[this.geometry.vertices.length - 4]) }
+                if (this.geometry.vertices.length > 5) { newVertices.push(this.geometry.vertices[this.geometry.vertices.length - 3]) }
+                if (this.geometry.vertices.length > 4) { newVertices.push(this.geometry.vertices[this.geometry.vertices.length - 2]) }
+                newVertices.push(this.geometry.vertices[this.geometry.vertices.length - 1])
                 newVertices.push(vNow);
-                var curve = new THREE.CatmullRomCurve3(newVertices, false, 'catmullrom', 1);
-                var points = curve.getPoints(newVertices.length * 2);
+                var curve = new THREE.CatmullRomCurve3(newVertices, false);
+                var points = curve.getPoints(newVertices.length / 1.6);
+                var curve = new THREE.CatmullRomCurve3(points, false);
+                var points = curve.getPoints(points.length * 1.7);
                 points.forEach(point => { this.geometry.vertices.push(point) });
             } else {
                 this.geometry.vertices.push(vNow);
-
             }
             this.setGeometry();
         },
         end: function () {
             var mesh = scene.getObjectByProperty('uuid', this.uuid);
             mesh.geometry.userData.vertices = this.geometry.vertices;
-
+            //http://paperjs.org/tutorials/interaction/working-with-mouse-vectors/
             //If the input is touch we do extra smoothing
             // if (mouse.type == "touch") {
-            //     var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'centripetal', 1);
-            //     var points = curve.getPoints(this.geometry.vertices.length / 2);
-            //     var curve = new THREE.CatmullRomCurve3(points, false, 'centripetal', 1);
-            //     var points = curve.getPoints(this.geometry.vertices.length * 20);
+            //     // var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.1);
+            //     // var points = curve.getPoints(this.geometry.vertices.length / 2);
+            //     var curve = new THREE.CatmullRomCurve3(points, false);
+            //     var points = curve.getPoints(this.geometry.vertices.length);
             //     this.geometry.vertices = points;
             // } else {
-            //     var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.1);
+            //     var curve = new THREE.CatmullRomCurve3(this.geometry.vertices, false, 'catmullrom', 0.5);
             //     var points = curve.getPoints(this.geometry.vertices.length * 2);
             //     this.geometry.vertices = points;
             // }
-
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -382,7 +401,14 @@ let line = {
         },
         setGeometry(mouseup) {
             this.line.setGeometry(this.geometry, function (p) {
-                return Math.pow(2 * p * (1 - p), 0.5) * 4
+                //return 1 * Maf.parabola(p, 1)
+                //return 1 * Math.pow(4 * p * (1 - p), 1)
+                var a = 0.5;
+                var b = 0.5;
+                var x = p;
+                var k = Math.pow(a + b, a + b) / (Math.pow(a, a) * Math.pow(b, b));
+                return k * Math.pow(x, a) * Math.pow(1 - x, b);
+                // return Math.pow(2 * p * (1 - p), 0.5) * 4
             });
 
             if (mouseup) {
