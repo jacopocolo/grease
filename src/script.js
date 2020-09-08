@@ -107,10 +107,10 @@ var app = new Vue({
             else if (this.selectedTool == "select") {
                 app.selection.start();
             }
-            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
+            renderer.domElement.addEventListener("touchmove", this.onTapMove, false);
+            renderer.domElement.addEventListener("mousemove", this.onTapMove, false);
+            renderer.domElement.addEventListener("touchend", this.onTapEnd, false);
+            renderer.domElement.addEventListener("mouseup", this.onTapEnd, false);
         },
         onTapMove: function (event) {
 
@@ -145,8 +145,8 @@ var app = new Vue({
             else if (this.selectedTool == "select") {
                 app.selection.end()
             }
-            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
+            renderer.domElement.removeEventListener("touchmove", this.onTapMove, false);
+            renderer.domElement.removeEventListener("mousemove", this.onTapMove, false);
         }
     },
     mounted() {
@@ -244,10 +244,6 @@ const encodedImageWidth = 800;
 let encodedImageHeigth = 300; //for safety
 const encodedImageDataStartingAt = 500;
 
-var drawingCanvas = document.getElementById("drawingCanvas");
-var context = drawingCanvas.getContext("2d");
-drawingCanvas.width = window.innerWidth;
-drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
@@ -412,56 +408,55 @@ let line = {
 };
 
 let eraser = {
+    sprites: [],
+    spriteMaterial: new THREE.SpriteMaterial({
+        map: new THREE.TextureLoader().load("../img/selector.png"),
+        opacity: 0.1,
+        color: new THREE.Color(0xFFFFFF),
+        //blending: THREE.MultiplyBlending,
+    }),
+    color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         raycaster = new THREE.Raycaster();
         raycaster.params.Line.threshold = threshold;
         raycaster.layers.set(1);
-        paths.push([mouse.cx, mouse.cy]);
+        var sprite = new THREE.Sprite(this.spriteMaterial);
+        sprite.scale.set(0.05, 0.05, 0.05);
+        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+        vNow.unproject(camera);
+        sprite.position.set(vNow.x, vNow.y, vNow.z)
+        scene.add(sprite);
+        this.sprites.push(sprite);
     },
     move: function () {
-        paths[paths.length - 1].push([mouse.cx, mouse.cy]);
-        //This is to render line transparency,
-        //we are redrawing the line every frame
-        this.redrawLine('rgba(255,255,255)');
+        //Technically possible to load images from base 64 so
+        var sprite = new THREE.Sprite(this.spriteMaterial);
+        sprite.scale.set(0.05, 0.05, 0.05);
+        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+        vNow.unproject(camera);
+        sprite.position.set(vNow.x, vNow.y, vNow.z)
+        scene.add(sprite);
 
+        this.sprites.push(sprite);
+        if (this.sprites.length > 10) {
+            scene.remove(this.sprites[0]);
+            this.sprites.shift()
+        }
         try {
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
             var object = raycaster.intersectObjects(scene.children)[0].object;
-            if (checkIfHelperObject(object)) {
-            } else {
-                //blueprint.removeFromBlueprint(object);
-                scene.remove(object);
-                mirror.eraseMirrorOf(object);
-                object.dispose();
-
-            }
+            scene.remove(object);
+            mirror.eraseMirrorOf(object);
+            object.dispose();
         } catch (err) {
             //if there's an error here, it just means that the raycaster found nothing
         }
     },
     end: function () {
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        paths = []
-    },
-    redrawLine: function (color) {
-        // clear canvas
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        context.strokeStyle = color;
-        context.globalAlpha = 0.25;
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.lineWidth = 30;
-        context.beginPath();
-        for (var i = 0; i < paths.length; ++i) {
-            var path = paths[i];
-            if (path.length < 1)
-                continue;
-            context.moveTo(path[0][0], path[0][1]);
-            for (var j = 1; j < path.length; ++j)
-                context.lineTo(path[j][0], path[j][1]);
-        }
-        context.stroke();
+        this.sprites.forEach(sprite => {
+            scene.remove(sprite);
+        })
+        this.sprites = [];
     },
 };
 
@@ -473,21 +468,51 @@ app.selection = {
     group: undefined,
     transforming: false,
     raycaster: new THREE.Raycaster(),
+    sprites: [],
+    spriteMaterial: new THREE.SpriteMaterial({
+        map: new THREE.TextureLoader().load("../img/selector.png"),
+        opacity: 0.1,
+        color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected')),
+        //blending: THREE.MultiplyBlending,
+    }),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (!this.transforming) {
-            paths.push([mouse.cx, mouse.cy]);
+            //paths.push([mouse.cx, mouse.cy]);
             this.raycaster = new THREE.Raycaster();
             this.raycaster.params.Line.threshold = threshold;
             this.raycaster.layers.set(1);
+
+            var sprite = new THREE.Sprite(this.spriteMaterial);
+            sprite.scale.set(0.05, 0.05, 0.05);
+            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+            vNow.unproject(camera);
+            sprite.position.set(vNow.x, vNow.y, vNow.z)
+            scene.add(sprite);
+            this.sprites.push(sprite);
+
         }
     },
     move: function () {
         if (!this.transforming && this.selected.length == 0) {
-            paths[paths.length - 1].push([mouse.cx, mouse.cy]);
-            //This is to render line transparency,
-            //we are redrawing the line every frame
-            this.redrawLine(this.color);
+
+            var sprite = new THREE.Sprite(this.spriteMaterial);
+            sprite.scale.set(0.05, 0.05, 0.05);
+            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+            vNow.unproject(camera);
+            sprite.position.set(vNow.x, vNow.y, vNow.z)
+            scene.add(sprite);
+
+            this.sprites.push(sprite);
+            if (this.sprites.length > 40) {
+                scene.remove(this.sprites[0]);
+                this.sprites.shift()
+            }
+            for (var i = this.sprites.length; i > 1; i = i - 1) {
+                var s = 0.05;
+                this.sprites[this.sprites.length - i].scale.set(s, s, s);
+            }
+
             try {
                 this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 //scene.add(new THREE.ArrowHelper( this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff ));
@@ -503,9 +528,11 @@ app.selection = {
     },
     end: function () {
         if (!this.transforming) {
-            context.closePath();
-            context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-            paths = [];
+            this.sprites.forEach(sprite => {
+                scene.remove(sprite);
+            })
+            this.sprites = [];
+
             if (this.selection.length == 0 || this.selected.length > 0) {
                 this.deselect()
             } else {
@@ -573,7 +600,7 @@ app.selection = {
         if (selection.length == 1) {
             this.helper = new THREE.BoxHelper(selection[0], new THREE.Color(this.color));
             scene.add(this.helper);
-            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls = new TransformControls(camera, renderer.domElement);
             transformControls.attach(selection[0]);
             transformControls.addEventListener("mouseDown", function () {
                 app.selection.transforming = true;
@@ -616,7 +643,7 @@ app.selection = {
                 this.selected.push(element);
             })
             this.helper.update();
-            transformControls = new TransformControls(camera, drawingCanvas);
+            transformControls = new TransformControls(camera, renderer.domElement);
             transformControls.attach(this.group);
         }
         transformControls.addEventListener("mouseDown", function () {
@@ -697,25 +724,6 @@ app.selection = {
         center.divideScalar(count);
         return center;
     },
-    redrawLine: function (color) {
-        // clear canvas
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        context.strokeStyle = color;
-        context.globalAlpha = 0.25;
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.lineWidth = 30;
-        context.beginPath();
-        for (var i = 0; i < paths.length; ++i) {
-            var path = paths[i];
-            if (path.length < 1)
-                continue;
-            context.moveTo(path[0][0], path[0][1]);
-            for (var j = 1; j < path.length; ++j)
-                context.lineTo(path[j][0], path[j][1]);
-        }
-        context.stroke();
-    }
 };
 
 let mirror = {
@@ -800,7 +808,6 @@ let importFrom = {
         document.body.appendChild(input);
 
         input.onchange = event => {
-
             app.modal.show = true;
             app.modal.mode = 'loader';
             app.modal.title = "Loading your drawing from image";
@@ -1346,7 +1353,7 @@ function init() {
     camera.zoom = 900;
     camera.position.set(0, 0, 2);
 
-    directControls = new OrbitControls(camera, drawingCanvas);
+    directControls = new OrbitControls(camera, renderer.domElement);
     directControls.enableRotate = false;
     directControls.enableZoom = true;
     directControls.enablePan = true;
@@ -1363,7 +1370,7 @@ function init() {
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.saveState();
-    transformControls = new TransformControls(camera, drawingCanvas);
+    transformControls = new TransformControls(camera, renderer.domElement);
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
@@ -1378,8 +1385,8 @@ function init() {
     window.addEventListener("resize", onWindowResize);
     window.addEventListener("orientationchange", onWindowResize);
     onWindowResize();
-    drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
-    drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
+    renderer.domElement.addEventListener("touchstart", app.onTapStart, false);
+    renderer.domElement.addEventListener("mousedown", app.onTapStart, false);
 
     //EXTRA RENDERER ONLY FOR MAKING GIFS
     bufferRenderer = new THREE.WebGLRenderer({
@@ -1400,8 +1407,6 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 
     renderer.setSize(window.innerWidth, window.innerHeight);
-    drawingCanvas.width = window.innerWidth;
-    drawingCanvas.height = window.innerHeight;
 
     insetWidth = window.innerHeight / 4;
     insetHeight = window.innerHeight / 4;
