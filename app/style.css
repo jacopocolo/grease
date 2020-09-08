@@ -132,8 +132,8 @@ margin: 0px;
 }
 
 #miniAxis {
-  width: 250px;
-  height: 250px;
+  width: 200px;
+  height: 200px;
   position: absolute;
   border-radius: 8px;
   left: 10px;
@@ -155,7 +155,7 @@ margin: 0px;
   position: absolute;
   color:var(--accent-color);
   opacity: 1;
-  top: 308px;
+  top: 208px;
   right: 10px;
 }
 
@@ -248,9 +248,16 @@ button {
 } */
 
 #toolSelection {
-  background-color: var(--ui-bg-color);
+  /* background-color: var(--ui-bg-color); */
   padding: 4px;
+  z-index: 5;
+  position: absolute;
+  top: 0;
   padding-left: 6px;
+  white-space: discard;
+  display: flex;
+  width: 300px;
+  left: calc(50% - 150px)
 }
 
 #toolSelection span {
@@ -258,6 +265,11 @@ button {
   box-sizing: border-box;
   width: calc(33.3% - 2px);
   text-align: center;
+}
+
+#toolSelection > span > input[type="radio"] + label {
+  min-height: 40px;
+  height: 30px;
 }
 
 .lineTools {
@@ -277,7 +289,7 @@ button {
   box-sizing: border-box;
 }
 
-#toolSelection, #transformationSelection {
+#transformationSelection {
   position: relative;
   white-space: discard;
   display: flex;
@@ -293,7 +305,7 @@ button {
 input[type="radio"] + label {
   font-size: 12px;
   color: white;
-  background: #333;
+  background: #222;
   box-shadow: 0px -4px 4px rgba(51, 51, 51, 0.25);
   border: none;
   border-top: 1px solid #444;
@@ -320,7 +332,7 @@ span:last-child > label:nth-child(2) {
 input[type="radio"]:checked + label {
   color: var(--accent-color);
   text-shadow: 0px 0px 1px var(--accent-color);
-  box-shadow: inset 1px 1px 6px #111, inset -1px -1px 6px #555;
+  box-shadow: inset 1px 1px 6px #111, inset -1px -1px 6px #333;
 }
 
 /* input[type="radio"]:checked + label {
