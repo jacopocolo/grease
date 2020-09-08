@@ -1,4 +1,4 @@
-/* :root {
+:root {
   --bg-color:rgb(2, 32, 131);
   --accent-color:rgb(254, 207, 18);
   --accent-color-selected:rgb(218, 175, 1);
@@ -7,9 +7,9 @@
   --line-color-light:rgb(217, 224, 247);
   --line-color-medium:rgb(99, 134, 227);
   --line-color-dark:rgb(72, 114, 223);
-}  */
+} 
 
-:root {
+/* :root {
   --bg-color:rgb(90, 84, 117);
   --accent-color:rgb(197, 163, 255);
   --accent-color-selected:rgb(113, 103, 153);
@@ -18,7 +18,7 @@
   --line-color-light:rgb(255, 184, 209);
   --line-color-medium:rgb(197, 163, 255);
   --line-color-dark:rgb(113, 103, 153);
-} 
+}  */
 
 /* Full orange */
 /* :root {

@@ -425,7 +425,7 @@ let eraser = {
             opacity: 0.1
         });
         var sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(0.025, 0.025, 0.025);
+        sprite.scale.set(0.05, 0.05, 0.05);
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
         sprite.position.set(vNow.x, vNow.y, vNow.z)
@@ -435,14 +435,14 @@ let eraser = {
     },
     move: function () {
         //Technically possible to load images from base 64 so
-        var spriteMap = new THREE.TextureLoader().load("../img/selector.png");
+        var spriteMap = new THREE.TextureLoader().load("../img/eraser.png");
         var spriteMaterial = new THREE.SpriteMaterial({
             map: spriteMap,
             opacity: 0.1,
             blending: THREE.AdditiveBlending,
         });
         var sprite = new THREE.Sprite(spriteMaterial);
-        sprite.scale.set(0.025, 0.025, 0.025);
+        sprite.scale.set(0.05, 0.05, 0.05);
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
         sprite.position.set(vNow.x, vNow.y, vNow.z)
@@ -512,21 +512,51 @@ app.selection = {
     group: undefined,
     transforming: false,
     raycaster: new THREE.Raycaster(),
+    sprites: [],
+    spriteMaterial: new THREE.SpriteMaterial({
+        map: new THREE.TextureLoader().load("../img/selector.png"),
+        opacity: 0.1,
+        color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected')),
+        //blending: THREE.MultiplyBlending,
+    }),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (!this.transforming) {
-            paths.push([mouse.cx, mouse.cy]);
+            //paths.push([mouse.cx, mouse.cy]);
             this.raycaster = new THREE.Raycaster();
             this.raycaster.params.Line.threshold = threshold;
             this.raycaster.layers.set(1);
+
+            var sprite = new THREE.Sprite(this.spriteMaterial);
+            sprite.scale.set(0.05, 0.05, 0.05);
+            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+            vNow.unproject(camera);
+            sprite.position.set(vNow.x, vNow.y, vNow.z)
+            scene.add(sprite);
+            this.sprites.push(sprite);
+
         }
     },
     move: function () {
         if (!this.transforming && this.selected.length == 0) {
-            paths[paths.length - 1].push([mouse.cx, mouse.cy]);
+
+            var sprite = new THREE.Sprite(this.spriteMaterial);
+            sprite.scale.set(0.05, 0.05, 0.05);
+            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
+            vNow.unproject(camera);
+            sprite.position.set(vNow.x, vNow.y, vNow.z)
+            scene.add(sprite);
+
+            this.sprites.push(sprite);
+            if (this.sprites.length > 20) {
+                scene.remove(this.sprites[0]);
+                this.sprites.shift()
+            }
+
+            //paths[paths.length - 1].push([mouse.cx, mouse.cy]);
             //This is to render line transparency,
             //we are redrawing the line every frame
-            this.redrawLine(this.color);
+            //this.redrawLine(this.color);
             try {
                 this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
                 //scene.add(new THREE.ArrowHelper( this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff ));
@@ -542,9 +572,14 @@ app.selection = {
     },
     end: function () {
         if (!this.transforming) {
-            context.closePath();
-            context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-            paths = [];
+            //context.closePath();
+            //context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+            //paths = [];
+            this.sprites.forEach(sprite => {
+                scene.remove(sprite);
+            })
+            this.sprites = [];
+
             if (this.selection.length == 0 || this.selected.length > 0) {
                 this.deselect()
             } else {
