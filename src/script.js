@@ -413,18 +413,19 @@ let line = {
 
 let eraser = {
     sprites: [],
+    spriteMaterial: new THREE.SpriteMaterial({
+        map: new THREE.TextureLoader().load("../img/selector.png"),
+        opacity: 0.1,
+        color: new THREE.Color(0xFFFFFF),
+        //blending: THREE.MultiplyBlending,
+    }),
+    color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         raycaster = new THREE.Raycaster();
         raycaster.params.Line.threshold = threshold;
         raycaster.layers.set(1);
         //paths.push([mouse.cx, mouse.cy]);
-
-        var spriteMap = new THREE.TextureLoader().load("../img/selector.png");
-        var spriteMaterial = new THREE.SpriteMaterial({
-            map: spriteMap,
-            opacity: 0.1
-        });
-        var sprite = new THREE.Sprite(spriteMaterial);
+        var sprite = new THREE.Sprite(this.spriteMaterial);
         sprite.scale.set(0.05, 0.05, 0.05);
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
@@ -435,13 +436,7 @@ let eraser = {
     },
     move: function () {
         //Technically possible to load images from base 64 so
-        var spriteMap = new THREE.TextureLoader().load("../img/eraser.png");
-        var spriteMaterial = new THREE.SpriteMaterial({
-            map: spriteMap,
-            opacity: 0.1,
-            blending: THREE.AdditiveBlending,
-        });
-        var sprite = new THREE.Sprite(spriteMaterial);
+        var sprite = new THREE.Sprite(this.spriteMaterial);
         sprite.scale.set(0.05, 0.05, 0.05);
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
         vNow.unproject(camera);
@@ -462,14 +457,9 @@ let eraser = {
         try {
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
             var object = raycaster.intersectObjects(scene.children)[0].object;
-            if (checkIfHelperObject(object)) {
-            } else {
-                //blueprint.removeFromBlueprint(object);
-                scene.remove(object);
-                mirror.eraseMirrorOf(object);
-                object.dispose();
-
-            }
+            scene.remove(object);
+            mirror.eraseMirrorOf(object);
+            object.dispose();
         } catch (err) {
             //if there's an error here, it just means that the raycaster found nothing
         }
