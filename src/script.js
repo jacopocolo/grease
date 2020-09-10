@@ -219,7 +219,7 @@ Vue.component("toast", {
 `
 });
 
-var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
+var renderer, miniAxisRenderer, scene, miniAxisScene, pickingScene, camera, miniAxisCamera;
 var controls, directControls, transformControls;
 
 var paths = []; //For canvas rendering of selection and eraser
@@ -407,7 +407,62 @@ let line = {
     }
 };
 
+class GPUPickHelper {
+    constructor() {
+        this.pickingTexture = new THREE.WebGLRenderTarget(1, 1);
+        this.pixelBuffer = new Uint8Array(4);
+        this.pickedObject = null;
+        this.pickedObjectSavedColor = 0;
+    }
+    pick(cssPosition, scene, camera) {
+        const { pickingTexture, pixelBuffer } = this;
+
+        // set the view offset to represent just a single pixel under the mouse
+        const pixelRatio = renderer.getPixelRatio();
+        camera.setViewOffset(
+            renderer.getContext().drawingBufferWidth,   // full width
+            renderer.getContext().drawingBufferHeight,  // full top
+            cssPosition.x * pixelRatio | 0,             // rect x
+            cssPosition.y * pixelRatio | 0,             // rect y
+            1,                                          // rect width
+            1,                                          // rect height
+        );
+        // render the scene
+        renderer.setRenderTarget(pickingTexture)
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        // clear the view offset so rendering returns to normal
+        camera.clearViewOffset();
+        //read the pixel
+        renderer.readRenderTargetPixels(
+            pickingTexture,
+            0,   // x
+            0,   // y
+            1,   // width
+            1,   // height
+            pixelBuffer);
+
+        const id =
+            (pixelBuffer[0] << 16) |
+            (pixelBuffer[1] << 8) |
+            (pixelBuffer[2]);
+        const intersectedObject = idToObject[id];
+
+        if (intersectedObject) {
+            return intersectedObject
+            // // pick the first object. It's the closest one
+            // this.pickedObject = intersectedObject;
+            // // save its color
+            // this.pickedObjectSavedColor = this.pickedObject.material.color.getHex();
+            // // set its emissive color to flashing red/yellow
+            // this.pickedObject.material.color.setHex(0xFF0000);
+        }
+    }
+}
+
 let eraser = {
+    pickHelper: null,
     sprites: [],
     spriteMaterial: new THREE.SpriteMaterial({
         map: new THREE.TextureLoader().load("../img/selector.png"),
@@ -417,9 +472,31 @@ let eraser = {
     }),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = threshold;
-        raycaster.layers.set(1);
+
+        idToObject = {};
+        id = 1;
+        pickingScene = new THREE.Scene();
+        pickingScene.background = new THREE.Color(0);
+        scene.children.forEach(children => {
+            if (children.layers.mask == 2) {
+                var clone = children.clone();
+                var cloneMaterial = children.material.clone();
+                clone.material = cloneMaterial;
+                cloneMaterial.color = new THREE.Color(id);
+                pickingScene.add(clone);
+                idToObject[id] = children;
+                id = id + 1;
+            }
+        })
+
+        this.pickHelper = new GPUPickHelper();
+        var object = this.pickHelper.pick({ x: mouse.cx, y: mouse.cy }, pickingScene, camera);
+        if (object) {
+            scene.remove(object);
+            mirror.eraseMirrorOf(object);
+            object.dispose();
+        }
+
         var sprite = new THREE.Sprite(this.spriteMaterial);
         sprite.scale.set(0.05, 0.05, 0.05);
         var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
@@ -442,15 +519,14 @@ let eraser = {
             scene.remove(this.sprites[0]);
             this.sprites.shift()
         }
-        try {
-            raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-            var object = raycaster.intersectObjects(scene.children)[0].object;
+
+        var object = this.pickHelper.pick({ x: mouse.cx, y: mouse.cy }, pickingScene, camera);
+        if (object) {
             scene.remove(object);
             mirror.eraseMirrorOf(object);
             object.dispose();
-        } catch (err) {
-            //if there's an error here, it just means that the raycaster found nothing
         }
+
     },
     end: function () {
         this.sprites.forEach(sprite => {
@@ -468,6 +544,7 @@ app.selection = {
     group: undefined,
     transforming: false,
     raycaster: new THREE.Raycaster(),
+    pickHelper: null,
     sprites: [],
     spriteMaterial: new THREE.SpriteMaterial({
         map: new THREE.TextureLoader().load("../img/selector.png"),
@@ -478,10 +555,22 @@ app.selection = {
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (!this.transforming) {
-            //paths.push([mouse.cx, mouse.cy]);
-            this.raycaster = new THREE.Raycaster();
-            this.raycaster.params.Line.threshold = threshold;
-            this.raycaster.layers.set(1);
+            idToObject = {};
+            id = 1;
+            pickingScene = new THREE.Scene();
+            pickingScene.background = new THREE.Color(0);
+            scene.children.forEach(children => {
+                if (children.layers.mask == 2) {
+                    var clone = children.clone();
+                    var cloneMaterial = children.material.clone();
+                    clone.material = cloneMaterial;
+                    cloneMaterial.color = new THREE.Color(id);
+                    pickingScene.add(clone);
+                    idToObject[id] = children;
+                    id = id + 1;
+                }
+            })
+            this.pickHelper = new GPUPickHelper();
 
             var sprite = new THREE.Sprite(this.spriteMaterial);
             sprite.scale.set(0.05, 0.05, 0.05);
@@ -514,9 +603,7 @@ app.selection = {
             }
 
             try {
-                this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                //scene.add(new THREE.ArrowHelper( this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff ));
-                var intersectedObject = this.raycaster.intersectObjects(scene.children)[0].object;
+                var intersectedObject = this.pickHelper.pick({ x: mouse.cx, y: mouse.cy }, pickingScene, camera);
                 if (intersectedObject != undefined && this.selection.indexOf(intersectedObject) < 0 && this.selected.indexOf(intersectedObject) < 0) {
                     this.selection.push(intersectedObject);
                     this.toggleSelectionColor(intersectedObject, true);
@@ -1289,8 +1376,12 @@ app.exportTo = {
     }
 }
 
+let idToObject = {};
+let id = 1;
+
 init();
 animate();
+
 
 function init() {
     renderer = new THREE.WebGLRenderer({
