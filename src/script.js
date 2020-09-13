@@ -93,7 +93,7 @@ var app = new Vue({
         //MOUSE HANDLERS
         onTapStart: function (event) {
 
-            if (event.touches && event.touches.length > 1) { return }
+            if (event.touches && event.touches.length > 1 || app.selection.selected.length > 0) { return }
 
             mouse.updateCoordinates(event);
             //DRAW
@@ -641,7 +641,6 @@ app.selection = {
     linepaths: new Array(),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        console.log(this.transforming())
         if (this.transforming() === false) {
 
             console.log('start')

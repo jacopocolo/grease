@@ -343,6 +343,7 @@ var TransformControls = function (camera, domElement) {
 
 			}
 
+			this.userData.hover = true;
 			this.dragging = true;
 			mouseDownEvent.mode = this.mode;
 			this.dispatchEvent(mouseDownEvent);
@@ -614,6 +615,7 @@ var TransformControls = function (camera, domElement) {
 		}
 
 		this.dragging = false;
+		this.hover = false;
 
 		if (pointer.button === undefined) this.axis = null;
 
