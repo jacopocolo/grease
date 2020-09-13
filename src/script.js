@@ -4,7 +4,7 @@ import { TransformControls } from "../build/TransformControls.js";
 import {
     MeshLine,
     MeshLineMaterial,
-    MeshLineRaycast
+    //MeshLineRaycast
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
 import Vue from '../build/vue.esm.browser.js';
@@ -47,6 +47,7 @@ var app = new Vue({
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
+            picking.resetPicking();
         },
         selectedColor: function () {
             switch (true) {
@@ -92,7 +93,7 @@ var app = new Vue({
         //MOUSE HANDLERS
         onTapStart: function (event) {
 
-            if (event.touches && event.touches.length > 1) { return }
+            if (event.touches && event.touches.length > 1 || app.selection.selected.length > 0) { return }
 
             mouse.updateCoordinates(event);
             //DRAW
@@ -107,10 +108,10 @@ var app = new Vue({
             else if (this.selectedTool == "select") {
                 app.selection.start();
             }
-            renderer.domElement.addEventListener("touchmove", this.onTapMove, false);
-            renderer.domElement.addEventListener("mousemove", this.onTapMove, false);
-            renderer.domElement.addEventListener("touchend", this.onTapEnd, false);
-            renderer.domElement.addEventListener("mouseup", this.onTapEnd, false);
+            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         },
         onTapMove: function (event) {
 
@@ -145,8 +146,8 @@ var app = new Vue({
             else if (this.selectedTool == "select") {
                 app.selection.end()
             }
-            renderer.domElement.removeEventListener("touchmove", this.onTapMove, false);
-            renderer.domElement.removeEventListener("mousemove", this.onTapMove, false);
+            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
+            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
         }
     },
     mounted() {
@@ -219,14 +220,10 @@ Vue.component("toast", {
 `
 });
 
-var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera;
+var renderer, miniAxisRenderer, scene, miniAxisScene, pickingScene, camera, miniAxisCamera;
 var controls, directControls, transformControls;
 
 var paths = []; //For canvas rendering of selection and eraser
-
-var raycaster;
-var raycastObject;
-var threshold = 0.001;
 
 var insetWidth;
 var insetHeight;
@@ -244,6 +241,10 @@ const encodedImageWidth = 800;
 let encodedImageHeigth = 300; //for safety
 const encodedImageDataStartingAt = 500;
 
+var drawingCanvas = document.getElementById("drawingCanvas");
+var context = drawingCanvas.getContext("2d");
+drawingCanvas.width = window.innerWidth;
+drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
@@ -309,7 +310,7 @@ let line = {
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
-            mesh.raycast = MeshLineRaycast;
+            //mesh.raycast = MeshLineRaycast;
             scene.add(mesh);
 
             mesh.userData.lineColor = lineColor;
@@ -407,56 +408,222 @@ let line = {
     }
 };
 
+//What I should do to improve picking performance is: 
+//Get previous mouse coordinates and current mouse coordinates
+//Pass them to the Picker
+//Have the picker render the rectangle between these two coordinates
+//Inside of the rectangle grab all the points connecting the two angles directly
+//check every pixel agains their ID
+
+class GPUPickHelper {
+    constructor() {
+        this.pickingTexture = new THREE.WebGLRenderTarget();
+        this.pixelBuffer = new Uint8Array(4);
+        this.pickedObject = null;
+        this.pickedObjectSavedColor = 0;
+    }
+    calcPointsInBetween(x1, y1, x2, y2) {
+        var coordinatesArray = new Array();
+        // Define differences and error check
+        var dx = Math.abs(x2 - x1);
+        var dy = Math.abs(y2 - y1);
+        var sx = (x1 < x2) ? 1 : -1;
+        var sy = (y1 < y2) ? 1 : -1;
+        var err = dx - dy;
+        // Set first coordinates
+        coordinatesArray.push(new THREE.Vector2(x1, y1));
+        // Main loop
+        while (!((x1 == x2) && (y1 == y2))) {
+            var e2 = err << 1;
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+            // Set coordinates
+            coordinatesArray.push(new THREE.Vector2(x1, y1));
+        }
+        // Return the result
+        return coordinatesArray;
+    }
+    pick(cssPosition, scene, camera) {
+        const { pickingTexture, pixelBuffer } = this;
+
+        // set the view offset to represent just a single pixel under the mouse
+        const pixelRatio = renderer.getPixelRatio();
+        camera.setViewOffset(
+            renderer.getContext().drawingBufferWidth,   // full width
+            renderer.getContext().drawingBufferHeight,  // full top
+            cssPosition.x * pixelRatio | 0,             // rect x
+            cssPosition.y * pixelRatio | 0,             // rect y
+            1,                                          // rect width
+            1,                                          // rect height
+        );
+        // render the scene
+        renderer.setRenderTarget(pickingTexture)
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        // clear the view offset so rendering returns to normal
+        camera.clearViewOffset();
+        //read the pixel
+        renderer.readRenderTargetPixels(
+            pickingTexture,
+            0,   // x
+            0,   // y
+            1,   // width
+            1,   // height
+            pixelBuffer);
+
+        const id =
+            (pixelBuffer[0] << 16) |
+            (pixelBuffer[1] << 8) |
+            (pixelBuffer[2]);
+        const intersectedObject = picking.idToObject[id];
+
+        if (intersectedObject) {
+            return intersectedObject
+        }
+    }
+    pickArea(x1, y1, x2, y2, scene, camera) {
+        const { pickingTexture, pixelBuffer } = this;
+        const width = () => {
+            if (x2 - x1 < 0) { return -(x2 - x1) }
+            else if (x2 - x1 == 0) { return 1 }
+            else { return x2 - x1 }
+        }
+        const height = () => {
+            if (y2 - y1 < 0) { return -(y2 - y1) }
+            else if (y2 - y1 == 0) { return 1 }
+            else { return y2 - y1 }
+        }
+        let intersectObjects = new Array();
+
+        // set the view offset to represent just a single pixel under the mouse
+        const pixelRatio = renderer.getPixelRatio();
+        camera.setViewOffset(
+            renderer.getContext().drawingBufferWidth,   // full width
+            renderer.getContext().drawingBufferHeight,  // full top
+            x1 * pixelRatio | 0,             // rect x
+            y1 * pixelRatio | 0,             // rect y
+            width() * pixelRatio | 1,        // height
+            height() * pixelRatio | 1,        // width
+        );
+        // render the scene
+        this.pickingTexture.setSize(width(), height())
+        renderer.setRenderTarget(pickingTexture)
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        // clear the view offset so rendering returns to normal
+        camera.clearViewOffset();
+        //read the pixel
+
+        this.calcPointsInBetween(0, 0, width(), height()).forEach(point => {
+            renderer.readRenderTargetPixels(
+                this.pickingTexture,
+                point.x,   // x
+                point.y,   // y
+                1,   // width
+                1,   // height
+                pixelBuffer);
+            const id =
+                (pixelBuffer[0] << 16) |
+                (pixelBuffer[1] << 8) |
+                (pixelBuffer[2]);
+            const intersectedObject = picking.idToObject[id];
+            if (intersectedObject != undefined && intersectObjects.indexOf(intersectedObject) < 0) {
+                intersectObjects.push(intersectedObject)
+            }
+        })
+        return intersectObjects
+
+    }
+}
+let picking = {
+    scene: null,
+    idToObject: {},
+    id: 1,
+    picker: new GPUPickHelper(),
+    setupPicking: function () {
+        console.log("setupPicking")
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0);
+        scene.children.forEach(children => {
+            if (children.layers.mask == 2) {
+                var clone = children.clone();
+                var cloneMaterial = children.material.clone();
+                clone.material = cloneMaterial;
+                cloneMaterial.color = new THREE.Color(this.id);
+                this.scene.add(clone);
+                this.idToObject[this.id] = children;
+                this.id = this.id + 1;
+            }
+        })
+    },
+    resetPicking: function () {
+        console.log("resetPicking")
+        if (this.scene != null) {
+            this.idToObject = {};
+            this.id = 1;
+            this.scene.children.forEach(children => {
+                scene.remove(children);
+                children.material.dispose()
+            })
+        }
+    }
+}
+
 let eraser = {
-    sprites: [],
-    spriteMaterial: new THREE.SpriteMaterial({
-        map: new THREE.TextureLoader().load("../img/selector.png"),
-        opacity: 0.1,
-        color: new THREE.Color(0xFFFFFF),
-        //blending: THREE.MultiplyBlending,
-    }),
+    linepaths: [],
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        raycaster = new THREE.Raycaster();
-        raycaster.params.Line.threshold = threshold;
-        raycaster.layers.set(1);
-        var sprite = new THREE.Sprite(this.spriteMaterial);
-        sprite.scale.set(0.05, 0.05, 0.05);
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        sprite.position.set(vNow.x, vNow.y, vNow.z)
-        scene.add(sprite);
-        this.sprites.push(sprite);
+        picking.setupPicking();
+        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
+        if (intersectedObject) {
+            scene.remove(intersectedObject);
+            mirror.eraseMirrorOf(intersectedObject);
+            intersectedObject.material.dispose();
+        }
+        this.linepaths.push([mouse.cx, mouse.cy]);
     },
     move: function () {
-        //Technically possible to load images from base 64 so
-        var sprite = new THREE.Sprite(this.spriteMaterial);
-        sprite.scale.set(0.05, 0.05, 0.05);
-        var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-        vNow.unproject(camera);
-        sprite.position.set(vNow.x, vNow.y, vNow.z)
-        scene.add(sprite);
+        this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
+        this.redrawLine('rgba(255,255,255)');
 
-        this.sprites.push(sprite);
-        if (this.sprites.length > 10) {
-            scene.remove(this.sprites[0]);
-            this.sprites.shift()
-        }
-        try {
-            raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-            var object = raycaster.intersectObjects(scene.children)[0].object;
-            scene.remove(object);
-            mirror.eraseMirrorOf(object);
-            object.dispose();
-        } catch (err) {
-            //if there's an error here, it just means that the raycaster found nothing
+        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
+        if (intersectedObject) {
+            scene.remove(intersectedObject);
+            mirror.eraseMirrorOf(intersectedObject);
+            intersectedObject.material.dispose();
         }
     },
     end: function () {
-        this.sprites.forEach(sprite => {
-            scene.remove(sprite);
-        })
-        this.sprites = [];
+        picking.resetPicking();
+        context.closePath();
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        this.linepaths = [];
+    },
+    redrawLine: function (color) {
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        context.strokeStyle = color;
+        context.globalAlpha = 0.25;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 30;
+        context.beginPath();
+        for (var i = 0; i < this.linepaths.length; ++i) {
+            var path = this.linepaths[i];
+            if (this.linepaths.length < 1)
+                continue;
+            context.moveTo(path[0][0], path[0][1]);
+            for (var j = 1; j < path.length; ++j)
+                context.lineTo(path[j][0], path[j][1]);
+        }
+        context.stroke();
     },
 };
 
@@ -466,73 +633,74 @@ app.selection = {
     selected: [],
     helper: undefined,
     group: undefined,
-    transforming: false,
-    raycaster: new THREE.Raycaster(),
-    sprites: [],
-    spriteMaterial: new THREE.SpriteMaterial({
-        map: new THREE.TextureLoader().load("../img/selector.png"),
-        opacity: 0.1,
-        color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected')),
-        //blending: THREE.MultiplyBlending,
-    }),
+    transforming: function () {
+        if (transformControls.userData.hover) {
+            return transformControls.userData.hover
+        } else { return false }
+    },
+    linepaths: new Array(),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        if (!this.transforming) {
-            //paths.push([mouse.cx, mouse.cy]);
-            this.raycaster = new THREE.Raycaster();
-            this.raycaster.params.Line.threshold = threshold;
-            this.raycaster.layers.set(1);
+        if (this.transforming() === false) {
 
-            var sprite = new THREE.Sprite(this.spriteMaterial);
-            sprite.scale.set(0.05, 0.05, 0.05);
+            console.log('start')
+
+            this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
+            picking.setupPicking();
             var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
             vNow.unproject(camera);
-            sprite.position.set(vNow.x, vNow.y, vNow.z)
-            scene.add(sprite);
-            this.sprites.push(sprite);
+
+            this.deselect()
+            var pickedObjects = picking.picker.pickArea(
+                mouse.cx - 5,
+                mouse.cy - 5,
+                mouse.cx + 5,
+                mouse.cy + 5,
+                picking.scene,
+                camera);
+
+            if (pickedObjects != undefined && pickedObjects.length > 0) {
+                pickedObjects.forEach(object => {
+                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
+                        this.selection.push(object);
+                        this.toggleSelectionColor(object, true);
+                    }
+                })
+            }
 
         }
     },
     move: function () {
-        if (!this.transforming && this.selected.length == 0) {
+        if (this.transforming() === false && this.selected.length == 0) {
 
-            var sprite = new THREE.Sprite(this.spriteMaterial);
-            sprite.scale.set(0.05, 0.05, 0.05);
-            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-            vNow.unproject(camera);
-            sprite.position.set(vNow.x, vNow.y, vNow.z)
-            scene.add(sprite);
+            var pickedObjects = picking.picker.pickArea(
+                this.linepaths[this.linepaths.length - 1].x,
+                this.linepaths[this.linepaths.length - 1].y,
+                mouse.cx,
+                mouse.cy,
+                picking.scene,
+                camera);
 
-            this.sprites.push(sprite);
-            if (this.sprites.length > 40) {
-                scene.remove(this.sprites[0]);
-                this.sprites.shift()
+            if (pickedObjects != undefined && pickedObjects.length > 0) {
+                pickedObjects.forEach(object => {
+                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
+                        this.selection.push(object);
+                        this.toggleSelectionColor(object, true);
+                    }
+                })
             }
-            for (var i = this.sprites.length; i > 1; i = i - 1) {
-                var s = 0.05;
-                this.sprites[this.sprites.length - i].scale.set(s, s, s);
-            }
+            this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
+            this.redrawLine(this.color);
 
-            try {
-                this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-                //scene.add(new THREE.ArrowHelper( this.raycaster.ray.direction, this.raycaster.ray.origin, 100, Math.random() * 0xffffff ));
-                var intersectedObject = this.raycaster.intersectObjects(scene.children)[0].object;
-                if (intersectedObject != undefined && this.selection.indexOf(intersectedObject) < 0 && this.selected.indexOf(intersectedObject) < 0) {
-                    this.selection.push(intersectedObject);
-                    this.toggleSelectionColor(intersectedObject, true);
-                }
-            } catch (err) {
-                //console.log(err);
-            }
         }
     },
     end: function () {
-        if (!this.transforming) {
-            this.sprites.forEach(sprite => {
-                scene.remove(sprite);
-            })
-            this.sprites = [];
+        context.closePath();
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        this.linepaths = new Array();
+        picking.resetPicking();
 
+        if (this.transforming() === false) {
             if (this.selection.length == 0 || this.selected.length > 0) {
                 this.deselect()
             } else {
@@ -549,7 +717,7 @@ app.selection = {
             this.selected.forEach(object => {
                 var duplicate = object.clone();
                 duplicate.layers.set(1);
-                duplicate.raycast = MeshLineRaycast;
+                //duplicate.raycast = MeshLineRaycast;
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
                 duplicateArray.push(duplicate);
@@ -584,7 +752,7 @@ app.selection = {
             //     originalPosition.z
             // )
             scene.add(duplicate);
-            duplicate.raycast = MeshLineRaycast;
+            //duplicate.raycast = MeshLineRaycast;
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
             //deselect selected object
             this.deselect();
@@ -600,22 +768,10 @@ app.selection = {
         if (selection.length == 1) {
             this.helper = new THREE.BoxHelper(selection[0], new THREE.Color(this.color));
             scene.add(this.helper);
-            transformControls = new TransformControls(camera, renderer.domElement);
+            transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(selection[0]);
-            transformControls.addEventListener("mouseDown", function () {
-                app.selection.transforming = true;
-            });
-            transformControls.addEventListener("touchstart", function () {
-                app.selection.transforming = true;
-            });
             transformControls.addEventListener("objectChange", function () {
                 mirror.updateMirrorOf(app.selection.selected[0])
-            });
-            transformControls.addEventListener("mouseUp", function () {
-                app.selection.transforming = false;
-            });
-            transformControls.addEventListener("touchend", function () {
-                app.selection.transforming = false;
             });
             this.selected.push(selection[0])
             this.helper.update();
@@ -643,15 +799,9 @@ app.selection = {
                 this.selected.push(element);
             })
             this.helper.update();
-            transformControls = new TransformControls(camera, renderer.domElement);
+            transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.group);
         }
-        transformControls.addEventListener("mouseDown", function () {
-            app.selection.transforming = true;
-        });
-        transformControls.addEventListener("touchstart", function () {
-            app.selection.transforming = true;
-        });
         transformControls.addEventListener("objectChange", function () {
             app.selection.helper.update();
             transformControls.object.children.forEach(obj => {
@@ -668,16 +818,20 @@ app.selection = {
                 mirror.updateMirrorOf(selectedObj)
             });
         });
-        transformControls.addEventListener("mouseUp", function () {
-            app.selection.transforming = false;
-        });
-        transformControls.addEventListener("touchend", function () {
-            app.selection.transforming = true;
-        });
         scene.add(transformControls);
         this.selection = [];
     },
     deselect: function () {
+        //tooltip on top of object
+        //https://stackoverflow.com/questions/54410532/how-to-correctly-position-html-elements-in-three-js-coordinate-system
+        // var posX = (this.selected[0].position.x * window.innerWidth) / 2 + 1;
+        // var posY = (this.selected[0].position.y * window.innerHeight) / 2 + 1;
+        // var x = (this.selected[0].geometry.boundingBox.max.x * window.innerWidth) / 2 + 1;
+        // var y = (this.selected[0].geometry.boundingBox.max.y * window.innerHeight) / 2 + 1;
+        // var position = new THREE.Vector3(posX + x, posY + y, 0).project(camera)
+        // document.getElementById('toolbar').style.left = position.x + "px";
+        // document.getElementById('toolbar').style.top = position.y + "px";
+
         transformControls.detach();
         scene.remove(transformControls);
         scene.remove(this.helper);
@@ -724,6 +878,19 @@ app.selection = {
         center.divideScalar(count);
         return center;
     },
+    redrawLine: function (color) {
+        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        context.strokeStyle = color;
+        context.globalAlpha = 0.25;
+        context.lineCap = 'round';
+        context.lineJoin = 'round';
+        context.lineWidth = 15;
+        context.beginPath();
+        for (var i = 0; i < this.linepaths.length; ++i) {
+            context.lineTo(this.linepaths[i].x, this.linepaths[i].y);
+        }
+        context.stroke();
+    },
 };
 
 let mirror = {
@@ -767,7 +934,7 @@ let mirror = {
         console.log('mirror')
         var clone = obj.clone();
         clone.layers.set(1);
-        clone.raycast = MeshLineRaycast;
+        //clone.raycast = MeshLineRaycast;
         clone.userData.mirror = obj.uuid;
         clone.userData.mirrorAxis = axis;
         obj.userData.mirror = clone.uuid;
@@ -1292,6 +1459,7 @@ app.exportTo = {
 init();
 animate();
 
+
 function init() {
     renderer = new THREE.WebGLRenderer({
         antialias: true,
@@ -1353,7 +1521,7 @@ function init() {
     camera.zoom = 900;
     camera.position.set(0, 0, 2);
 
-    directControls = new OrbitControls(camera, renderer.domElement);
+    directControls = new OrbitControls(camera, drawingCanvas);
     directControls.enableRotate = false;
     directControls.enableZoom = true;
     directControls.enablePan = true;
@@ -1370,7 +1538,7 @@ function init() {
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.saveState();
-    transformControls = new TransformControls(camera, renderer.domElement);
+    transformControls = new TransformControls(camera, drawingCanvas);
 
     miniAxisCamera = new THREE.OrthographicCamera();
     miniAxisCamera.position.copy(camera.position);
@@ -1385,8 +1553,8 @@ function init() {
     window.addEventListener("resize", onWindowResize);
     window.addEventListener("orientationchange", onWindowResize);
     onWindowResize();
-    renderer.domElement.addEventListener("touchstart", app.onTapStart, false);
-    renderer.domElement.addEventListener("mousedown", app.onTapStart, false);
+    drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
+    drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
 
     //EXTRA RENDERER ONLY FOR MAKING GIFS
     bufferRenderer = new THREE.WebGLRenderer({
@@ -1407,6 +1575,8 @@ function onWindowResize() {
     camera.updateProjectionMatrix();
 
     renderer.setSize(window.innerWidth, window.innerHeight);
+    drawingCanvas.width = window.innerWidth;
+    drawingCanvas.height = window.innerHeight;
 
     insetWidth = window.innerHeight / 4;
     insetHeight = window.innerHeight / 4;
