@@ -7,6 +7,7 @@ import {
     //MeshLineRaycast
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
+import { simplify } from '../build/simplify.js'
 import Vue from '../build/vue.esm.browser.js';
 
 var app = new Vue({
@@ -290,14 +291,14 @@ let line = {
         uuid: null,
         smoothingFactor: 6,
         smoothLines: function (array) {
-            var curve = new THREE.CatmullRomCurve3(array, false);
-            var points = curve.getPoints(array.length / this.smoothingFactor);
+            console.log(array);
+            var points = simplify(array, 0.001, false);
+            console.log(points)
+            this.geometry.vertices = points;
             var curve = new THREE.CatmullRomCurve3(points, false);
-            var points = curve.getPoints(points.length * this.smoothingFactor);
-            this.geometry.vertices.splice(-array.length, array.length)
-            points.forEach(point => {
-                this.geometry.vertices.push(point)
-            });
+            var points = curve.getPoints(points.length * 10);
+            this.geometry.vertices = points;
+
         },
         start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
@@ -341,30 +342,18 @@ let line = {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.line.geometry.userData.vertices.push(vNow); //store the original value
-            switch (true) {
-                case this.geometry.vertices.length == 5 && (mouse.type == "touch" || unproject == false):
-                    var newVertices = [];
-                    this.geometry.vertices.forEach(v => { newVertices.push(v) });
-                    newVertices.push(vNow);
-                    this.smoothLines(newVertices);
-                    break;
-                case this.geometry.vertices.length > 5 && (mouse.type == "touch" || unproject == false):
-                    var newVertices = [];
-                    newVertices = this.geometry.vertices.slice(-5)
-                    newVertices.push(vNow);
-                    this.smoothLines(newVertices);
-                    break;
-                default:
-                    this.geometry.vertices.push(vNow);
+            if (this.geometry.vertices.length > 5) {
+                this.smoothLines(this.line.geometry.userData.vertices)
             }
+
+            this.geometry.vertices.push(vNow);
             this.setGeometry();
         },
         end: function () {
             var mesh = scene.getObjectByProperty('uuid', this.uuid);
             mesh.geometry.userData.vertices = this.line.geometry.userData.vertices;
-            if (mouse.type == "touch") {
-                this.smoothLines(this.geometry.vertices)
-            }
+            console.log(this.geometry.vertices)
+            this.smoothLines(this.geometry.vertices)
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -616,7 +605,6 @@ let eraser = {
     move: function () {
         this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
         this.redrawLine('rgba(255,255,255)');
-
         var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
         if (intersectedObject) {
             scene.remove(intersectedObject);
