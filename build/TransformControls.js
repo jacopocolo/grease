@@ -285,10 +285,12 @@ var TransformControls = function (camera, domElement) {
 		if (intersect) {
 
 			this.axis = intersect.object.name;
+			this.userData.hover = true;
 
 		} else {
 
 			this.axis = null;
+			this.userData.hover = false;
 
 		}
 
@@ -341,6 +343,7 @@ var TransformControls = function (camera, domElement) {
 
 			}
 
+			this.userData.hover = true;
 			this.dragging = true;
 			mouseDownEvent.mode = this.mode;
 			this.dispatchEvent(mouseDownEvent);
@@ -612,6 +615,7 @@ var TransformControls = function (camera, domElement) {
 		}
 
 		this.dragging = false;
+		this.hover = false;
 
 		if (pointer.button === undefined) this.axis = null;
 
