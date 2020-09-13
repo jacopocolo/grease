@@ -285,10 +285,12 @@ var TransformControls = function (camera, domElement) {
 		if (intersect) {
 
 			this.axis = intersect.object.name;
+			this.userData.hover = true;
 
 		} else {
 
 			this.axis = null;
+			this.userData.hover = false;
 
 		}
 

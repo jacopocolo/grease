@@ -541,24 +541,6 @@ class GPUPickHelper {
         })
         return intersectObjects
 
-        // for (var i = 0; i < width(); i++) {
-        //     renderer.readRenderTargetPixels(
-        //         this.pickingTexture,
-        //         i,   // x
-        //         i,   // y
-        //         1,   // width
-        //         1,   // height
-        //         pixelBuffer);
-        //     const id =
-        //         (pixelBuffer[0] << 16) |
-        //         (pixelBuffer[1] << 8) |
-        //         (pixelBuffer[2]);
-        //     const intersectedObject = picking.idToObject[id];
-        //     if (intersectedObject != undefined && intersectObjects.indexOf(intersectedObject) < 0) {
-        //         intersectObjects.push(intersectedObject)
-        //     }
-        // }
-        // return intersectObjects
     }
 }
 let picking = {
@@ -651,20 +633,46 @@ app.selection = {
     selected: [],
     helper: undefined,
     group: undefined,
-    transforming: false,
+    transforming: function () {
+        if (transformControls.userData.hover) {
+            return transformControls.userData.hover
+        } else { return false }
+    },
     linepaths: new Array(),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        if (!this.transforming) {
+        console.log(this.transforming())
+        if (this.transforming() === false) {
+
+            console.log('start')
+
             this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
             picking.setupPicking();
             var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
             vNow.unproject(camera);
 
+            this.deselect()
+            var pickedObjects = picking.picker.pickArea(
+                mouse.cx - 5,
+                mouse.cy - 5,
+                mouse.cx + 5,
+                mouse.cy + 5,
+                picking.scene,
+                camera);
+
+            if (pickedObjects != undefined && pickedObjects.length > 0) {
+                pickedObjects.forEach(object => {
+                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
+                        this.selection.push(object);
+                        this.toggleSelectionColor(object, true);
+                    }
+                })
+            }
+
         }
     },
     move: function () {
-        if (!this.transforming && this.selected.length == 0) {
+        if (this.transforming() === false && this.selected.length == 0) {
 
             var pickedObjects = picking.picker.pickArea(
                 this.linepaths[this.linepaths.length - 1].x,
@@ -693,8 +701,7 @@ app.selection = {
         this.linepaths = new Array();
         picking.resetPicking();
 
-        if (!this.transforming) {
-
+        if (this.transforming() === false) {
             if (this.selection.length == 0 || this.selected.length > 0) {
                 this.deselect()
             } else {
@@ -764,20 +771,8 @@ app.selection = {
             scene.add(this.helper);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(selection[0]);
-            transformControls.addEventListener("mouseDown", function () {
-                app.selection.transforming = true;
-            });
-            transformControls.addEventListener("touchstart", function () {
-                app.selection.transforming = true;
-            });
             transformControls.addEventListener("objectChange", function () {
                 mirror.updateMirrorOf(app.selection.selected[0])
-            });
-            transformControls.addEventListener("mouseUp", function () {
-                app.selection.transforming = false;
-            });
-            transformControls.addEventListener("touchend", function () {
-                app.selection.transforming = false;
             });
             this.selected.push(selection[0])
             this.helper.update();
@@ -808,12 +803,6 @@ app.selection = {
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(this.group);
         }
-        transformControls.addEventListener("mouseDown", function () {
-            app.selection.transforming = true;
-        });
-        transformControls.addEventListener("touchstart", function () {
-            app.selection.transforming = true;
-        });
         transformControls.addEventListener("objectChange", function () {
             app.selection.helper.update();
             transformControls.object.children.forEach(obj => {
@@ -829,12 +818,6 @@ app.selection = {
                 selectedObj.scale.set(scale.x, scale.y, scale.z)
                 mirror.updateMirrorOf(selectedObj)
             });
-        });
-        transformControls.addEventListener("mouseUp", function () {
-            app.selection.transforming = false;
-        });
-        transformControls.addEventListener("touchend", function () {
-            app.selection.transforming = true;
         });
         scene.add(transformControls);
         this.selection = [];
