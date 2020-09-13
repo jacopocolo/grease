@@ -417,10 +417,37 @@ let line = {
 
 class GPUPickHelper {
     constructor() {
-        this.pickingTexture = new THREE.WebGLRenderTarget(1, 1);
+        this.pickingTexture = new THREE.WebGLRenderTarget();
         this.pixelBuffer = new Uint8Array(4);
         this.pickedObject = null;
         this.pickedObjectSavedColor = 0;
+    }
+    calcPointsInBetween(x1, y1, x2, y2) {
+        var coordinatesArray = new Array();
+        // Define differences and error check
+        var dx = Math.abs(x2 - x1);
+        var dy = Math.abs(y2 - y1);
+        var sx = (x1 < x2) ? 1 : -1;
+        var sy = (y1 < y2) ? 1 : -1;
+        var err = dx - dy;
+        // Set first coordinates
+        coordinatesArray.push(new THREE.Vector2(x1, y1));
+        // Main loop
+        while (!((x1 == x2) && (y1 == y2))) {
+            var e2 = err << 1;
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+            // Set coordinates
+            coordinatesArray.push(new THREE.Vector2(x1, y1));
+        }
+        // Return the result
+        return coordinatesArray;
     }
     pick(cssPosition, scene, camera) {
         const { pickingTexture, pixelBuffer } = this;
@@ -460,6 +487,78 @@ class GPUPickHelper {
         if (intersectedObject) {
             return intersectedObject
         }
+    }
+    pickArea(x1, y1, x2, y2, scene, camera) {
+        const { pickingTexture, pixelBuffer } = this;
+        const width = () => {
+            if (x2 - x1 < 0) { return -(x2 - x1) }
+            else if (x2 - x1 == 0) { return 1 }
+            else { return x2 - x1 }
+        }
+        const height = () => {
+            if (y2 - y1 < 0) { return -(y2 - y1) }
+            else if (y2 - y1 == 0) { return 1 }
+            else { return y2 - y1 }
+        }
+        let intersectObjects = new Array();
+
+        // set the view offset to represent just a single pixel under the mouse
+        const pixelRatio = renderer.getPixelRatio();
+        camera.setViewOffset(
+            renderer.getContext().drawingBufferWidth,   // full width
+            renderer.getContext().drawingBufferHeight,  // full top
+            x1 * pixelRatio | 0,             // rect x
+            y1 * pixelRatio | 0,             // rect y
+            width() * pixelRatio | 1,        // height
+            height() * pixelRatio | 1,        // width
+        );
+        // render the scene
+        this.pickingTexture.setSize(width(), height())
+        renderer.setRenderTarget(pickingTexture)
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        // clear the view offset so rendering returns to normal
+        camera.clearViewOffset();
+        //read the pixel
+
+        this.calcPointsInBetween(0, 0, width(), height()).forEach(point => {
+            renderer.readRenderTargetPixels(
+                this.pickingTexture,
+                point.x,   // x
+                point.y,   // y
+                1,   // width
+                1,   // height
+                pixelBuffer);
+            const id =
+                (pixelBuffer[0] << 16) |
+                (pixelBuffer[1] << 8) |
+                (pixelBuffer[2]);
+            const intersectedObject = picking.idToObject[id];
+            if (intersectedObject != undefined && intersectObjects.indexOf(intersectedObject) < 0) {
+                intersectObjects.push(intersectedObject)
+            }
+        })
+        return intersectObjects
+
+        // for (var i = 0; i < width(); i++) {
+        //     renderer.readRenderTargetPixels(
+        //         this.pickingTexture,
+        //         i,   // x
+        //         i,   // y
+        //         1,   // width
+        //         1,   // height
+        //         pixelBuffer);
+        //     const id =
+        //         (pixelBuffer[0] << 16) |
+        //         (pixelBuffer[1] << 8) |
+        //         (pixelBuffer[2]);
+        //     const intersectedObject = picking.idToObject[id];
+        //     if (intersectedObject != undefined && intersectObjects.indexOf(intersectedObject) < 0) {
+        //         intersectObjects.push(intersectedObject)
+        //     }
+        // }
+        // return intersectObjects
     }
 }
 let picking = {
@@ -553,7 +652,7 @@ app.selection = {
     helper: undefined,
     group: undefined,
     transforming: false,
-    linepaths: [],
+    linepaths: new Array(),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (!this.transforming) {
@@ -567,36 +666,31 @@ app.selection = {
     move: function () {
         if (!this.transforming && this.selected.length == 0) {
 
-            var pointsInBetween = this.calcPointsInBetween(
+            var pickedObjects = picking.picker.pickArea(
                 this.linepaths[this.linepaths.length - 1].x,
                 this.linepaths[this.linepaths.length - 1].y,
                 mouse.cx,
                 mouse.cy,
-            )
+                picking.scene,
+                camera);
 
-            for (var i = 0; i < pointsInBetween.length; i++) {
-                var intersectedObject = picking.picker.pick({ x: pointsInBetween[i].x, y: pointsInBetween[i].y }, picking.scene, camera);
-                if (intersectedObject != undefined && this.selection.indexOf(intersectedObject) < 0 && this.selected.indexOf(intersectedObject) < 0) {
-                    this.selection.push(intersectedObject);
-                    this.toggleSelectionColor(intersectedObject, true);
-                }
+            if (pickedObjects != undefined && pickedObjects.length > 0) {
+                pickedObjects.forEach(object => {
+                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
+                        this.selection.push(object);
+                        this.toggleSelectionColor(object, true);
+                    }
+                })
             }
-
             this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
             this.redrawLine(this.color);
-
-            var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
-            if (intersectedObject != undefined && this.selection.indexOf(intersectedObject) < 0 && this.selected.indexOf(intersectedObject) < 0) {
-                this.selection.push(intersectedObject);
-                this.toggleSelectionColor(intersectedObject, true);
-            }
 
         }
     },
     end: function () {
         context.closePath();
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        this.linepaths = [];
+        this.linepaths = new Array();
         picking.resetPicking();
 
         if (!this.transforming) {
@@ -808,40 +902,13 @@ app.selection = {
         context.globalAlpha = 0.25;
         context.lineCap = 'round';
         context.lineJoin = 'round';
-        context.lineWidth = 30;
+        context.lineWidth = 15;
         context.beginPath();
         for (var i = 0; i < this.linepaths.length; ++i) {
             context.lineTo(this.linepaths[i].x, this.linepaths[i].y);
         }
         context.stroke();
     },
-    calcPointsInBetween: function (x1, y1, x2, y2) {
-        var coordinatesArray = new Array();
-        // Define differences and error check
-        var dx = Math.abs(x2 - x1);
-        var dy = Math.abs(y2 - y1);
-        var sx = (x1 < x2) ? 1 : -1;
-        var sy = (y1 < y2) ? 1 : -1;
-        var err = dx - dy;
-        // Set first coordinates
-        coordinatesArray.push(new THREE.Vector2(x1, y1));
-        // Main loop
-        while (!((x1 == x2) && (y1 == y2))) {
-            var e2 = err << 1;
-            if (e2 > -dy) {
-                err -= dy;
-                x1 += sx;
-            }
-            if (e2 < dx) {
-                err += dx;
-                y1 += sy;
-            }
-            // Set coordinates
-            coordinatesArray.push(new THREE.Vector2(x1, y1));
-        }
-        // Return the result
-        return coordinatesArray;
-    }
 };
 
 let mirror = {
