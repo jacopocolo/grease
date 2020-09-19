@@ -250,22 +250,30 @@ var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
 
 let mouse = {
-    type: undefined,
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
+    smoothing: function () {
+        return 5
+        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
+    }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
-        if (event.touches) {
-            this.type = 'touch';
+        if (event.touches
+            &&
+            new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
+        ) {
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
             this.cy = event.changedTouches[0].pageY;
         }
         else {
-            if (event.button == 0) {
-                this.type = 'mouse';
+            if (
+                event.button == 0
+                &&
+                new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
+            ) {
                 this.tx = (event.clientX / window.innerWidth) * 2 - 1;
                 this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
                 this.cx = event.clientX;
@@ -289,16 +297,12 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
-        smoothingFactor: 6,
-        smoothLines: function (array) {
-            console.log(array);
-            var points = simplify(array, 0.001, false);
-            console.log(points)
+        smoothLines: function (array, factor) {
+            var points = simplify(array, factor, false);
             this.geometry.vertices = points;
             var curve = new THREE.CatmullRomCurve3(points, false);
-            var points = curve.getPoints(points.length * 10);
+            var points = curve.getPoints(points.length * 20);
             this.geometry.vertices = points;
-
         },
         start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
@@ -307,11 +311,16 @@ let line = {
             this.line = new MeshLine();
             this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
+                map: new THREE.TextureLoader().load("../img/stroke.png"),
+                useMap: true,
                 lineWidth: lineWidth / 3000, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
                 fog: true,
+                depthTest: false,
+                alphaTest: 0.5,
+                transparent: true
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
@@ -342,18 +351,16 @@ let line = {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.line.geometry.userData.vertices.push(vNow); //store the original value
-            if (this.geometry.vertices.length > 5) {
-                this.smoothLines(this.line.geometry.userData.vertices)
-            }
-
             this.geometry.vertices.push(vNow);
+            if (this.geometry.vertices.length > 20) {
+                this.smoothLines(this.geometry.vertices, 0.0007)
+            }
             this.setGeometry();
         },
         end: function () {
             var mesh = scene.getObjectByProperty('uuid', this.uuid);
             mesh.geometry.userData.vertices = this.line.geometry.userData.vertices;
-            console.log(this.geometry.vertices)
-            this.smoothLines(this.geometry.vertices)
+            //this.smoothLines(this.geometry.vertices, 0.001)
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -363,6 +370,7 @@ let line = {
         setGeometry(mouseup) {
             this.line.setGeometry(this.geometry, function (p) {
                 return Math.pow(2 * p * (1 - p), 0.5) * 4
+                // return 2
             });
 
             if (mouseup) {
@@ -570,6 +578,10 @@ let picking = {
                 var cloneMaterial = children.material.clone();
                 clone.material = cloneMaterial;
                 cloneMaterial.color = new THREE.Color(this.id);
+                cloneMaterial.map = null;
+                cloneMaterial.useMap = false;
+                cloneMaterial.depthTest = true;
+                cloneMaterial.transparent = false;
                 this.scene.add(clone);
                 this.idToObject[this.id] = children;
                 this.id = this.id + 1;
@@ -594,22 +606,38 @@ let eraser = {
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         picking.setupPicking();
-        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
-        if (intersectedObject) {
-            scene.remove(intersectedObject);
-            mirror.eraseMirrorOf(intersectedObject);
-            intersectedObject.material.dispose();
+        var pickedObjects = picking.picker.pickArea(
+            mouse.cx - 5,
+            mouse.cy - 5,
+            mouse.cx + 5,
+            mouse.cy + 5,
+            picking.scene,
+            camera);
+        if (pickedObjects != undefined && pickedObjects.length > 0) {
+            pickedObjects.forEach(object => {
+                scene.remove(object);
+                mirror.eraseMirrorOf(object);
+                object.material.dispose();
+            })
         }
         this.linepaths.push([mouse.cx, mouse.cy]);
     },
     move: function () {
         this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
         this.redrawLine('rgba(255,255,255)');
-        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
-        if (intersectedObject) {
-            scene.remove(intersectedObject);
-            mirror.eraseMirrorOf(intersectedObject);
-            intersectedObject.material.dispose();
+        var pickedObjects = picking.picker.pickArea(
+            mouse.cx - 5,
+            mouse.cy - 5,
+            mouse.cx + 5,
+            mouse.cy + 5,
+            picking.scene,
+            camera);
+        if (pickedObjects != undefined && pickedObjects.length > 0) {
+            pickedObjects.forEach(object => {
+                scene.remove(object);
+                mirror.eraseMirrorOf(object);
+                object.material.dispose();
+            })
         }
     },
     end: function () {
@@ -653,9 +681,6 @@ app.selection = {
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (this.transforming() === false) {
-
-            console.log('start')
-
             this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
             picking.setupPicking();
             var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
@@ -669,7 +694,6 @@ app.selection = {
                 mouse.cy + 5,
                 picking.scene,
                 camera);
-
             if (pickedObjects != undefined && pickedObjects.length > 0) {
                 pickedObjects.forEach(object => {
                     if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
