@@ -255,7 +255,7 @@ let mouse = {
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     smoothing: function () {
-        return 5
+        return 3
         // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
@@ -300,8 +300,8 @@ let line = {
         smoothLines: function (array, factor) {
             var points = simplify(array, factor, false);
             this.geometry.vertices = points;
-            var curve = new THREE.CatmullRomCurve3(points, false);
-            var points = curve.getPoints(points.length * 20);
+            var curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.5);
+            var points = curve.getPoints(points.length * 200);
             this.geometry.vertices = points;
         },
         start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
@@ -350,17 +350,28 @@ let line = {
         update: function (x, y, z, unproject) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
-            this.line.geometry.userData.vertices.push(vNow); //store the original value
-            this.geometry.vertices.push(vNow);
-            if (this.geometry.vertices.length > 20) {
-                this.smoothLines(this.geometry.vertices, 0.0007)
+
+            if (this.geometry.vertices.length == 10) {
+                let l3 = new THREE.Line3(this.geometry.vertices[0], vNow);
+                let middle = new THREE.Vector3();
+                l3.getCenter(middle);
+                var points = [this.geometry.vertices[0], middle, vNow]
+                var curve = new THREE.CatmullRomCurve3(points, false);
+                var points = curve.getPoints(20);
+                this.geometry.vertices = points;
+            } else {
+                this.line.geometry.userData.vertices.push(vNow); //store the original value
+                this.geometry.vertices.push(vNow);
+                // if (this.geometry.vertices.length > 20) {
+                //     this.smoothLines(this.geometry.vertices, 0.0007)
+                // }
             }
             this.setGeometry();
         },
         end: function () {
             var mesh = scene.getObjectByProperty('uuid', this.uuid);
             mesh.geometry.userData.vertices = this.line.geometry.userData.vertices;
-            //this.smoothLines(this.geometry.vertices, 0.001)
+            //this.smoothLines(this.geometry.vertices, 0.005)
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -369,8 +380,9 @@ let line = {
         },
         setGeometry(mouseup) {
             this.line.setGeometry(this.geometry, function (p) {
+                //return Math.pow(4 * p * (1 - p), 1)
                 return Math.pow(2 * p * (1 - p), 0.5) * 4
-                // return 2
+                //return 2
             });
 
             if (mouseup) {
