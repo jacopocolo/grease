@@ -302,22 +302,15 @@ let line = {
         geometry: null,
         uuid: null,
         smoothLines: function (array, factor) {
-            var points = simplify(array, factor, false);
-            this.geometry.vertices = points;
-            var curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.5);
-            var points = curve.getPoints(points.length * 200);
-            this.geometry.vertices = points;
+            // var points = simplify(array, factor, false);
+            // this.geometry.vertices = points;
+            // var curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.5);
+            // var points = curve.getPoints(points.length * 200);
+            // this.geometry.vertices = points;
         },
         start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
-            var vNow = new THREE.Vector3(x, y, z);
-            if (unproject) { vNow.unproject(camera) };
-            var v4 = new THREE.Vector4(vNow.x, vNow.y, vNow.z, force)
-
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
-            this.line.geometry.userData.vertices = [];
-            this.line.geometry.userData.vertices.push(v4);
-
             var material = new MeshLineMaterial({
                 map: new THREE.TextureLoader().load("../img/stroke.png"),
                 useMap: true,
@@ -350,37 +343,21 @@ let line = {
                 default:
                 //it's false, do nothing
             }
-
             mesh.layers.set(1);
             this.uuid = mesh.uuid;
         },
         update: function (x, y, z, force, unproject) {
+
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
-            var v4 = new THREE.Vector4(vNow.x, vNow.y, vNow.z, force)
-            this.line.geometry.userData.vertices.push(v4);
             this.geometry.vertices.push(vNow);
-            // if (this.geometry.vertices.length == 10) {
-            //     let l3 = new THREE.Line3(this.geometry.vertices[0], vNow);
-            //     let middle = new THREE.Vector3();
-            //     l3.getCenter(middle);
-            //     var points = [this.geometry.vertices[0], middle, vNow]
-            //     var curve = new THREE.CatmullRomCurve3(points, false);
-            //     var points = curve.getPoints(20);
-            //     this.geometry.vertices = points;
-            // } else {
-            //     this.line.geometry.userData.vertices.push(vNow); //store the original value
-            //     this.geometry.vertices.push(vNow);
-            //     // if (this.geometry.vertices.length > 20) {
-            //     //     this.smoothLines(this.geometry.vertices, 0.0007)
-            //     // }
-            // }
             this.setGeometry();
+            // var v4 = new THREE.Vector4(vNow.x, vNow.y, vNow.z, force)
+            // this.line.geometry.userData.vertices.push(v4);
         },
         end: function () {
-            var mesh = scene.getObjectByProperty('uuid', this.uuid);
-            mesh.geometry.userData.vertices = this.line.geometry.userData.vertices;
-            //this.smoothLines(this.geometry.vertices, 0.005)
+            // var mesh = scene.getObjectByProperty('uuid', this.uuid);
+            // mesh.geometry.userData.vertices = this.line.geometry.userData.vertices;
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -388,13 +365,9 @@ let line = {
             this.uuid = null;
         },
         setGeometry(mouseup) {
-            this.line.setGeometry(this.geometry
-                , function (p) {
-                    // return Math.pow(4 * p * (1 - p), 1)
-                    // return Math.pow(2 * p * (1 - p), 0.5) * 4
-                    return 1 + this.geometry.userData.vertices[Math.round(p * (this.geometry.vertices.length))].w * 10
-                }
-            );
+            this.line.setGeometry(this.geometry, function (p) {
+                return 2
+            });
 
             if (mouseup) {
                 var mesh = scene.getObjectByProperty('uuid', this.uuid);
