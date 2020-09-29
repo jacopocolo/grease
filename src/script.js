@@ -254,6 +254,7 @@ let mouse = {
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
+    force: 0,
     smoothing: function () {
         if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
@@ -266,6 +267,9 @@ let mouse = {
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
             this.cy = event.changedTouches[0].pageY;
+            if (event.touches[0]["force"]) {
+                this.force = event.touches[0]["force"]
+            }
         }
         else {
             if (
@@ -284,10 +288,10 @@ let mouse = {
 
 let line = {
     start: function () {
-        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
+        this.render.start(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
+        this.render.update(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true);
     },
     end: function () {
         this.render.end();
@@ -296,11 +300,12 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
-        start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
+        start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
+            this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
                 lineWidth: lineWidth / 3000, //kind of eyballing it
                 sizeAttenuation: 1,
@@ -310,7 +315,6 @@ let line = {
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
-            //mesh.raycast = MeshLineRaycast;
             scene.add(mesh);
 
             mesh.userData.lineColor = lineColor;
@@ -333,11 +337,16 @@ let line = {
             mesh.layers.set(1);
             this.uuid = mesh.uuid;
         },
-        update: function (x, y, z, unproject) {
-            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
-            var vNow = new THREE.Vector3(x, y, z);
-            if (unproject) { vNow.unproject(camera) };
-            this.geometry.vertices.push(vNow);
+        update: function (x, y, z, force, unproject) {
+            var v3 = new THREE.Vector3(x, y, z);
+            if (unproject) { v3.unproject(camera) };
+            if (force == 0 && this.geometry.vertices.length > 1) {
+                //there's something here but it's probaby the other way around. The farther the elements are the lower the width?
+                force = this.geometry.vertices[this.geometry.vertices.length - 1].distanceTo(v3)
+            }
+            var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
+            this.geometry.vertices.push(v3);
+            this.line.geometry.userData.vertices.push(v4);
             this.setGeometry();
         },
         end: function () {
@@ -350,7 +359,8 @@ let line = {
         },
         setGeometry(mouseup) {
             this.line.setGeometry(this.geometry, function (p) {
-                return Math.pow(2 * p * (1 - p), 0.5) * 4
+                return (1) + this.geometry.geometry.userData.vertices[Math.round(p * (this.geometry.vertices.length - 1))].w * 5
+                // return Math.pow(2 * p * (1 - p), 0.5) * 4 
             });
 
             if (mouseup) {
