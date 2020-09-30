@@ -7,7 +7,7 @@ import {
     //MeshLineRaycast
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
-import { simplify } from '../build/simplify.js'
+import { simplify3d } from '../build/simplify3d.js'
 import Vue from '../build/vue.esm.browser.js';
 
 var app = new Vue({
@@ -48,7 +48,6 @@ var app = new Vue({
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
-            picking.resetPicking();
         },
         selectedColor: function () {
             switch (true) {
@@ -260,7 +259,7 @@ let mouse = {
     cy: 0, //y coord for canvas
     force: 0,
     smoothing: function () {
-        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
+        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
         if (event.touches
@@ -351,22 +350,60 @@ let line = {
             var v3 = new THREE.Vector3(x, y, z);
             if (unproject) { v3.unproject(camera) };
 
-            //If we don't have force, we artificially generate some based on distance between points
-            if (force == 0 && this.geometry.vertices.length > 1) {
-                function map(n, start1, stop1, start2, stop2) {
-                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
-                };
-                force = this.geometry.vertices[this.geometry.vertices.length - 1].distanceTo(v3)
-                force = map(force, 0, 0.5, 0.1, 1)
+            if (this.geometry.vertices.length == 3) {
+                var curve = new THREE.QuadraticBezierCurve3(
+                    this.geometry.vertices[this.geometry.vertices.length - 3],
+                    this.geometry.vertices[this.geometry.vertices.length - 2],
+                    this.geometry.vertices[this.geometry.vertices.length - 1])
+                this.geometry.vertices.pop();
+                this.geometry.vertices.pop();
+                this.geometry.vertices.pop();
+                let points = curve.getPoints(50);
+                points.forEach((point) => {
+                    this.geometry.vertices.push(point)
+                    var v4 = new THREE.Vector4(point.x, point.y, point.z, force)
+                    this.line.geometry.userData.vertices.push(v4);
+                })
+            }
+            else if (this.geometry.vertices.length > 3) {
+                var curve = new THREE.QuadraticBezierCurve3(
+                    this.geometry.vertices[this.geometry.vertices.length - 2],
+                    this.geometry.vertices[this.geometry.vertices.length - 1],
+                    v3
+                );
+                this.geometry.vertices.pop();
+                this.geometry.vertices.pop();
+
+                let points = curve.getPoints(50);
+                points.forEach((point) => {
+                    this.geometry.vertices.push(point)
+                    var v4 = new THREE.Vector4(point.x, point.y, point.z, force)
+                    this.line.geometry.userData.vertices.push(v4);
+                })
+            } else {
+                var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
+                this.geometry.vertices.push(v3);
+                this.line.geometry.userData.vertices.push(v4);
             }
 
-            var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
-            this.geometry.vertices.push(v3);
-            this.line.geometry.userData.vertices.push(v4);
+            //If we don't have force, we artificially generate some based on distance between points
+            // if (force == 0 && this.geometry.vertices.length > 1) {
+            //     function map(n, start1, stop1, start2, stop2) {
+            //         return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+            //     };
+            //     force = this.geometry.vertices[this.geometry.vertices.length - 1].distanceTo(v3)
+            //     force = map(force, 0, 0.5, 0.1, 1)
+            // }
+
+            // var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
+            // this.geometry.vertices.push(v3);
+            // this.line.geometry.userData.vertices.push(v4);
+
             this.setGeometry();
         },
         end: function () {
             this.geometry.userData = this.geometry.vertices;
+
             this.setGeometry('mouseup');
             //reset
             this.line = null;
@@ -380,10 +417,10 @@ let line = {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
                 let index = Math.round(p * (this.geometry.vertices.length - 1))
-                let minWidth = 0.1;
-                let baseWidth = 0.5;
-                let width = this.geometry.geometry.userData.vertices[index].w * 2
-                let tipLength = 5;
+                let minWidth = 0;
+                let baseWidth = 1;
+                let width = this.geometry.geometry.userData.vertices[index].w * 4
+                let tipLength = 90;
 
                 //Beginning of the line
                 if (index < tipLength) {
@@ -623,6 +660,7 @@ let eraser = {
     linepaths: [],
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
+        picking.resetPicking();
         picking.setupPicking();
         var pickedObjects = picking.picker.pickArea(
             mouse.cx - 5,
@@ -700,6 +738,7 @@ app.selection = {
     start: function () {
         if (this.transforming() === false) {
             this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
+            picking.resetPicking();
             picking.setupPicking();
             var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
             vNow.unproject(camera);

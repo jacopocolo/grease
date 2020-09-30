@@ -127,7 +127,7 @@ function simplifyDouglasPeucker(points, sqTolerance) {
 }
 
 // both algorithms combined for awesome performance
-function simplify(points, tolerance, highestQuality) {
+function simplify3d(points, tolerance, highestQuality) {
 
     var sqTolerance = tolerance !== undefined ? tolerance * tolerance : 1;
 
@@ -150,4 +150,4 @@ function simplify(points, tolerance, highestQuality) {
 //     window.simplify = simplify;
 // }
 
-export { simplify }
+export { simplify3d }
