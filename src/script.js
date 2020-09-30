@@ -271,8 +271,11 @@ let mouse = {
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
             this.cy = event.changedTouches[0].pageY;
-            if (event.touches[0]["force"]) {
+
+            if (event.touches[0] && event.touches[0]["force"] !== undefined) {
                 this.force = event.touches[0]["force"]
+            } else {
+                this.force = 0
             }
         }
         else {
