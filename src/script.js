@@ -7,6 +7,7 @@ import {
     //MeshLineRaycast
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
+import { simplify } from '../build/simplify.js'
 import Vue from '../build/vue.esm.browser.js';
 
 var app = new Vue({
@@ -69,7 +70,7 @@ var app = new Vue({
         },
         zDepth: function () {
             line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
-        }
+        },
     },
     methods: {
         duplicateSelected: function () {
@@ -89,6 +90,9 @@ var app = new Vue({
         },
         toggleUi: function () {
             app.ui.show = !app.ui.show;
+            directControls.enableRotate = !app.ui.show;
+            app.selectedTool = app.ui.show ? 'draw' : 'undefined'
+            // camera.layers.disable(0)
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
@@ -300,6 +304,9 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
+        smoothLines: function (array, factor) {
+            this.geometry.userData.vertices = simplify(array, factor, false);
+        },
         start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
@@ -307,7 +314,7 @@ let line = {
             this.line = new MeshLine();
             this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 3000, //kind of eyballing it
+                lineWidth: lineWidth / 1000, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
@@ -340,10 +347,16 @@ let line = {
         update: function (x, y, z, force, unproject) {
             var v3 = new THREE.Vector3(x, y, z);
             if (unproject) { v3.unproject(camera) };
+
+            //If we don't have force, we artificially generate some based on distance between points
             if (force == 0 && this.geometry.vertices.length > 1) {
-                //there's something here but it's probaby the other way around. The farther the elements are the lower the width?
+                function map(n, start1, stop1, start2, stop2) {
+                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+                };
                 force = this.geometry.vertices[this.geometry.vertices.length - 1].distanceTo(v3)
+                force = map(force, 0, 0.5, 0.1, 1)
             }
+
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
             this.geometry.vertices.push(v3);
             this.line.geometry.userData.vertices.push(v4);
@@ -358,9 +371,33 @@ let line = {
             this.uuid = null;
         },
         setGeometry(mouseup) {
+
             this.line.setGeometry(this.geometry, function (p) {
-                return (1) + this.geometry.geometry.userData.vertices[Math.round(p * (this.geometry.vertices.length - 1))].w * 5
-                // return Math.pow(2 * p * (1 - p), 0.5) * 4 
+                function map(n, start1, stop1, start2, stop2) {
+                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+                };
+                let index = Math.round(p * (this.geometry.vertices.length - 1))
+                let minWidth = 0.1;
+                let baseWidth = 0.5;
+                let width = this.geometry.geometry.userData.vertices[index].w * 2
+                let tipLength = 5;
+
+                //Beginning of the line
+                if (index < tipLength) {
+                    return (map(index, 0, tipLength, minWidth, baseWidth)) + width
+                }
+                //End of the line
+                else if (
+                    this.geometry.vertices.length > (tipLength * 2) &&
+                    index > this.geometry.vertices.length - tipLength
+                ) {
+                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
+                }
+                //bulk of the line
+                else {
+                    return baseWidth + width
+                }
+
             });
 
             if (mouseup) {
@@ -374,7 +411,6 @@ let line = {
                 this.setGeometry();
                 this.geometry.verticesNeedsUpdate = true;
                 this.geometry.needsUpdate = true;
-
                 if (mesh.userData.mirror) {
                     mirror.updateMirrorOf(mesh);
                 }
@@ -417,13 +453,6 @@ let line = {
         //camera zoom has a minimum of 450 and a maximum of infinity
     }
 };
-
-//What I should do to improve picking performance is: 
-//Get previous mouse coordinates and current mouse coordinates
-//Pass them to the Picker
-//Have the picker render the rectangle between these two coordinates
-//Inside of the rectangle grab all the points connecting the two angles directly
-//check every pixel agains their ID
 
 class GPUPickHelper {
     constructor() {
@@ -592,23 +621,38 @@ let eraser = {
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         picking.setupPicking();
-        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
-        if (intersectedObject) {
-            scene.remove(intersectedObject);
-            mirror.eraseMirrorOf(intersectedObject);
-            intersectedObject.material.dispose();
+        var pickedObjects = picking.picker.pickArea(
+            mouse.cx - 5,
+            mouse.cy - 5,
+            mouse.cx + 5,
+            mouse.cy + 5,
+            picking.scene,
+            camera);
+        if (pickedObjects != undefined && pickedObjects.length > 0) {
+            pickedObjects.forEach(object => {
+                scene.remove(object);
+                mirror.eraseMirrorOf(object);
+                object.material.dispose();
+            })
         }
         this.linepaths.push([mouse.cx, mouse.cy]);
     },
     move: function () {
         this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
         this.redrawLine('rgba(255,255,255)');
-
-        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
-        if (intersectedObject) {
-            scene.remove(intersectedObject);
-            mirror.eraseMirrorOf(intersectedObject);
-            intersectedObject.material.dispose();
+        var pickedObjects = picking.picker.pickArea(
+            mouse.cx - 5,
+            mouse.cy - 5,
+            mouse.cx + 5,
+            mouse.cy + 5,
+            picking.scene,
+            camera);
+        if (pickedObjects != undefined && pickedObjects.length > 0) {
+            pickedObjects.forEach(object => {
+                scene.remove(object);
+                mirror.eraseMirrorOf(object);
+                object.material.dispose();
+            })
         }
     },
     end: function () {
@@ -652,9 +696,6 @@ app.selection = {
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (this.transforming() === false) {
-
-            console.log('start')
-
             this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
             picking.setupPicking();
             var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
@@ -668,7 +709,6 @@ app.selection = {
                 mouse.cy + 5,
                 picking.scene,
                 camera);
-
             if (pickedObjects != undefined && pickedObjects.length > 0) {
                 pickedObjects.forEach(object => {
                     if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
@@ -1468,7 +1508,6 @@ app.exportTo = {
 
 init();
 animate();
-
 
 function init() {
     renderer = new THREE.WebGLRenderer({

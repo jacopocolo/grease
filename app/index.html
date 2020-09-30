@@ -33,7 +33,7 @@
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>
 
-        <div id="toolSelection">
+        <div id="toolSelection" v-bind:class="[ui.show ? '' : 'hidden']">
             <span>
                 <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
                     for="toolDraw">
