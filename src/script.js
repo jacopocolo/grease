@@ -7,7 +7,8 @@ import {
     //MeshLineRaycast
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
-import { simplify3d } from '../build/simplify3d.js'
+import { simplify } from '../build/simplify.js'
+import { simplify4d } from '../build/simplify4d.js'
 import Vue from '../build/vue.esm.browser.js';
 
 var app = new Vue({
@@ -259,7 +260,8 @@ let mouse = {
     cy: 0, //y coord for canvas
     force: 0,
     smoothing: function () {
-        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
+        return 4
+        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
         if (event.touches
@@ -306,14 +308,12 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
-        smoothLines: function (array, factor) {
-            this.geometry.userData.vertices = simplify(array, factor, false);
-        },
         start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
+            this.line.geometry.userData.originalPoints = [];
             this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
                 lineWidth: lineWidth / 1000, //kind of eyballing it
@@ -349,41 +349,20 @@ let line = {
         update: function (x, y, z, force, unproject) {
             var v3 = new THREE.Vector3(x, y, z);
             if (unproject) { v3.unproject(camera) };
+            var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
 
-            if (this.geometry.vertices.length == 3) {
-                var curve = new THREE.QuadraticBezierCurve3(
-                    this.geometry.vertices[this.geometry.vertices.length - 3],
-                    this.geometry.vertices[this.geometry.vertices.length - 2],
-                    this.geometry.vertices[this.geometry.vertices.length - 1])
-                this.geometry.vertices.pop();
-                this.geometry.vertices.pop();
-                this.geometry.vertices.pop();
-                let points = curve.getPoints(50);
-                points.forEach((point) => {
-                    this.geometry.vertices.push(point)
-                    var v4 = new THREE.Vector4(point.x, point.y, point.z, force)
-                    this.line.geometry.userData.vertices.push(v4);
-                })
-            }
-            else if (this.geometry.vertices.length > 3) {
-                var curve = new THREE.QuadraticBezierCurve3(
-                    this.geometry.vertices[this.geometry.vertices.length - 2],
-                    this.geometry.vertices[this.geometry.vertices.length - 1],
-                    v3
-                );
-                this.geometry.vertices.pop();
-                this.geometry.vertices.pop();
-
-                let points = curve.getPoints(50);
-                points.forEach((point) => {
-                    this.geometry.vertices.push(point)
-                    var v4 = new THREE.Vector4(point.x, point.y, point.z, force)
-                    this.line.geometry.userData.vertices.push(v4);
+            if (this.geometry.vertices.length > 3) {
+                this.line.geometry.userData.originalPoints.push(v4);
+                let simplifiedArray = simplify4d(this.line.geometry.userData.originalPoints, 0.0015, true)
+                this.line.geometry.userData.vertices = simplifiedArray;
+                this.geometry.vertices = [];
+                simplifiedArray.forEach(p => {
+                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
                 })
             } else {
                 var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
                 this.geometry.vertices.push(v3);
-                this.line.geometry.userData.vertices.push(v4);
+                this.line.geometry.userData.originalPoints.push(v4);
             }
 
             //If we don't have force, we artificially generate some based on distance between points
@@ -397,7 +376,7 @@ let line = {
 
             // var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
             // this.geometry.vertices.push(v3);
-            // this.line.geometry.userData.vertices.push(v4);
+            this.line.geometry.userData.vertices.push(v4);
 
             this.setGeometry();
         },
@@ -413,6 +392,7 @@ let line = {
         setGeometry(mouseup) {
 
             this.line.setGeometry(this.geometry, function (p) {
+
                 function map(n, start1, stop1, start2, stop2) {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
