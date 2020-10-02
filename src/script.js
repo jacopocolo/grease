@@ -44,6 +44,8 @@ var app = new Vue({
         },
         experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
+        simplify: 0.0001,
+        smooth: 0,
     },
     watch: {
         selectedTool: function () {
@@ -260,7 +262,7 @@ let mouse = {
     cy: 0, //y coord for canvas
     force: 0,
     smoothing: function () {
-        return 4
+        return app.smooth
         // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
@@ -351,12 +353,23 @@ let line = {
             if (unproject) { v3.unproject(camera) };
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
 
-            if (this.geometry.vertices.length > 3) {
+            let segment = 5
+
+            if (this.line.geometry.userData.originalPoints.length % segment === 0) {
                 this.line.geometry.userData.originalPoints.push(v4);
-                let simplifiedArray = simplify4d(this.line.geometry.userData.originalPoints, 0.0015, true)
-                this.line.geometry.userData.vertices = simplifiedArray;
-                this.geometry.vertices = [];
+                let simplifiedArray = simplify4d(
+                    this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment),
+                    app.simplify,
+                    true
+                );
+
+                for (let i = 0; i < segment; i++) {
+                    this.line.geometry.userData.vertices.pop()
+                    this.geometry.vertices.pop()
+                }
+
                 simplifiedArray.forEach(p => {
+                    this.line.geometry.userData.vertices.push(p)
                     this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
                 })
             } else {
@@ -397,14 +410,14 @@ let line = {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
                 let index = Math.round(p * (this.geometry.vertices.length - 1))
-                let minWidth = 0;
-                let baseWidth = 1;
-                let width = this.geometry.geometry.userData.vertices[index].w * 4
-                let tipLength = 90;
+                let minWidth = 0.2;
+                let baseWidth = 2;
+                let width = this.geometry.geometry.userData.vertices[index].w
+                let tipLength = 5;
 
                 //Beginning of the line
                 if (index < tipLength) {
-                    return (map(index, 0, tipLength, minWidth, baseWidth)) + width
+                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
                 }
                 //End of the line
                 else if (

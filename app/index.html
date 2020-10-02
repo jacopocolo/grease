@@ -170,6 +170,23 @@
                     </span>
 
                 </span>
+
+                <div class="button" id="simplify">
+                    <span class="toolbarLabel">Simplify <span>{{simplify}}</span></span>
+                    <div>
+                        <input type="range" id="simplify" name="simplify" min="0.00001" max="0.001" step="0.00001"
+                            value="0.00001" v-model="simplify">
+                    </div>
+                </div>
+
+                <div class="button" id="smooth">
+                    <span class="toolbarLabel">Smooth <span>{{smooth}}</span></span>
+                    <div>
+                        <input type="range" id="smooth" name="smooth" min="0" max="20" step="1" value="0"
+                            v-model="smooth">
+                    </div>
+                </div>
+
                 <div class="button" id="zDepth" v-if="experimental">
                     <span class="toolbarLabel">Drawing plane</span>
                     <div>
