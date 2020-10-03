@@ -44,8 +44,9 @@ var app = new Vue({
         },
         experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
-        simplify: 0.0001,
+        simplify: 0.001,
         smooth: 0,
+        iterations: 0,
     },
     watch: {
         selectedTool: function () {
@@ -357,11 +358,16 @@ let line = {
 
             if (this.line.geometry.userData.originalPoints.length % segment === 0) {
                 this.line.geometry.userData.originalPoints.push(v4);
-                let simplifiedArray = simplify4d(
-                    this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment),
-                    app.simplify,
-                    true
-                );
+
+                let simplifiedArray = this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment);
+
+                for (let i = 0; i < app.iterations; i++) {
+                    simplifiedArray = simplify4d(
+                        this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment),
+                        app.simplify,
+                        true
+                    );
+                }
 
                 for (let i = 0; i < segment; i++) {
                     this.line.geometry.userData.vertices.pop()
@@ -410,9 +416,9 @@ let line = {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
                 let index = Math.round(p * (this.geometry.vertices.length - 1))
-                let minWidth = 0.2;
-                let baseWidth = 2;
-                let width = this.geometry.geometry.userData.vertices[index].w
+                let minWidth = 0.1;
+                let baseWidth = 1;
+                let width = this.geometry.geometry.userData.vertices[index].w * 4
                 let tipLength = 5;
 
                 //Beginning of the line
