@@ -44,9 +44,12 @@ var app = new Vue({
         },
         experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
-        simplify: 0.001,
+        simplify: 0.005,
         smooth: 0,
-        iterations: 0,
+        segment: 5,
+        iterations: 1,
+        catmull: true,
+        fog: 8,
     },
     watch: {
         selectedTool: function () {
@@ -74,6 +77,10 @@ var app = new Vue({
         zDepth: function () {
             line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
         },
+        fog: function () {
+            scene.fog.far = app.fog
+            //scene.fog.far = app.fog + 
+        }
     },
     methods: {
         duplicateSelected: function () {
@@ -297,6 +304,7 @@ let mouse = {
     }
 };
 
+
 let line = {
     start: function () {
         this.render.start(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true, app.lineColor, app.lineWidth, app.mirror);
@@ -306,6 +314,11 @@ let line = {
     },
     end: function () {
         this.render.end();
+    },
+    simplify: {
+        iterations: app.iterations,
+        tolerance: app.simplify,
+        segmentLength: 5,
     },
     render: {
         line: null,
@@ -319,7 +332,7 @@ let line = {
             this.line.geometry.userData.originalPoints = [];
             this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 1000, //kind of eyballing it
+                lineWidth: lineWidth / 100, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
@@ -354,8 +367,7 @@ let line = {
             if (unproject) { v3.unproject(camera) };
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
 
-            let segment = 5
-
+            let segment = app.segment
             if (this.line.geometry.userData.originalPoints.length % segment === 0) {
                 this.line.geometry.userData.originalPoints.push(v4);
 
@@ -374,10 +386,27 @@ let line = {
                     this.geometry.vertices.pop()
                 }
 
-                simplifiedArray.forEach(p => {
-                    this.line.geometry.userData.vertices.push(p)
-                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
-                })
+                if (app.catmull) {
+
+                    let points = [];
+                    simplifiedArray.forEach(p => {
+                        this.line.geometry.userData.vertices.push(p)
+                        points.push(new THREE.Vector3(p.x, p.y, p.z))
+                    })
+                    let curve = new THREE.CatmullRomCurve3(points);
+                    points = curve.getPoints(points.length)
+                    points.forEach(p => {
+                        this.geometry.vertices.push(p)
+                    })
+
+                } else {
+
+                    simplifiedArray.forEach(p => {
+                        this.line.geometry.userData.vertices.push(p)
+                        this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
+                    })
+                }
+
             } else {
                 var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
                 this.geometry.vertices.push(v3);
@@ -412,30 +441,32 @@ let line = {
 
             this.line.setGeometry(this.geometry, function (p) {
 
-                function map(n, start1, stop1, start2, stop2) {
-                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
-                };
-                let index = Math.round(p * (this.geometry.vertices.length - 1))
-                let minWidth = 0.1;
-                let baseWidth = 1;
-                let width = this.geometry.geometry.userData.vertices[index].w * 4
-                let tipLength = 5;
+                return 2
 
-                //Beginning of the line
-                if (index < tipLength) {
-                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
-                }
-                //End of the line
-                else if (
-                    this.geometry.vertices.length > (tipLength * 2) &&
-                    index > this.geometry.vertices.length - tipLength
-                ) {
-                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
-                }
-                //bulk of the line
-                else {
-                    return baseWidth + width
-                }
+                // function map(n, start1, stop1, start2, stop2) {
+                //     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+                // };
+                // let index = Math.round(p * (this.geometry.vertices.length - 1))
+                // let minWidth = 0.1;
+                // let baseWidth = 1;
+                // let width = this.geometry.geometry.userData.vertices[index].w * 4
+                // let tipLength = 5;
+
+                // //Beginning of the line
+                // if (index < tipLength) {
+                //     return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
+                // }
+                // //End of the line
+                // else if (
+                //     this.geometry.vertices.length > (tipLength * 2) &&
+                //     index > this.geometry.vertices.length - tipLength
+                // ) {
+                //     return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
+                // }
+                // //bulk of the line
+                // else {
+                //     return baseWidth + width
+                // }
 
             });
 
@@ -1575,16 +1606,17 @@ function init() {
     //Set the background based on the css variable;
     var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
     scene.background = new THREE.Color(bgCol);
-    scene.fog = new THREE.Fog(bgCol, 2, 3);
+    scene.fog = new THREE.Fog(bgCol, 9, 13);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
     axesHelper.layers.set(0);
     axesHelper.material.fog = false;
+    axesHelper.applyMatrix4(new THREE.Matrix4().makeScale(5, 5, 5));
     scene.add(axesHelper);
 
     var axesHelperFlipped = new THREE.AxesHelper();
-    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
+    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-5, -5, -5));
     axesHelperFlipped.layers.set(0);
     axesHelperFlipped.material.fog = false;
     scene.add(axesHelperFlipped);
@@ -1595,6 +1627,7 @@ function init() {
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
     gridHelper.layers.set(0);
+    gridHelper.applyMatrix4(new THREE.Matrix4().makeScale(5, 5, 5));
     gridHelper.material.fog = false;
     scene.add(gridHelper);
 
@@ -1604,27 +1637,27 @@ function init() {
         window.innerHeight / 2,
         window.innerHeight / -2,
         0,
-        4
+        20
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
-    camera.zoom = 900;
-    camera.position.set(0, 0, 2);
+    camera.zoom = 160;
+    camera.position.set(0, 0, 10);
 
     directControls = new OrbitControls(camera, drawingCanvas);
     directControls.enableRotate = false;
     directControls.enableZoom = true;
     directControls.enablePan = true;
-    directControls.minZoom = 450; //Limit the zoom out to roughly the fog limit
+    //directControls.minZoom = 450; //Limit the zoom out to roughly the fog limit
 
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.target = directControls.target;
     controls.enabled = true;
-    controls.minDistance = 1;
-    controls.maxDistance = 3;
+    controls.minDistance = 10;
+    controls.maxDistance = 20;
     controls.rotateSpeed = 0.5;
     controls.autoRotateSpeed = 30.0;
-    camera.zoom = 900;
+    camera.zoom = 160;
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.saveState();
@@ -1854,37 +1887,37 @@ function repositionCamera() {
             switch (object.name) {
                 case 'z':
                     controls.enabled = false;
-                    camera.position.set(x, y, 2);
+                    camera.position.set(x, y, 10);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case 'x':
                     controls.enabled = false;
-                    camera.position.set(2, y, z);
+                    camera.position.set(10, y, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case 'y':
                     controls.enabled = false;
-                    camera.position.set(x, 2, z);
+                    camera.position.set(x, 10, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-x':
                     controls.enabled = false;
-                    camera.position.set(-2, y, z);
+                    camera.position.set(-10, y, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-y':
                     controls.enabled = false;
-                    camera.position.set(x, -2, z);
+                    camera.position.set(x, -10, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-z':
                     controls.enabled = false;
-                    camera.position.set(x, y, -2);
+                    camera.position.set(x, y, -10);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
