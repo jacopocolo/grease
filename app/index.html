@@ -174,7 +174,7 @@
                 <div class="button" id="simplify">
                     <span class="toolbarLabel">Simplify <span>{{simplify}}</span></span>
                     <div>
-                        <input type="range" id="simplify" name="simplify" min="0.005" max="0.05" step="0.00005"
+                        <input type="range" id="simplify" name="simplify" min="0.0005" max="0.05" step="0.00005"
                             value="0.004" v-model="simplify">
                     </div>
                 </div>
@@ -187,18 +187,19 @@
                     </div>
                 </div>
 
+                <div class="button" id="iternations">
+                    <span class="toolbarLabel">Mouse smooth <span>{{smooth}}</span></span>
+                    <div>
+                        <input type="range" id="smooth" name="smooth" min="0" max="10" step="1" value="0"
+                            v-model="smooth">
+                    </div>
+                </div>
+
                 <div class="button" id="segment">
                     <span class="toolbarLabel">Segment <span>{{segment}}</span></span>
                     <div>
                         <input type="range" id="segment" name="segment" min="0" max="100" step="10" value="0"
                             v-model="segment">
-                    </div>
-                </div>
-
-                <div class="button" id="segment">
-                    <span class="toolbarLabel">Catmull <span>{{catmull}}</span></span>
-                    <div>
-                        <input type="checkbox" id="segment" v-model="catmull">
                     </div>
                 </div>
 
