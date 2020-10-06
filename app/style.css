@@ -132,8 +132,8 @@ margin: 0px;
 }
 
 #miniAxis {
-  width: 200px;
-  height: 200px;
+  width: 150px;
+  height: 150px;
   position: absolute;
   border-radius: 8px;
   left: 10px;
@@ -155,7 +155,7 @@ margin: 0px;
   position: absolute;
   color:var(--accent-color);
   opacity: 1;
-  top: 208px;
+  top: 158px;
   right: 10px;
 }
 

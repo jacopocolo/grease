@@ -1,4 +1,6 @@
 import * as THREE from "../build/three.module.js";
+// import { OrbitControls } from "../build/OrbitControls.js";
+import CameraControls from "../build/CameraControls.js";
 import { OrbitControls } from "../build/OrbitControls.js";
 import { TransformControls } from "../build/TransformControls.js";
 import {
@@ -84,8 +86,12 @@ var app = new Vue({
             app.selection.deselectFromButton()
         },
         resetCamera: function () {
-            camera.position.set(0, 0, 2);
-            controls.reset();
+            directControls.dampingFactor = 0.5
+            directControls.enabled = false;
+            directControls.setLookAt(0, 0, 2, 0, 0, 0, true)
+            directControls.enabled = true;
+            setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+            //controls.reset();
         },
         toggleUi: function () {
             app.ui.show = !app.ui.show;
@@ -148,7 +154,7 @@ var app = new Vue({
             }
             drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
             drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
-        }
+        },
     },
     mounted() {
         document.getElementById('welcome').style.zIndex = -1;
@@ -222,6 +228,8 @@ Vue.component("toast", {
 
 var renderer, miniAxisRenderer, scene, miniAxisScene, pickingScene, camera, miniAxisCamera;
 var controls, directControls, transformControls;
+CameraControls.install({ THREE: THREE });
+let clock;
 
 var paths = []; //For canvas rendering of selection and eraser
 
@@ -1478,7 +1486,7 @@ function init() {
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
     miniAxisRenderer.setClearColor(new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), 0.4);
-    miniAxisRenderer.setSize(200, 200);
+    miniAxisRenderer.setSize(150, 150);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 
     scene = new THREE.Scene();
@@ -1521,23 +1529,40 @@ function init() {
     camera.zoom = 900;
     camera.position.set(0, 0, 2);
 
-    directControls = new OrbitControls(camera, drawingCanvas);
-    directControls.enableRotate = false;
-    directControls.enableZoom = true;
-    directControls.enablePan = true;
-    directControls.minZoom = 450; //Limit the zoom out to roughly the fog limit
+    clock = new THREE.Clock();
+
+    directControls = new CameraControls(camera, drawingCanvas);
+    directControls.dampingFactor = 10
+    directControls.mouseButtons.left = CameraControls.ACTION.NONE
+    directControls.mouseButtons.right = CameraControls.ACTION.DOLLY
+    directControls.touches.one = CameraControls.ACTION.NONE
+    directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE
+    directControls.touches.one = CameraControls.ACTION.NONE
+    directControls.touches.two = CameraControls.ACTION.ROTATE
+    directControls.touches.three = CameraControls.ACTION.TOUCH_DOLLY_TRUCK
 
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
-    controls.target = directControls.target;
-    controls.enabled = true;
-    controls.minDistance = 1;
-    controls.maxDistance = 3;
-    controls.rotateSpeed = 0.5;
-    controls.autoRotateSpeed = 30.0;
-    camera.zoom = 900;
+    controls.rotateSpeed = 0.4;
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.saveState();
+
+    var geometry = new THREE.SphereBufferGeometry(0.003, 32, 32);
+    var material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    var targetSphere = new THREE.Mesh(geometry, material);
+    scene.add(targetSphere);
+
+    //small hack to have OrbitControls and CameraControls work together
+    directControls.addEventListener("update", () => {
+        let target = new THREE.Vector3();
+        target = directControls.getTarget(target);
+        var x = target.x;
+        var y = target.y;
+        var z = target.z;
+        controls.target = target;
+        targetSphere.position.set(target.x, target.y, target.z)
+    })
+
     transformControls = new TransformControls(camera, drawingCanvas);
 
     miniAxisCamera = new THREE.OrthographicCamera();
@@ -1563,6 +1588,9 @@ function init() {
     bufferRenderer.setPixelRatio(window.devicePixelRatio);
     bufferRenderer.setClearColor(0x000000, 0);
     bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
+
+    renderer.render(scene, camera);
+    miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
 function onWindowResize() {
@@ -1584,11 +1612,20 @@ function onWindowResize() {
 
 function animate() {
     updateminiAxisScene();
+
     if (app.experimental) {
         line.updateDrawingPlane();
     }
-    //updateFade();
+
+    const delta = clock.getDelta();
+
+    let hasdirectControlsUpdated
+    if (directControls.enabled == true) {
+        hasdirectControlsUpdated = directControls.update(delta);
+    }
+
     requestAnimationFrame(animate);
+
     //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
@@ -1628,9 +1665,12 @@ function animate() {
         })
         app.linesNeedThemeUpdate = false;
     }
+
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
-    miniAxisRenderer.setViewport(0, 0, 200, 200);
+    miniAxisRenderer.setViewport(0, 0, 150, 150);
     renderer.render(scene, camera);
+    miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
+
     if (makingGif) {
         if (count < gifLength) {
             bufferRenderer.render(scene, camera)
@@ -1647,7 +1687,7 @@ function animate() {
             count = 0;
         }
     }
-    miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
+
 }
 
 function checkIfHelperObject(object) {
@@ -1662,76 +1702,119 @@ function updateminiAxisScene() {
 }
 
 function drawAxisHelperControls() {
-    let handlesSize = 0.15;
-    let handlesDistance = 0.6
 
-    var controlAxesHelper = new THREE.AxesHelper();
-    miniAxisScene.add(controlAxesHelper);
-    miniAxisScene.layers.set(0);
-    controlAxesHelper.scale.set(0.7, 0.7, 0.7)
+    let size = 0.9;
+    let distance = size / 2;
 
-    //Z axis
-    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0099ff });
-    var sphereZ = new THREE.Mesh(geometry, material);
-    sphereZ.position.set(0, 0, handlesDistance)
-    sphereZ.name = "z";
-    sphereZ.layers.set(1);
-    miniAxisScene.add(sphereZ);
-    //Y axis
-    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x99ff00 });
-    var sphereY = new THREE.Mesh(geometry, material);
-    sphereY.position.set(0, handlesDistance, 0)
-    sphereY.name = "y";
-    sphereY.layers.set(1);
-    miniAxisScene.add(sphereY);
-    //X axis
-    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0xff6600 });
-    var sphereX = new THREE.Mesh(geometry, material);
-    sphereX.position.set(handlesDistance, 0, 0)
-    sphereX.name = "x";
-    sphereX.layers.set(1);
-    miniAxisScene.add(sphereX);
+    var front = new THREE.TextureLoader().load("../img/sides/front.png");
+    var geometry = new THREE.PlaneGeometry(size, size, size);
+    var material = new THREE.MeshBasicMaterial({ map: front, overdraw: true, color: 0x0099ff });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.position.set(0, 0, distance)
+    plane.name = "z"
+    plane.layers.set(1);
+    miniAxisScene.add(plane);
 
-    //Flipped control handles
-    var controlAxesHelperFlipped = new THREE.AxesHelper();
-    miniAxisScene.add(controlAxesHelperFlipped);
-    controlAxesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-0.5, -0.5, -0.5));
-    miniAxisScene.layers.set(0);
+    var back = new THREE.TextureLoader().load("../img/sides/back.png");
+    var geometry = new THREE.PlaneGeometry(size, size, size);
+    var material = new THREE.MeshBasicMaterial({ map: back, overdraw: true, color: 0x0099ff });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.position.set(0, 0, -distance)
+    plane.rotation.y = Math.PI;
+    plane.name = "-z"
+    plane.layers.set(1);
+    miniAxisScene.add(plane);
 
-    //-Z axis
-    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x0099FF });
-    var sphereZFlipped = new THREE.Mesh(geometry, material);
-    sphereZFlipped.position.set(0, 0, -handlesDistance)
-    sphereZFlipped.name = "-z";
-    miniAxisScene.add(sphereZFlipped);
-    sphereZFlipped.layers.set(1);
-    //-Y axis
-    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0x99ff00 });
-    var sphereYFlipped = new THREE.Mesh(geometry, material);
-    sphereYFlipped.position.set(0, -handlesDistance, 0)
-    sphereYFlipped.name = "-y";
-    miniAxisScene.add(sphereYFlipped);
-    sphereYFlipped.layers.set(1);
-    //-X axis
-    var geometry = new THREE.SphereGeometry(handlesSize, handlesSize, handlesSize);
-    var material = new THREE.MeshBasicMaterial({ color: 0xff6600 });
-    var sphereXFlipped = new THREE.Mesh(geometry, material);
-    sphereXFlipped.position.set(-handlesDistance, 0, 0)
-    sphereXFlipped.name = "-x";
-    miniAxisScene.add(sphereXFlipped);
-    sphereXFlipped.layers.set(1);
+    var top = new THREE.TextureLoader().load("../img/sides/top.png");
+    var geometry = new THREE.PlaneGeometry(size, size, size);
+    var material = new THREE.MeshBasicMaterial({ map: top, overdraw: true, color: 0x99ff00 });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.position.set(0, distance, 0)
+    plane.rotation.x = Math.PI / 2;
+    plane.rotation.y = Math.PI;
+    plane.rotation.z = Math.PI;
+    plane.name = "y"
+    plane.layers.set(1);
+    miniAxisScene.add(plane);
 
-    miniAxis.addEventListener("touchstart", repositionCamera, false);
-    miniAxis.addEventListener("mousedown", repositionCamera, false);
+    var bottom = new THREE.TextureLoader().load("../img/sides/bottom.png");
+    var geometry = new THREE.PlaneGeometry(size, size, size);
+    var material = new THREE.MeshBasicMaterial({ map: bottom, overdraw: true, color: 0x99ff00 });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.position.set(0, -distance, 0)
+    plane.rotation.x = Math.PI / 2;
+    plane.name = "-y"
+    plane.layers.set(1);
+    miniAxisScene.add(plane);
+
+    var right = new THREE.TextureLoader().load("../img/sides/right.png");
+    var geometry = new THREE.PlaneGeometry(size, size, size);
+    var material = new THREE.MeshBasicMaterial({ map: right, overdraw: true, color: 0xff6600 });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.position.set(distance, 0, 0)
+    plane.rotation.y = Math.PI / 2;
+    plane.rotation.z = Math.PI;
+    plane.rotation.x = Math.PI;
+    plane.name = "x"
+    plane.layers.set(1);
+    miniAxisScene.add(plane);
+
+    var left = new THREE.TextureLoader().load("../img/sides/left.png");
+    var geometry = new THREE.PlaneGeometry(size, size, size);
+    var material = new THREE.MeshBasicMaterial({ map: left, overdraw: true, color: 0xff6600 });
+    var plane = new THREE.Mesh(geometry, material);
+    plane.position.set(-distance, 0, 0)
+    plane.rotation.y = -Math.PI / 2;
+    plane.rotation.z = Math.PI;
+    plane.rotation.x = Math.PI;
+    plane.name = "-x"
+    plane.layers.set(1);
+    miniAxisScene.add(plane);
+
+
+    miniAxisRenderer.domElement.addEventListener("mousedown", () => {
+        directControls.enabled = false;
+    }, false)
+    miniAxisRenderer.domElement.addEventListener("touchstart", () => {
+        directControls.enabled = false;
+    }, false)
+
+    miniAxisRenderer.domElement.addEventListener("mousemove", () => {
+        if (directControls.enabled == false) {
+            miniAxisMouse.moved = true;
+        }
+    }, false)
+    miniAxisRenderer.domElement.addEventListener("touchmove", () => {
+        if (directControls.enabled == false) {
+            miniAxisMouse.moved = true;
+        }
+    }, false)
+
+    miniAxisRenderer.domElement.addEventListener("mouseup", (event) => {
+        directControls.enabled = true;
+        console.log(miniAxisMouse.moved)
+        if (miniAxisMouse.moved == true) {
+            directControls.setLookAt(camera.position.x, camera.position.y, camera.position.z, controls.target.x, controls.target.y, controls.target.z, false)
+        } else {
+            repositionCamera(event)
+        }
+        miniAxisMouse.moved = false;
+    }, false)
+    miniAxisRenderer.domElement.addEventListener("touchend", (event) => {
+        directControls.enabled = true;
+        if (miniAxisMouse.moved == true) {
+            directControls.setLookAt(camera.position.x, camera.position.y, camera.position.z, controls.target.x, controls.target.y, controls.target.z, false)
+        } else {
+            repositionCamera(event)
+        }
+        miniAxisMouse.moved = false;
+    }, false)
+
 }
 let miniAxisMouse = {
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
+    moved: false,
     updateCoordinates: function (event) {
         let canvasBounds = miniAxisRenderer.getContext().canvas.getBoundingClientRect();
         if (event.touches) {
@@ -1744,6 +1827,7 @@ let miniAxisMouse = {
         }
     }
 }
+
 function repositionCamera() {
     if (!app.controlsLocked) {
         miniAxisMouse.updateCoordinates(event);
@@ -1758,48 +1842,59 @@ function repositionCamera() {
         var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
         if (checkIfHelperObject(object)) {
         } else {
-            var x = directControls.target.x;
-            var y = directControls.target.y;
-            var z = directControls.target.z;
+
+            let target = new THREE.Vector3();
+            target = directControls.getTarget(target);
+            var x = target.x;
+            var y = target.y;
+            var z = target.z;
+
             switch (object.name) {
                 case 'z':
-                    controls.enabled = false;
-                    camera.position.set(x, y, 2);
-                    camera.lookAt(controls.target);
-                    controls.enabled = true;
+                    directControls.dampingFactor = 0.5
+                    directControls.enabled = false;
+                    directControls.setLookAt(target.x, target.y, target.z + 2, target.x, target.y, target.z, true)
+                    directControls.enabled = true;
+                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case 'x':
-                    controls.enabled = false;
-                    camera.position.set(2, y, z);
-                    camera.lookAt(controls.target);
-                    controls.enabled = true;
+                    directControls.dampingFactor = 0.5
+                    directControls.enabled = false;
+                    directControls.setLookAt(target.x + 2, target.y, target.z, target.x, target.y, target.z, true)
+                    directControls.enabled = true;
+                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case 'y':
-                    controls.enabled = false;
-                    camera.position.set(x, 2, z);
-                    camera.lookAt(controls.target);
-                    controls.enabled = true;
+                    directControls.dampingFactor = 0.5
+                    directControls.enabled = false;
+                    directControls.setLookAt(target.x, target.y + 2, target.z, target.x, target.y, target.z, true)
+                    directControls.enabled = true;
+                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case '-x':
-                    controls.enabled = false;
-                    camera.position.set(-2, y, z);
-                    camera.lookAt(controls.target);
-                    controls.enabled = true;
+                    directControls.dampingFactor = 0.5
+                    directControls.enabled = false;
+                    directControls.setLookAt(target.x - 2, target.y, target.z, target.x, target.y, target.z, true)
+                    directControls.enabled = true;
+                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case '-y':
-                    controls.enabled = false;
-                    camera.position.set(x, -2, z);
-                    camera.lookAt(controls.target);
-                    controls.enabled = true;
+                    directControls.dampingFactor = 0.5
+                    directControls.enabled = false;
+                    directControls.setLookAt(target.x, target.y - 2, target.z, target.x, target.y, target.z, true)
+                    directControls.enabled = true;
+                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case '-z':
-                    controls.enabled = false;
-                    camera.position.set(x, y, -2);
-                    camera.lookAt(controls.target);
-                    controls.enabled = true;
+                    directControls.dampingFactor = 0.5
+                    directControls.enabled = false;
+                    directControls.setLookAt(target.x, target.y, target.z - 2, target.x, target.y, target.z, true)
+                    directControls.enabled = true;
+                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 default:
             }
+
         }
     }
 };
