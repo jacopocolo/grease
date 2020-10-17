@@ -16,6 +16,7 @@ var app = new Vue({
     data: {
         selectedTool: 'draw', //Options are 'draw', 'erase', 'select'
         selectedTransformation: 'translate', //Options are "translate", "rotate" and "scale"
+        selectedCameraControl: 'rotate',
         isAGroupSelected: false, //Transform tools must be restricted if true
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
@@ -46,6 +47,28 @@ var app = new Vue({
         zDepth: 0, //this value is inverted in the code
     },
     watch: {
+        selectedCameraControl: function (val) {
+            switch (val) {
+                case "rotate":
+                    directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE;
+                    directControls.mouseButtons.right = CameraControls.ACTION.ROTATE;
+                    directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE;
+                    break;
+                case "pan":
+                    directControls.mouseButtons.wheel = CameraControls.ACTION.TRUCK;
+                    directControls.mouseButtons.right = CameraControls.ACTION.TRUCK;
+                    directControls.touches.two = CameraControls.ACTION.TOUCH_TRUCK;
+                    break;
+                case "zoom":
+                    directControls.mouseButtons.wheel = CameraControls.ACTION.ZOOM;
+                    directControls.mouseButtons.right = CameraControls.ACTION.ZOOM;
+                    directControls.touches.two = CameraControls.ACTION.TOUCH_ZOOM;
+                    break;
+                default:
+                    directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE;
+                    directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE;
+            }
+        },
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
@@ -89,6 +112,7 @@ var app = new Vue({
             directControls.dampingFactor = 0.5
             directControls.enabled = false;
             directControls.setLookAt(0, 0, 2, 0, 0, 0, true)
+            directControls.zoomTo(160, true)
             directControls.enabled = true;
             setTimeout(() => { directControls.dampingFactor = 10 }, 100)
             //controls.reset();
@@ -99,21 +123,22 @@ var app = new Vue({
         //MOUSE HANDLERS
         onTapStart: function (event) {
 
-            if (event.touches && event.touches.length > 1 || app.selection.selected.length > 0) { return }
+            if (event.touches && event.touches.length > 1 || app.selection.selected.length > 0 || event.which == 3) { return }
 
             mouse.updateCoordinates(event);
-            //DRAW
-            if (this.selectedTool == "draw") {
-                line.start();
+
+            switch (this.selectedTool) {
+                case "draw":
+                    line.start();
+                    break;
+                case "erase":
+                    eraser.start();
+                    break;
+                case "select":
+                    app.selection.start();
+                    break;
             }
-            //ERASER
-            else if (this.selectedTool == "erase") {
-                eraser.start();
-            }
-            //SELECT
-            else if (this.selectedTool == "select") {
-                app.selection.start();
-            }
+
             drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
             drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
             drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
@@ -154,7 +179,7 @@ var app = new Vue({
             }
             drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
             drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
-        },
+        }
     },
     mounted() {
         document.getElementById('welcome').style.zIndex = -1;
@@ -240,6 +265,7 @@ var linesNeedThemeUpdate = false;
 //GIF MAKING VARS
 let gif;
 let makingGif = false;
+let gifMode = '360';
 let count = 0;
 let gifLength = 120;
 let bufferRenderer;
@@ -406,9 +432,6 @@ let line = {
         this.drawingPlane.add(planeBg);
         this.drawingPlane.add(planeGrid);
         scene.add(this.drawingPlane);
-        // controls.addEventListener("change", function () {
-        //     line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
-        // });
     },
     updateDrawingPlane: function () {
         this.drawingPlane.rotation.copy(camera.rotation);
@@ -1296,7 +1319,10 @@ app.exportTo = {
     mesh: function () {
         //It might be possible to extrude lines into meshes to allow exporting into meshes like here https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
     },
-    gif: function () {
+    gif: function (rotation) {
+
+        gifMode = rotation;
+
         app.selection.deselect();
 
         app.modal.show = true;
@@ -1305,7 +1331,6 @@ app.exportTo = {
         app.modal.helptext = "This might take a moment, please be patient";
 
         makingGif = true;
-        app.autoRotate = true;
         controls.autoRotateSpeed = 30.0;
 
         gif = new GIF({
@@ -1493,16 +1518,17 @@ function init() {
     //Set the background based on the css variable;
     var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
     scene.background = new THREE.Color(bgCol);
-    scene.fog = new THREE.Fog(bgCol, 2, 3);
+    scene.fog = new THREE.Fog(bgCol, 9, 13);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
+    axesHelper.applyMatrix4(new THREE.Matrix4().makeScale(5, 5, 5));
     axesHelper.layers.set(0);
     axesHelper.material.fog = false;
     scene.add(axesHelper);
 
     var axesHelperFlipped = new THREE.AxesHelper();
-    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
+    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-5, -5, -5));
     axesHelperFlipped.layers.set(0);
     axesHelperFlipped.material.fog = false;
     scene.add(axesHelperFlipped);
@@ -1512,6 +1538,7 @@ function init() {
     var size = 1;
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
+    gridHelper.applyMatrix4(new THREE.Matrix4().makeScale(5, 5, 5));
     gridHelper.layers.set(0);
     gridHelper.material.fog = false;
     scene.add(gridHelper);
@@ -1522,23 +1549,22 @@ function init() {
         window.innerHeight / 2,
         window.innerHeight / -2,
         0,
-        4
+        20
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
-    camera.zoom = 900;
-    camera.position.set(0, 0, 2);
+    camera.zoom = 160;
+    camera.position.set(0, 0, 10);
 
     clock = new THREE.Clock();
 
     directControls = new CameraControls(camera, drawingCanvas);
     directControls.dampingFactor = 10
     directControls.mouseButtons.left = CameraControls.ACTION.NONE
-    directControls.mouseButtons.right = CameraControls.ACTION.DOLLY
-    directControls.touches.one = CameraControls.ACTION.NONE
+    directControls.mouseButtons.right = CameraControls.ACTION.ROTATE
     directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE
     directControls.touches.one = CameraControls.ACTION.NONE
-    directControls.touches.two = CameraControls.ACTION.ROTATE
+    directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE
     directControls.touches.three = CameraControls.ACTION.TOUCH_DOLLY_TRUCK
 
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
@@ -1547,7 +1573,7 @@ function init() {
     controls.enablePan = false;
     controls.saveState();
 
-    var geometry = new THREE.SphereBufferGeometry(0.003, 32, 32);
+    var geometry = new THREE.SphereBufferGeometry(0.025, 32, 32);
     var material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
     var targetSphere = new THREE.Mesh(geometry, material);
     scene.add(targetSphere);
@@ -1561,6 +1587,7 @@ function init() {
         var z = target.z;
         controls.target = target;
         targetSphere.position.set(target.x, target.y, target.z)
+        if (app.experimental) { line.drawingPlane.position.set(target.x, target.y, target.z) }
     })
 
     transformControls = new TransformControls(camera, drawingCanvas);
@@ -1631,19 +1658,19 @@ function animate() {
         transformControls.mode = app.selectedTransformation;
     }
     //check if we need to disable controls
-    if (controls) {
-        controls.enabled = !app.controlsLocked
-        //should make sure we can't mess with autorotate
-        if (app.autoRotate) {
-            app.controlsLocked = true;
-            camera.layers.disable(0)
-            controls.autoRotate = app.autoRotate;
-            controls.update();
-        } else {
-            camera.layers.enable(0)
-            app.controlsLocked = false;
-        }
-    }
+    // if (controls) {
+    //     controls.enabled = !app.controlsLocked
+    //     //should make sure we can't mess with autorotate
+    //     if (app.autoRotate) {
+    //         app.controlsLocked = true;
+    //         camera.layers.disable(0)
+    //         controls.autoRotate = app.autoRotate;
+    //         controls.update();
+    //     } else {
+    //         camera.layers.enable(0)
+    //         app.controlsLocked = false;
+    //     }
+    // }
     //Update colors of lines based on theme?
     if (app.linesNeedThemeUpdate) {
         scene.children.forEach(object => {
@@ -1673,6 +1700,13 @@ function animate() {
 
     if (makingGif) {
         if (count < gifLength) {
+            camera.layers.disable(0)
+            if (gifMode == '360' || (gifMode == '180' && count < gifLength / 2)) {
+                directControls.rotate(3 * THREE.MathUtils.DEG2RAD, 0, true)
+            } else {
+                directControls.rotate(-3 * THREE.MathUtils.DEG2RAD, 0, true)
+            }
+
             bufferRenderer.render(scene, camera)
             gif.addFrame(bufferRenderer.domElement, {
                 copy: true,
@@ -1680,7 +1714,8 @@ function animate() {
             });
             count = count + 1;
         } else {
-            app.autoRotate = false;
+            // app.autoRotate = false;
+            camera.layers.enable(0)
             controls.autoRotateSpeed = 30.0;
             makingGif = false;
             gif.render();
@@ -1779,8 +1814,9 @@ function drawAxisHelperControls() {
         directControls.enabled = false;
     }, false)
 
-    miniAxisRenderer.domElement.addEventListener("mousemove", () => {
+    miniAxisRenderer.domElement.addEventListener("mousemove", (e) => {
         if (directControls.enabled == false) {
+            console.log(e.movementX, e.movementY);
             miniAxisMouse.moved = true;
         }
     }, false)
@@ -1853,42 +1889,42 @@ function repositionCamera() {
                 case 'z':
                     directControls.dampingFactor = 0.5
                     directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y, target.z + 2, target.x, target.y, target.z, true)
+                    directControls.setLookAt(target.x, target.y, target.z + 10, target.x, target.y, target.z, true)
                     directControls.enabled = true;
                     setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case 'x':
                     directControls.dampingFactor = 0.5
                     directControls.enabled = false;
-                    directControls.setLookAt(target.x + 2, target.y, target.z, target.x, target.y, target.z, true)
+                    directControls.setLookAt(target.x + 10, target.y, target.z, target.x, target.y, target.z, true)
                     directControls.enabled = true;
                     setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case 'y':
                     directControls.dampingFactor = 0.5
                     directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y + 2, target.z, target.x, target.y, target.z, true)
+                    directControls.setLookAt(target.x, target.y + 10, target.z, target.x, target.y, target.z, true)
                     directControls.enabled = true;
                     setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case '-x':
                     directControls.dampingFactor = 0.5
                     directControls.enabled = false;
-                    directControls.setLookAt(target.x - 2, target.y, target.z, target.x, target.y, target.z, true)
+                    directControls.setLookAt(target.x - 10, target.y, target.z, target.x, target.y, target.z, true)
                     directControls.enabled = true;
                     setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case '-y':
                     directControls.dampingFactor = 0.5
                     directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y - 2, target.z, target.x, target.y, target.z, true)
+                    directControls.setLookAt(target.x, target.y - 10, target.z, target.x, target.y, target.z, true)
                     directControls.enabled = true;
                     setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;
                 case '-z':
                     directControls.dampingFactor = 0.5
                     directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y, target.z - 2, target.x, target.y, target.z, true)
+                    directControls.setLookAt(target.x, target.y, target.z - 10, target.x, target.y, target.z, true)
                     directControls.enabled = true;
                     setTimeout(() => { directControls.dampingFactor = 10 }, 100)
                     break;

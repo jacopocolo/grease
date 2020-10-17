@@ -33,26 +33,55 @@
         <canvas id="drawingCanvas"></canvas>
         <div id="main" :class="selectedTheme"></div>
 
-        <div id="toolSelection">
-            <span>
-                <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
-                    for="toolDraw">
-                    Draw
-                </label>
-                <div></div>
-            </span><span>
-                <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
-                    for="toolEraser">
-                    Erase
-                </label>
-                <div></div>
-            </span><span>
-                <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool" checked /><label
-                    for="toolSelect">
-                    Select
-                </label>
-                <div></div>
-            </span>
+        <div id="mainToolbar">
+
+
+            <div id="cameraControlSelection">
+                <span>
+                    <input type="radio" id="cameraRotate" name="camera" value="rotate"
+                        v-model="selectedCameraControl" /><label for="cameraRotate">
+                        Rotate
+                    </label>
+                    <div></div>
+                </span><span>
+                    <input type="radio" id="cameraPan" name="camera" value="pan"
+                        v-model="selectedCameraControl" /><label for="cameraPan">
+                        Pan
+                    </label>
+                    <div></div>
+                </span>
+                <span>
+                    <input type="radio" id="cameraZoom" name="camera" value="zoom"
+                        v-model="selectedCameraControl" /><label for="cameraZoom">
+                        Zoom
+                    </label>
+                    <div></div>
+                </span>
+            </div>
+
+            <div id="toolSelection">
+                <span>
+                    <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
+                        for="toolDraw">
+                        Draw
+                    </label>
+                    <div></div>
+                </span><span>
+                    <input type="radio" id="toolEraser" name="tools" value="erase" v-model="selectedTool" /><label
+                        for="toolEraser">
+                        Erase
+                    </label>
+                    <div></div>
+                </span><span>
+                    <input type="radio" id="toolSelect" name="tools" value="select" v-model="selectedTool"
+                        checked /><label for="toolSelect">
+                        Select
+                    </label>
+                    <div></div>
+                </span>
+            </div>
+
+
         </div>
 
         <div id="miniAxis" v-bind:class="[ui.show ? '' : 'hidden']">
@@ -219,7 +248,10 @@
             <button v-if="experimental" id="Export" @click="exportTo.geometry"
                 v-bind:class="[ui.show ? '' : 'hidden']">Export
                 geometry</button>
-            <button id="makeGif" @click="exportTo.gif" v-bind:class="[ui.show ? '' : 'hidden']">Make gif</button>
+            <button id="makeGif" @click="exportTo.gif('360');" v-bind:class="[ui.show ? '' : 'hidden']">gif
+                360</button>
+            <button id="makeGif" @click="exportTo.gif('180')" v-bind:class="[ui.show ? '' : 'hidden']">gif
+                180</button>
             <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
         </div>
     </div>
