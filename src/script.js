@@ -111,11 +111,10 @@ var app = new Vue({
         resetCamera: function () {
             directControls.dampingFactor = 0.5
             directControls.enabled = false;
-            directControls.setLookAt(0, 0, 2, 0, 0, 0, true)
+            directControls.setLookAt(0, 0, 10, 0, 0, 0, true)
             directControls.zoomTo(160, true)
             directControls.enabled = true;
             setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-            //controls.reset();
         },
         toggleUi: function () {
             app.ui.show = !app.ui.show;
@@ -1510,7 +1509,7 @@ function init() {
         alpha: true
     });
     miniAxisRenderer.setPixelRatio(window.devicePixelRatio);
-    miniAxisRenderer.setClearColor(new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), 0.4);
+    miniAxisRenderer.setClearColor(new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color')), 0);
     miniAxisRenderer.setSize(150, 150);
     miniAxis.appendChild(miniAxisRenderer.domElement);
 

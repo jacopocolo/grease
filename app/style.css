@@ -132,31 +132,66 @@ margin: 0px;
 }
 
 #miniAxis {
-  width: 150px;
-  height: 150px;
+  width: 210px;
+  height: 200px;
   position: absolute;
   border-radius: 8px;
   left: 10px;
   top: 8px;
   z-index: 4;
-  border-radius: 0px 0px 8px 8px;
+  border-radius: 8px;
+  background-color: rgba(0,0,0,0.4);
 }
 
 #miniAxis>canvas{
-  border-radius: 0px 0px 8px 8px;
+  /* border-radius: 0px 0px 8px 0px; */
   z-index: 5;
+  float: left;
+  position: relative;
+}
+
+.circle-under-orientation-gizmo {
+	background-color: rgba(255,255,255,0.2);
+	content: '';
+	display: block;
+	position: absolute;
+	z-index: -1;
+	float: left;
+	left: 15px;
+	top: 45px;
+	width: 120px;
+	height: 120px;
+	border-radius: 50%;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
 #miniAxisHandle {
+  border-radius: 8px 8px 0px 0px;
   padding: 16px 8px;
+}
+
+.label-camera {
+  text-align: center;
+  font-size: 0.65em;
+  color: white;
+  width: 50px;
+  margin-bottom: 8px;
+  content: '';
+  white-space: pre
 }
 
 .reset-camera {
   position: absolute;
   color:var(--accent-color);
   opacity: 1;
-  top: 158px;
-  right: 10px;
+  top: 174px;
+  left: 55px;
+  z-index: 6;
 }
 
 .handle {
@@ -243,41 +278,34 @@ button {
   width: fit-content;
 }
 
-/* .toolsButton radio {
-  margin-right: 8px;
-} */
-
 #mainToolbar {
   position: absolute;
   top: 0;
-  left: calc(50% - 310px);
+  left: calc(50% - 160px);
   z-index: 6;
 }
 
 #toolSelection {
-  /* background-color: var(--ui-bg-color); */
   padding: 4px;
-
   padding-left: 6px;
   white-space: discard;
   display: flex;
   width: 300px;
   float: left;
-  /* position: absolute;
-  top: 0;
-  left: calc(50% - 150px) */
 }
 
 #cameraControlSelection {
-  padding: 4px;
-  padding-left: 6px;
   white-space: discard;
+  box-sizing: border-box;
   display: flex;
-  width: 300px;
-  float: left;
-  /* position: absolute;
-  top: 0;
-  left: 0 */
+  flex-direction: column;
+  width: 50px;
+  float: right;
+  height: 152px;
+  position: absolute;
+  top: 0px;
+  right: 12px;
+  padding-top: 50px;
 }
 
 #toolSelection span, #cameraControlSelection span {
@@ -287,9 +315,17 @@ button {
   text-align: center;
 }
 
-#toolSelection > span > input[type="radio"] + label, #cameraControlSelection > span > input[type="radio"] + label {
+#toolSelection > span > input[type="radio"] + label {
   min-height: 40px;
   height: 30px;
+}
+
+#cameraControlSelection > span > input[type="radio"] + label {
+  height: 30px;
+  min-height: 30px;
+  min-width: 50px;
+  width: 50px;
+  font-size: 0.8em;
 }
 
 .lineTools {
@@ -355,10 +391,6 @@ input[type="radio"]:checked + label {
   box-shadow: inset 1px 1px 6px #111, inset -1px -1px 6px #333;
 }
 
-/* input[type="radio"]:checked + label {
-  border: 1px solid var(--accent-color);
-} */
-
 span:first-child > input[type="radio"]:checked + label + div {
   height: 1px;
   display: block;
@@ -389,16 +421,20 @@ span:last-child > input[type="radio"]:checked + label + div {
   content: '';
 }
 
-/* #transformationSelection span {
-  display: grid;
-  width: 100%;
-  box-sizing: border-box;
-  text-align: center;
-  padding: 4px;
+#cameraControlSelection span > label {
+  border-radius: 0px;
+  border: none;
+  box-shadow: none;
 }
-#transformationSelection span label {
-  color: var(--ui-bg-color);
-} */
+
+#cameraControlSelection span > input[type="radio"]:checked + label + div {
+  border: none;
+  background: none;
+}
+
+#cameraControlSelection span > input[type="radio"]:checked + label {
+  border: 1px solid var(--accent-color);
+}
 
 #toolSelection span label, #transformationSelection span label, #cameraControlSelection span label {
   display: grid;
@@ -413,38 +449,32 @@ span:last-child > input[type="radio"]:checked + label + div {
  
  @media (hover: none) {
   #toolSelection span input[type="radio"]:checked + label::after {
-    content: "1 finger";
+    content: "one finger";
     margin-top: -8px;
-    font-size: 0.7em;
+    font-size: 0.75em;
     line-height: 0.5em;
+    text-shadow: none;
     color: #FFFFFF;
   }
   
-   #cameraControlSelection span input[type="radio"]:checked + label::after {
-     content: "2 fingers";
-     margin-top: -8px;
-     font-size: 0.7em;
-     line-height: 0.5em;
-     color: #FFFFFF;
+  .label-camera::after {
+     content: "two \a fingers";
    }
 }
 
 /* mouse, touch pad */
 @media (hover: hover) and (pointer: fine) {
   #toolSelection span input[type="radio"]:checked + label::after {
-    content: "Left mouse";
+    content: "left mouse";
     margin-top: -8px;
-    font-size: 0.7em;
+    font-size: 0.75em;
     line-height: 0.5em;
+    text-shadow: none;
     color: #FFFFFF;
   }
   
-   #cameraControlSelection span input[type="radio"]:checked + label::after {
-     content: "Right mouse";
-     margin-top: -8px;
-     font-size: 0.7em;
-     line-height: 0.5em;
-     color: #FFFFFF;
+   .label-camera::after {
+     content: "Right \a mouse";
    }
 }
 

@@ -35,30 +35,6 @@
 
         <div id="mainToolbar">
 
-
-            <div id="cameraControlSelection">
-                <span>
-                    <input type="radio" id="cameraRotate" name="camera" value="rotate"
-                        v-model="selectedCameraControl" /><label for="cameraRotate">
-                        Rotate
-                    </label>
-                    <div></div>
-                </span><span>
-                    <input type="radio" id="cameraPan" name="camera" value="pan"
-                        v-model="selectedCameraControl" /><label for="cameraPan">
-                        Pan
-                    </label>
-                    <div></div>
-                </span>
-                <span>
-                    <input type="radio" id="cameraZoom" name="camera" value="zoom"
-                        v-model="selectedCameraControl" /><label for="cameraZoom">
-                        Zoom
-                    </label>
-                    <div></div>
-                </span>
-            </div>
-
             <div id="toolSelection">
                 <span>
                     <input type="radio" id="toolDraw" name="tools" value="draw" v-model="selectedTool" /><label
@@ -88,6 +64,30 @@
             <div class="handle" id="miniAxisHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
+            </div>
+            <div class="circle-under-orientation-gizmo"></div>
+            <div id="cameraControlSelection">
+                <p class="label-camera"> </p>
+                <span>
+                    <input type="radio" id="cameraRotate" name="camera" value="rotate"
+                        v-model="selectedCameraControl" /><label for="cameraRotate">
+                        ROT
+                    </label>
+                    <div></div>
+                </span><span>
+                    <input type="radio" id="cameraPan" name="camera" value="pan"
+                        v-model="selectedCameraControl" /><label for="cameraPan">
+                        PAN
+                    </label>
+                    <div></div>
+                </span>
+                <span>
+                    <input type="radio" id="cameraZoom" name="camera" value="zoom"
+                        v-model="selectedCameraControl" /><label for="cameraZoom">
+                        ZOOM
+                    </label>
+                    <div></div>
+                </span>
             </div>
             <span class="reset-camera" @click="resetCamera()">Reset</span>
         </div>
