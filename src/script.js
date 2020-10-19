@@ -1563,7 +1563,7 @@ function init() {
     directControls.mouseButtons.right = CameraControls.ACTION.ROTATE
     directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE
     directControls.touches.one = CameraControls.ACTION.NONE
-    directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE
+    directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE_ZOOM
     directControls.touches.three = CameraControls.ACTION.TOUCH_DOLLY_TRUCK
 
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
