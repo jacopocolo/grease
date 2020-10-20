@@ -132,7 +132,8 @@ margin: 0px;
 }
 
 #miniAxis {
-  width: 210px;
+  /* set width to 210px to give room to camera controls again */
+  width: 150px;
   height: 200px;
   position: absolute;
   border-radius: 8px;
@@ -306,6 +307,8 @@ button {
   top: 0px;
   right: 12px;
   padding-top: 50px;
+  /* remove the display none if you want to enable camera controls selection again */
+  display: none; 
 }
 
 #toolSelection span, #cameraControlSelection span {
@@ -447,7 +450,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   text-align: center;
  }
  
- @media (hover: none) {
+ /* @media (hover: none) {
   #toolSelection span input[type="radio"]:checked + label::after {
     content: "one finger";
     margin-top: -8px;
@@ -462,7 +465,6 @@ span:last-child > input[type="radio"]:checked + label + div {
    }
 }
 
-/* mouse, touch pad */
 @media (hover: hover) and (pointer: fine) {
   #toolSelection span input[type="radio"]:checked + label::after {
     content: "left mouse";
@@ -476,7 +478,7 @@ span:last-child > input[type="radio"]:checked + label + div {
    .label-camera::after {
      content: "Right \a mouse";
    }
-}
+} */
 
 
  #duplicate {
