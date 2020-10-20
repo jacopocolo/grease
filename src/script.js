@@ -44,11 +44,14 @@ var app = new Vue({
         },
         experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
+<<<<<<< HEAD
         simplify: 0.005,
         smooth: 0,
         segment: 3,
         iterations: 1,
         fog: 8,
+=======
+>>>>>>> parent of 3f79ad9... Version with controls
     },
     watch: {
         selectedTool: function () {
@@ -269,7 +272,7 @@ let mouse = {
     cy: 0, //y coord for canvas
     force: 0,
     smoothing: function () {
-        return app.smooth
+        return 4
         // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
@@ -369,6 +372,7 @@ let line = {
             var v3 = new THREE.Vector3(x, y, z);
             if (unproject) { v3.unproject(camera) };
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
+<<<<<<< HEAD
             this.line.geometry.userData.originalPoints.push(v3);
 
             // var geometry = new THREE.SphereGeometry(0.05, 1, 1);
@@ -397,6 +401,16 @@ let line = {
                     // var sphere = new THREE.Mesh(geometry, material);
                     // scene.add(sphere);
                     // sphere.position.set(p.x, p.y, z);
+=======
+
+            if (this.geometry.vertices.length > 3) {
+                this.line.geometry.userData.originalPoints.push(v4);
+                let simplifiedArray = simplify4d(this.line.geometry.userData.originalPoints, 0.0015, true)
+                this.line.geometry.userData.vertices = simplifiedArray;
+                this.geometry.vertices = [];
+                simplifiedArray.forEach(p => {
+                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
+>>>>>>> parent of 3f79ad9... Version with controls
                 })
 
             } else {
@@ -433,6 +447,7 @@ let line = {
 
             this.line.setGeometry(this.geometry, function (p) {
 
+<<<<<<< HEAD
                 return 2
 
                 // function map(n, start1, stop1, start2, stop2) {
@@ -459,6 +474,32 @@ let line = {
                 // else {
                 //     return baseWidth + width
                 // }
+=======
+                function map(n, start1, stop1, start2, stop2) {
+                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+                };
+                let index = Math.round(p * (this.geometry.vertices.length - 1))
+                let minWidth = 0;
+                let baseWidth = 1;
+                let width = this.geometry.geometry.userData.vertices[index].w * 4
+                let tipLength = 90;
+
+                //Beginning of the line
+                if (index < tipLength) {
+                    return (map(index, 0, tipLength, minWidth, baseWidth)) + width
+                }
+                //End of the line
+                else if (
+                    this.geometry.vertices.length > (tipLength * 2) &&
+                    index > this.geometry.vertices.length - tipLength
+                ) {
+                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
+                }
+                //bulk of the line
+                else {
+                    return baseWidth + width
+                }
+>>>>>>> parent of 3f79ad9... Version with controls
 
             });
 
