@@ -44,14 +44,9 @@ var app = new Vue({
         },
         experimental: new URL(document.URL).hash == "#experimental" ? true : false,
         zDepth: 0, //this value is inverted in the code
-<<<<<<< HEAD
-        simplify: 0.005,
+        simplify: 0.001,
         smooth: 0,
-        segment: 3,
-        iterations: 1,
-        fog: 8,
-=======
->>>>>>> parent of 3f79ad9... Version with controls
+        iterations: 0,
     },
     watch: {
         selectedTool: function () {
@@ -79,10 +74,6 @@ var app = new Vue({
         zDepth: function () {
             line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
         },
-        fog: function () {
-            scene.fog.far = app.fog
-            //scene.fog.far = app.fog + 
-        }
     },
     methods: {
         duplicateSelected: function () {
@@ -272,7 +263,7 @@ let mouse = {
     cy: 0, //y coord for canvas
     force: 0,
     smoothing: function () {
-        return 4
+        return app.smooth
         // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
@@ -306,7 +297,6 @@ let mouse = {
     }
 };
 
-
 let line = {
     start: function () {
         this.render.start(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true, app.lineColor, app.lineWidth, app.mirror);
@@ -316,11 +306,6 @@ let line = {
     },
     end: function () {
         this.render.end();
-    },
-    simplify: {
-        iterations: app.iterations,
-        tolerance: app.simplify,
-        segmentLength: 5,
     },
     render: {
         line: null,
@@ -332,17 +317,13 @@ let line = {
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
             this.line.geometry.userData.originalPoints = [];
-            // this.line.geometry.userData.originalPoints.push(vNow)
-
             this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 100, //kind of eyballing it
+                lineWidth: lineWidth / 1000, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
                 fog: true,
-                // transparent: true,
-                // opacity: 0.1
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
@@ -372,51 +353,35 @@ let line = {
             var v3 = new THREE.Vector3(x, y, z);
             if (unproject) { v3.unproject(camera) };
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
-<<<<<<< HEAD
-            this.line.geometry.userData.originalPoints.push(v3);
 
-            // var geometry = new THREE.SphereGeometry(0.05, 1, 1);
-            // var material = new THREE.MeshBasicMaterial({ color: 0xFF0000, transparent: true, opacity: 0.5 });
-            // var sphere = new THREE.Mesh(geometry, material);
-            // scene.add(sphere);
-            // sphere.position.set(v3.x, v3.y + 0.4, v3.z);
+            let segment = 5
 
-            let segment = app.segment
-            if (this.line.geometry.userData.originalPoints.length % segment === 0 && this.line.geometry.userData.originalPoints.length > 0) {
-                let color = new THREE.Color(Math.random() * 0xffffff)
-
-                let arr = this.line.geometry.userData.originalPoints;
-                //arr = simplify(arr, app.simplify);
-                this.line.geometry.userData.originalPoints = []
-                this.geometry.vertices = this.geometry.vertices.slice(0, this.geometry.vertices.length - 1 - segment)
-                let curve = new THREE.CatmullRomCurve3(arr, false, "catmullrom", 0.1);
-
-                console.log("curve")
-
-                let points = curve.getPoints(arr.length)
-                points.forEach((p, index) => {
-                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z));
-                    // var geometry = new THREE.SphereGeometry(0.03, 1, 1);
-                    // var material = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 0.5 });
-                    // var sphere = new THREE.Mesh(geometry, material);
-                    // scene.add(sphere);
-                    // sphere.position.set(p.x, p.y, z);
-=======
-
-            if (this.geometry.vertices.length > 3) {
+            if (this.line.geometry.userData.originalPoints.length % segment === 0) {
                 this.line.geometry.userData.originalPoints.push(v4);
-                let simplifiedArray = simplify4d(this.line.geometry.userData.originalPoints, 0.0015, true)
-                this.line.geometry.userData.vertices = simplifiedArray;
-                this.geometry.vertices = [];
-                simplifiedArray.forEach(p => {
-                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
->>>>>>> parent of 3f79ad9... Version with controls
-                })
 
+                let simplifiedArray = this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment);
+
+                for (let i = 0; i < app.iterations; i++) {
+                    simplifiedArray = simplify4d(
+                        this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment),
+                        app.simplify,
+                        true
+                    );
+                }
+
+                for (let i = 0; i < segment; i++) {
+                    this.line.geometry.userData.vertices.pop()
+                    this.geometry.vertices.pop()
+                }
+
+                simplifiedArray.forEach(p => {
+                    this.line.geometry.userData.vertices.push(p)
+                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
+                })
             } else {
-                console.log("push")
+                var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
                 this.geometry.vertices.push(v3);
-                //this.line.geometry.userData.originalPoints.push(v3);
+                this.line.geometry.userData.originalPoints.push(v4);
             }
 
             //If we don't have force, we artificially generate some based on distance between points
@@ -430,7 +395,7 @@ let line = {
 
             // var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
             // this.geometry.vertices.push(v3);
-            //this.line.geometry.userData.vertices.push(v4);
+            this.line.geometry.userData.vertices.push(v4);
 
             this.setGeometry();
         },
@@ -447,46 +412,18 @@ let line = {
 
             this.line.setGeometry(this.geometry, function (p) {
 
-<<<<<<< HEAD
-                return 2
-
-                // function map(n, start1, stop1, start2, stop2) {
-                //     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
-                // };
-                // let index = Math.round(p * (this.geometry.vertices.length - 1))
-                // let minWidth = 0.1;
-                // let baseWidth = 1;
-                // let width = this.geometry.geometry.userData.vertices[index].w * 4
-                // let tipLength = 5;
-
-                // //Beginning of the line
-                // if (index < tipLength) {
-                //     return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
-                // }
-                // //End of the line
-                // else if (
-                //     this.geometry.vertices.length > (tipLength * 2) &&
-                //     index > this.geometry.vertices.length - tipLength
-                // ) {
-                //     return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
-                // }
-                // //bulk of the line
-                // else {
-                //     return baseWidth + width
-                // }
-=======
                 function map(n, start1, stop1, start2, stop2) {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
                 let index = Math.round(p * (this.geometry.vertices.length - 1))
-                let minWidth = 0;
+                let minWidth = 0.1;
                 let baseWidth = 1;
                 let width = this.geometry.geometry.userData.vertices[index].w * 4
-                let tipLength = 90;
+                let tipLength = 5;
 
                 //Beginning of the line
                 if (index < tipLength) {
-                    return (map(index, 0, tipLength, minWidth, baseWidth)) + width
+                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
                 }
                 //End of the line
                 else if (
@@ -499,7 +436,6 @@ let line = {
                 else {
                     return baseWidth + width
                 }
->>>>>>> parent of 3f79ad9... Version with controls
 
             });
 
@@ -520,9 +456,9 @@ let line = {
             }
         },
         fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
-            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, 0, false, lineColor, lineWidth, mirrorOn);
+            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
             for (var i = 1; i < vertices.length; i++) {
-                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, 0, false)
+                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
             }
             var l = scene.getObjectByProperty('uuid', this.uuid);
             line.render.end();
@@ -1639,17 +1575,16 @@ function init() {
     //Set the background based on the css variable;
     var bgCol = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
     scene.background = new THREE.Color(bgCol);
-    scene.fog = new THREE.Fog(bgCol, 9, 13);
+    scene.fog = new THREE.Fog(bgCol, 2, 3);
     miniAxisScene = new THREE.Scene();
 
     var axesHelper = new THREE.AxesHelper();
     axesHelper.layers.set(0);
     axesHelper.material.fog = false;
-    axesHelper.applyMatrix4(new THREE.Matrix4().makeScale(5, 5, 5));
     scene.add(axesHelper);
 
     var axesHelperFlipped = new THREE.AxesHelper();
-    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-5, -5, -5));
+    axesHelperFlipped.applyMatrix4(new THREE.Matrix4().makeScale(-1, -1, -1));
     axesHelperFlipped.layers.set(0);
     axesHelperFlipped.material.fog = false;
     scene.add(axesHelperFlipped);
@@ -1660,7 +1595,6 @@ function init() {
     var divisions = 1;
     var gridHelper = new THREE.GridHelper(size, divisions);
     gridHelper.layers.set(0);
-    gridHelper.applyMatrix4(new THREE.Matrix4().makeScale(5, 5, 5));
     gridHelper.material.fog = false;
     scene.add(gridHelper);
 
@@ -1670,27 +1604,27 @@ function init() {
         window.innerHeight / 2,
         window.innerHeight / -2,
         0,
-        20
+        4
     );
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
-    camera.zoom = 160;
-    camera.position.set(0, 0, 10);
+    camera.zoom = 900;
+    camera.position.set(0, 0, 2);
 
     directControls = new OrbitControls(camera, drawingCanvas);
     directControls.enableRotate = false;
     directControls.enableZoom = true;
     directControls.enablePan = true;
-    //directControls.minZoom = 450; //Limit the zoom out to roughly the fog limit
+    directControls.minZoom = 450; //Limit the zoom out to roughly the fog limit
 
     controls = new OrbitControls(camera, miniAxisRenderer.domElement);
     controls.target = directControls.target;
     controls.enabled = true;
-    controls.minDistance = 10;
-    controls.maxDistance = 20;
+    controls.minDistance = 1;
+    controls.maxDistance = 3;
     controls.rotateSpeed = 0.5;
     controls.autoRotateSpeed = 30.0;
-    camera.zoom = 160;
+    camera.zoom = 900;
     controls.enableZoom = false;
     controls.enablePan = false;
     controls.saveState();
@@ -1719,123 +1653,6 @@ function init() {
     bufferRenderer.setPixelRatio(window.devicePixelRatio);
     bufferRenderer.setClearColor(0x000000, 0);
     bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
-
-
-    // let arr = [
-    //     {
-    //         "x": -0.1385050251256279,
-    //         "y": -0.47883792841530914,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.16814291056048125,
-    //         "y": -0.47883792841530914,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.2789311757297863,
-    //         "y": -0.47883792841530914,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.33850149328872137,
-    //         "y": -0.4798800112382826,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.39009603498423895,
-    //         "y": -0.470113441006195,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.4514948789121352,
-    //         "y": -0.44982597198408136,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.5310837343229127,
-    //         "y": -0.40878629421914214,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.606094612295139,
-    //         "y": -0.35298662221511923,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.6505898521295735,
-    //         "y": -0.2983899489459998,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.7058437350867425,
-    //         "y": -0.18462764768603906,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.7151381909547738,
-    //         "y": -0.13964194851581144,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.7320979899497487,
-    //         "y": 0.06387563942388705,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.7284010992272363,
-    //         "y": 0.20538231110556635,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.7134516884543378,
-    //         "y": 0.2478750855879748,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.6888006771759172,
-    //         "y": 0.306652875687939,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.6153092997872496,
-    //         "y": 0.39617881143493805,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.5517168167796052,
-    //         "y": 0.44387679178461925,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.4925081192416179,
-    //         "y": 0.4733489992872405,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": -0.318990650614662,
-    //         "y": 0.5300666109014296,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": 0.002552544771124668,
-    //         "y": 0.5749434560534994,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": 0.14142770808852256,
-    //         "y": 0.5726696092731333,
-    //         "z": 0
-    //     },
-    //     {
-    //         "x": 0.20634422110552747,
-    //         "y": 0.5726696092731333,
-    //         "z": 0
-    //     }
-    // ]
-    // line.render.fromVertices(arr, "#FFFFFF", 3, false, false)
-
-
 }
 
 function onWindowResize() {
@@ -2037,37 +1854,37 @@ function repositionCamera() {
             switch (object.name) {
                 case 'z':
                     controls.enabled = false;
-                    camera.position.set(x, y, 10);
+                    camera.position.set(x, y, 2);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case 'x':
                     controls.enabled = false;
-                    camera.position.set(10, y, z);
+                    camera.position.set(2, y, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case 'y':
                     controls.enabled = false;
-                    camera.position.set(x, 10, z);
+                    camera.position.set(x, 2, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-x':
                     controls.enabled = false;
-                    camera.position.set(-10, y, z);
+                    camera.position.set(-2, y, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-y':
                     controls.enabled = false;
-                    camera.position.set(x, -10, z);
+                    camera.position.set(x, -2, z);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;
                 case '-z':
                     controls.enabled = false;
-                    camera.position.set(x, y, -10);
+                    camera.position.set(x, y, -2);
                     camera.lookAt(controls.target);
                     controls.enabled = true;
                     break;

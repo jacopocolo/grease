@@ -170,42 +170,31 @@
                     </span>
 
                 </span>
-<<<<<<< HEAD
 
                 <div class="button" id="simplify">
                     <span class="toolbarLabel">Simplify <span>{{simplify}}</span></span>
                     <div>
-                        <input type="range" id="simplify" name="simplify" min="0.0005" max="0.05" step="0.00005"
-                            value="0.004" v-model="simplify">
+                        <input type="range" id="simplify" name="simplify" min="0.001" max="0.01" step="0.001"
+                            value="0.00001" v-model="simplify">
+                    </div>
+                </div>
+
+                <div class="button" id="smooth">
+                    <span class="toolbarLabel">Smooth <span>{{smooth}}</span></span>
+                    <div>
+                        <input type="range" id="smooth" name="smooth" min="0" max="20" step="1" value="0"
+                            v-model="smooth">
                     </div>
                 </div>
 
                 <div class="button" id="iternations">
                     <span class="toolbarLabel">Iterations <span>{{iterations}}</span></span>
                     <div>
-                        <input type="range" id="iterations" name="iterations" min="0" max="1000" step="10" value="0"
+                        <input type="range" id="iterations" name="iterations" min="0" max="500" step="1" value="0"
                             v-model="iterations">
                     </div>
                 </div>
 
-                <div class="button" id="iternations">
-                    <span class="toolbarLabel">Mouse smooth <span>{{smooth}}</span></span>
-                    <div>
-                        <input type="range" id="smooth" name="smooth" min="0" max="10" step="1" value="0"
-                            v-model="smooth">
-                    </div>
-                </div>
-
-                <div class="button" id="segment">
-                    <span class="toolbarLabel">Segment <span>{{segment}}</span></span>
-                    <div>
-                        <input type="range" id="segment" name="segment" min="0" max="100" step="10" value="0"
-                            v-model="segment">
-                    </div>
-                </div>
-
-=======
->>>>>>> parent of 3f79ad9... Version with controls
                 <div class="button" id="zDepth" v-if="experimental">
                     <span class="toolbarLabel">Drawing plane</span>
                     <div>
@@ -257,10 +246,6 @@
                 geometry</button>
             <button id="makeGif" @click="exportTo.gif" v-bind:class="[ui.show ? '' : 'hidden']">Make gif</button>
             <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
-            <button>
-                <span>{{fog}}</span><input type="range" id="fog" name="fog" min="10" max="15" step="0.01" value="1"
-                    v-model="fog">
-            </button>
         </div>
     </div>
 </body>
