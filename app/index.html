@@ -252,6 +252,8 @@
                 360</button>
             <button id="makeGif" @click="exportTo.gif('180')" v-bind:class="[ui.show ? '' : 'hidden']">gif
                 180</button>
+            <button id="makeVideo" @click="exportTo.mp4.exporting = true"
+                v-bind:class="[ui.show ? '' : 'hidden']">video</button>
             <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
         </div>
     </div>

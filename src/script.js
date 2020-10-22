@@ -1347,6 +1347,99 @@ app.exportTo = {
             app.autoRotate = false;
         });
     },
+    mp4: {
+        exporting: false,
+        currentLength: 0,
+        length: 30,
+        images: [],
+        worker: new Worker("../build/ffmpeg-worker-mp4.js"),
+        pad: function (n, insetWidth, z) {
+            z = z || "0";
+            n = n + "";
+            return n.length >= insetWidth ? n : new Array(insetWidth - n.length + 1).join(z) + n;
+        },
+        addFrame: function () {
+            const img = new Image(),
+                mimeType = "image/jpeg";
+
+            const imgString = renderer.domElement.toDataURL(mimeType, 1);
+
+            const data = this.convertDataURIToBinary(imgString);
+
+            this.images.push({
+                name: `img${this.pad(this.images.length, 3)}.jpeg`,
+                data
+            });
+            console.log("images")
+        },
+        convertDataURIToBinary: function (dataURI) {
+            var base64 = dataURI.replace(/^data[^,]+,/, "");
+            var raw = window.atob(base64);
+            var rawLength = raw.length;
+
+            var array = new Uint8Array(new ArrayBuffer(rawLength));
+            for (let i = 0; i < rawLength; i++) {
+                array[i] = raw.charCodeAt(i);
+            }
+            return array;
+        },
+        finalizeVideo: function () {
+            console.log('finalizeVideo')
+            this.worker.onmessage = function (e) {
+                var messages;
+                var msg = e.data;
+                switch (msg.type) {
+                    case "stdout":
+                    case "stderr":
+                        messages += msg.data + "\n";
+                        break;
+                    case "exit":
+                        console.log("Process exited with code " + msg.data);
+                        //worker.terminate();
+                        break;
+                    case "done":
+                        const blob = new Blob([msg.data.MEMFS[0].data], {
+                            type: "video/mp4"
+                        });
+                        app.exportTo.mp4.done(blob);
+                        break;
+                }
+                console.log(messages)
+            };
+            this.worker.postMessage({
+                type: "run",
+                TOTAL_MEMORY: 268435456,
+                arguments: [
+                    "-r",
+                    "20",
+                    "-i",
+                    "img%03d.jpeg",
+                    "-c:v",
+                    "libx264",
+                    "-crf",
+                    "1",
+                    "-vf",
+                    "scale=1000:1000",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-vb",
+                    "20M",
+                    "out.mp4"
+                ],
+                MEMFS: this.images
+            });
+        },
+        done: function (output) {
+            const url = webkitURL.createObjectURL(output);
+            window.location = url;
+            console.log("Completed video")
+            // app.modal.title = "Here’s your video";
+            // app.modal.helptext = url;
+            // app.modal.mode = "modal";
+            // console.log("done");
+            // app.autoRotate = false;
+        }
+    },
     image: function () {
         //nothing yet
     },
@@ -1720,6 +1813,22 @@ function animate() {
             gif.render();
             count = 0;
         }
+    }
+
+    if (app.exportTo.mp4.exporting) {
+
+        if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+            directControls.rotate(3 * THREE.MathUtils.DEG2RAD, 0, true)
+            app.exportTo.mp4.addFrame();
+            app.exportTo.mp4.currentLength++;
+        } else {
+            if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
+                app.exportTo.mp4.finalizeVideo();
+                app.exportTo.mp4.currentLength = 0;
+                app.exportTo.mp4.exporting = false;
+            }
+        }
+
     }
 
 }
