@@ -12,8 +12,6 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
-    <script src="../build/gif.js" defer></script>
-    <script src="../build/pngcrush-class.js" defer></script>
     <script src="../src/script.js" type="module" defer></script>
     <script src="../build/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="reset.css" />
@@ -31,7 +29,7 @@
         <toast v-if="toast.show" :text=toast.text></toast>
 
         <canvas id="drawingCanvas"></canvas>
-        <div id="main" :class="selectedTheme"></div>
+        <div id="main"></div>
 
         <div id="mainToolbar">
 
@@ -242,16 +240,11 @@
         </div>
 
         <div id="saveLoad">
-            <button id="Save" @click="exportTo.imageWithEncodedFile"
-                v-bind:class="[ui.show ? '' : 'hidden']">Save…</button>
+            <button id="Save" @click="exportTo.json()" v-bind:class="[ui.show ? '' : 'hidden']">Save…</button>
             <button id="Load" v-bind:class="[ui.show ? '' : 'hidden']">Load…</button>
             <button v-if="experimental" id="Export" @click="exportTo.geometry"
                 v-bind:class="[ui.show ? '' : 'hidden']">Export
                 geometry</button>
-            <button id="makeGif" @click="exportTo.gif('360');" v-bind:class="[ui.show ? '' : 'hidden']">gif
-                360</button>
-            <button id="makeGif" @click="exportTo.gif('180')" v-bind:class="[ui.show ? '' : 'hidden']">gif
-                180</button>
             <button id="makeVideo" @click="exportTo.mp4.exporting = true"
                 v-bind:class="[ui.show ? '' : 'hidden']">video</button>
             <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
@@ -277,18 +270,3 @@
 </script>
 
 </html>
-<!-- 
-<script>
-        (function (d, t) {
-            var BASE_URL = "https://app.chatwoot.com";
-            var g = d.createElement(t), s = d.getElementsByTagName(t)[0];
-            g.src = BASE_URL + "/packs/js/sdk.js";
-            s.parentNode.insertBefore(g, s);
-            g.onload = function () {
-                window.chatwootSDK.run({
-                    websiteToken: '3JCrKwZRhQ94uUDyoWa3fghr',
-                    baseUrl: BASE_URL
-                })
-            }
-        })(document, "script");
-</script> -->
