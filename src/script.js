@@ -213,7 +213,7 @@ Vue.component("modal", {
 
                         <div class="modal-helptext">
                             <slot name="helptext">
-                                {{helptext}}
+                               <a download="video.mp4" :href="helptext">Link</a>
                             </slot>
                         </div>
                         <div class="primaryButton modal-button" @click="$emit('close')">
@@ -1350,7 +1350,7 @@ app.exportTo = {
     mp4: {
         exporting: false,
         currentLength: 0,
-        length: 30,
+        length: 10,
         images: [],
         worker: new Worker("../build/ffmpeg-worker-mp4.js"),
         pad: function (n, insetWidth, z) {
@@ -1359,6 +1359,16 @@ app.exportTo = {
             return n.length >= insetWidth ? n : new Array(insetWidth - n.length + 1).join(z) + n;
         },
         addFrame: function () {
+
+            if (this.currentLength == 0) {
+                app.modal.show = true;
+                app.modal.mode = 'loader';
+                app.modal.title = "Making you a movie";
+                app.modal.helptext = "This might take a moment, please be patient";
+            } else {
+                app.modal.helptext = "Frame " + this.currentLength + " out of " + this.length;
+            }
+
             const img = new Image(),
                 mimeType = "image/jpeg";
 
@@ -1370,7 +1380,6 @@ app.exportTo = {
                 name: `img${this.pad(this.images.length, 3)}.jpeg`,
                 data
             });
-            console.log("images")
         },
         convertDataURIToBinary: function (dataURI) {
             var base64 = dataURI.replace(/^data[^,]+,/, "");
@@ -1384,7 +1393,8 @@ app.exportTo = {
             return array;
         },
         finalizeVideo: function () {
-            console.log('finalizeVideo')
+            app.modal.helptext = "Generating your video";
+
             this.worker.onmessage = function (e) {
                 var messages;
                 var msg = e.data;
@@ -1404,14 +1414,17 @@ app.exportTo = {
                         app.exportTo.mp4.done(blob);
                         break;
                 }
-                console.log(messages)
+                console.log(messages);
+                //app.modal.helptext = messages
             };
             this.worker.postMessage({
                 type: "run",
-                TOTAL_MEMORY: 268435456,
+                TOTAL_MEMORY: 468435456,
                 arguments: [
                     "-r",
                     "20",
+                    "-stream_loop", //loop twice
+                    "1",            //loop twice
                     "-i",
                     "img%03d.jpeg",
                     "-c:v",
@@ -1419,7 +1432,7 @@ app.exportTo = {
                     "-crf",
                     "1",
                     "-vf",
-                    "scale=1000:1000",
+                    "scale=" + 1024 + ":" + 1024 + "",
                     "-pix_fmt",
                     "yuv420p",
                     "-vb",
@@ -1431,13 +1444,12 @@ app.exportTo = {
         },
         done: function (output) {
             const url = webkitURL.createObjectURL(output);
-            window.location = url;
             console.log("Completed video")
-            // app.modal.title = "Here’s your video";
-            // app.modal.helptext = url;
-            // app.modal.mode = "modal";
-            // console.log("done");
-            // app.autoRotate = false;
+            app.modal.title = "Here’s your video";
+            app.modal.helptext = url;
+            app.modal.mode = "modal";
+            console.log("done");
+            app.autoRotate = false;
         }
     },
     image: function () {
@@ -1816,13 +1828,15 @@ function animate() {
     }
 
     if (app.exportTo.mp4.exporting) {
+        camera.layers.disable(0)
 
         if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
-            directControls.rotate(3 * THREE.MathUtils.DEG2RAD, 0, true)
+            directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
             app.exportTo.mp4.addFrame();
             app.exportTo.mp4.currentLength++;
         } else {
             if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
+                camera.layers.enable(0)
                 app.exportTo.mp4.finalizeVideo();
                 app.exportTo.mp4.currentLength = 0;
                 app.exportTo.mp4.exporting = false;
@@ -1851,7 +1865,7 @@ function drawAxisHelperControls() {
 
     var front = new THREE.TextureLoader().load("../img/sides/front.png");
     var geometry = new THREE.PlaneGeometry(size, size, size);
-    var material = new THREE.MeshBasicMaterial({ map: front, overdraw: true, color: 0x0099ff });
+    var material = new THREE.MeshBasicMaterial({ map: front, color: 0x0099ff });
     var plane = new THREE.Mesh(geometry, material);
     plane.position.set(0, 0, distance)
     plane.name = "z"
@@ -1860,7 +1874,7 @@ function drawAxisHelperControls() {
 
     var back = new THREE.TextureLoader().load("../img/sides/back.png");
     var geometry = new THREE.PlaneGeometry(size, size, size);
-    var material = new THREE.MeshBasicMaterial({ map: back, overdraw: true, color: 0x0099ff });
+    var material = new THREE.MeshBasicMaterial({ map: back, color: 0x0099ff });
     var plane = new THREE.Mesh(geometry, material);
     plane.position.set(0, 0, -distance)
     plane.rotation.y = Math.PI;
@@ -1870,7 +1884,7 @@ function drawAxisHelperControls() {
 
     var top = new THREE.TextureLoader().load("../img/sides/top.png");
     var geometry = new THREE.PlaneGeometry(size, size, size);
-    var material = new THREE.MeshBasicMaterial({ map: top, overdraw: true, color: 0x99ff00 });
+    var material = new THREE.MeshBasicMaterial({ map: top, color: 0x99ff00 });
     var plane = new THREE.Mesh(geometry, material);
     plane.position.set(0, distance, 0)
     plane.rotation.x = Math.PI / 2;
@@ -1882,7 +1896,7 @@ function drawAxisHelperControls() {
 
     var bottom = new THREE.TextureLoader().load("../img/sides/bottom.png");
     var geometry = new THREE.PlaneGeometry(size, size, size);
-    var material = new THREE.MeshBasicMaterial({ map: bottom, overdraw: true, color: 0x99ff00 });
+    var material = new THREE.MeshBasicMaterial({ map: bottom, color: 0x99ff00 });
     var plane = new THREE.Mesh(geometry, material);
     plane.position.set(0, -distance, 0)
     plane.rotation.x = Math.PI / 2;
@@ -1892,7 +1906,7 @@ function drawAxisHelperControls() {
 
     var right = new THREE.TextureLoader().load("../img/sides/right.png");
     var geometry = new THREE.PlaneGeometry(size, size, size);
-    var material = new THREE.MeshBasicMaterial({ map: right, overdraw: true, color: 0xff6600 });
+    var material = new THREE.MeshBasicMaterial({ map: right, color: 0xff6600 });
     var plane = new THREE.Mesh(geometry, material);
     plane.position.set(distance, 0, 0)
     plane.rotation.y = Math.PI / 2;
@@ -1904,7 +1918,7 @@ function drawAxisHelperControls() {
 
     var left = new THREE.TextureLoader().load("../img/sides/left.png");
     var geometry = new THREE.PlaneGeometry(size, size, size);
-    var material = new THREE.MeshBasicMaterial({ map: left, overdraw: true, color: 0xff6600 });
+    var material = new THREE.MeshBasicMaterial({ map: left, color: 0xff6600 });
     var plane = new THREE.Mesh(geometry, material);
     plane.position.set(-distance, 0, 0)
     plane.rotation.y = -Math.PI / 2;
