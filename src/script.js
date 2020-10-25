@@ -5,8 +5,7 @@ import { OrbitControls } from "../build/OrbitControls.js";
 import { TransformControls } from "../build/TransformControls.js";
 import {
     MeshLine,
-    MeshLineMaterial,
-    //MeshLineRaycast
+    MeshLineMaterial
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
 import Vue from '../build/vue.esm.browser.js';
@@ -21,8 +20,6 @@ var app = new Vue({
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 3, //Default 3
-        selectedTheme: 'blueprint', //Options are 'blueprint', 'light', 'dark'
-        linesNeedThemeUpdate: false,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
@@ -250,36 +247,15 @@ Vue.component("toast", {
 `
 });
 
-var renderer, miniAxisRenderer, scene, miniAxisScene, pickingScene, camera, miniAxisCamera;
-var controls, directControls, transformControls;
-CameraControls.install({ THREE: THREE });
-let clock;
-
-var paths = []; //For canvas rendering of selection and eraser
-
-var insetWidth;
-var insetHeight;
-var linesNeedThemeUpdate = false;
-
-//GIF MAKING VARS
-let gif;
-let makingGif = false;
-let gifMode = '360';
-let count = 0;
-let gifLength = 120;
-let bufferRenderer;
-
-//Save image vars
-const encodedImageWidth = 800;
-let encodedImageHeigth = 300; //for safety
-const encodedImageDataStartingAt = 500;
-
+var renderer, miniAxisRenderer, scene, miniAxisScene, pickingScene, camera, miniAxisCamera, controls, directControls, transformControls, clock, insetWidth, insetHeight;
+var paths = []; //For canvas rendering of selection and erase
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
 drawingCanvas.width = window.innerWidth;
 drawingCanvas.height = window.innerHeight;
 var main = document.getElementById("main");
 var miniAxis = document.getElementById("miniAxis");
+CameraControls.install({ THREE: THREE });
 
 let mouse = {
     down: false,
@@ -314,136 +290,6 @@ let mouse = {
         }
     }
 };
-
-let line = {
-    start: function () {
-        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
-    },
-    move: function () {
-        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
-    },
-    end: function () {
-        this.render.end();
-    },
-    render: {
-        line: null,
-        geometry: null,
-        uuid: null,
-        start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
-            var vNow = new THREE.Vector3(x, y, z);
-            if (unproject) { vNow.unproject(camera) };
-            this.geometry = new THREE.Geometry();
-            this.line = new MeshLine();
-            var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 3000, //kind of eyballing it
-                sizeAttenuation: 1,
-                color: new THREE.Color(lineColor),
-                side: THREE.DoubleSide,
-                fog: true,
-                //resolution: new THREE.Vector2(insetWidth, insetHeight)
-            });
-            var mesh = new THREE.Mesh(this.line.geometry, material);
-            //mesh.raycast = MeshLineRaycast;
-            scene.add(mesh);
-
-            mesh.userData.lineColor = lineColor;
-            mesh.userData.lineWidth = lineWidth;
-
-            switch (mirrorOn) {
-                case "x":
-                    mirror.object(mesh, 'x')
-                    break;
-                case "y":
-                    mirror.object(mesh, 'y')
-                    break;
-                case "z":
-                    mirror.object(mesh, 'z')
-                    break;
-                default:
-                //it's false, do nothing
-            }
-
-            mesh.layers.set(1);
-            this.uuid = mesh.uuid;
-        },
-        update: function (x, y, z, unproject) {
-            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
-            var vNow = new THREE.Vector3(x, y, z);
-            if (unproject) { vNow.unproject(camera) };
-            this.geometry.vertices.push(vNow);
-            this.setGeometry();
-        },
-        end: function () {
-            this.geometry.userData = this.geometry.vertices;
-            this.setGeometry('mouseup');
-            //reset
-            this.line = null;
-            this.geometry = null;
-            this.uuid = null;
-        },
-        setGeometry(mouseup) {
-            this.line.setGeometry(this.geometry, function (p) {
-                return Math.pow(2 * p * (1 - p), 0.5) * 4
-            });
-
-            if (mouseup) {
-                var mesh = scene.getObjectByProperty('uuid', this.uuid);
-                mesh.position.set(
-                    mesh.geometry.boundingSphere.center.x,
-                    mesh.geometry.boundingSphere.center.y,
-                    mesh.geometry.boundingSphere.center.z
-                );
-                this.geometry.center();
-                this.setGeometry();
-                this.geometry.verticesNeedsUpdate = true;
-                this.geometry.needsUpdate = true;
-
-                if (mesh.userData.mirror) {
-                    mirror.updateMirrorOf(mesh);
-                }
-            }
-        },
-        fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
-            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
-            for (var i = 1; i < vertices.length; i++) {
-                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
-            }
-            var l = scene.getObjectByProperty('uuid', this.uuid);
-            line.render.end();
-            if (returnLineBool == true) {
-                return l;
-            }
-        },
-    },
-    drawingPlane: null, //defined in init
-    addDrawingPlane: function () {
-        var geometry = new THREE.PlaneGeometry(1, 1, 1);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.8, fog: false });
-        var planeBg = new THREE.Mesh(geometry, material);
-        var planeGrid = new THREE.GridHelper(
-            1,
-            1,
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
-        );
-        planeGrid.rotation.x = Math.PI / 2;
-        this.drawingPlane = new THREE.Group();
-        this.drawingPlane.add(planeBg);
-        this.drawingPlane.add(planeGrid);
-        scene.add(this.drawingPlane);
-    },
-    updateDrawingPlane: function () {
-        this.drawingPlane.rotation.copy(camera.rotation);
-        //camera zoom has a minimum of 450 and a maximum of infinity
-    }
-};
-
-//What I should do to improve picking performance is: 
-//Get previous mouse coordinates and current mouse coordinates
-//Pass them to the Picker
-//Have the picker render the rectangle between these two coordinates
-//Inside of the rectangle grab all the points connecting the two angles directly
-//check every pixel agains their ID
 
 class GPUPickHelper {
     constructor() {
@@ -606,6 +452,198 @@ let picking = {
         }
     }
 }
+
+let line = {
+    start: function () {
+        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
+    },
+    move: function () {
+        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
+    },
+    end: function () {
+        this.render.end();
+    },
+    render: {
+        line: null,
+        geometry: null,
+        uuid: null,
+        start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
+            var vNow = new THREE.Vector3(x, y, z);
+            if (unproject) { vNow.unproject(camera) };
+            this.geometry = new THREE.Geometry();
+            this.line = new MeshLine();
+            var material = new MeshLineMaterial({
+                lineWidth: lineWidth / 3000, //kind of eyballing it
+                sizeAttenuation: 1,
+                color: new THREE.Color(lineColor),
+                side: THREE.DoubleSide,
+                fog: true,
+                //resolution: new THREE.Vector2(insetWidth, insetHeight)
+            });
+            var mesh = new THREE.Mesh(this.line.geometry, material);
+            //mesh.raycast = MeshLineRaycast;
+            scene.add(mesh);
+
+            mesh.userData.lineColor = lineColor;
+            mesh.userData.lineWidth = lineWidth;
+
+            switch (mirrorOn) {
+                case "x":
+                    mirror.object(mesh, 'x')
+                    break;
+                case "y":
+                    mirror.object(mesh, 'y')
+                    break;
+                case "z":
+                    mirror.object(mesh, 'z')
+                    break;
+                default:
+                //it's false, do nothing
+            }
+
+            mesh.layers.set(1);
+            this.uuid = mesh.uuid;
+        },
+        update: function (x, y, z, unproject) {
+            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
+            var vNow = new THREE.Vector3(x, y, z);
+            if (unproject) { vNow.unproject(camera) };
+            this.geometry.vertices.push(vNow);
+            this.setGeometry();
+        },
+        end: function () {
+            this.geometry.userData = this.geometry.vertices;
+            this.setGeometry('mouseup');
+            //reset
+            this.line = null;
+            this.geometry = null;
+            this.uuid = null;
+        },
+        setGeometry(mouseup) {
+            this.line.setGeometry(this.geometry, function (p) {
+                return Math.pow(2 * p * (1 - p), 0.5) * 4
+            });
+
+            if (mouseup) {
+                var mesh = scene.getObjectByProperty('uuid', this.uuid);
+                mesh.position.set(
+                    mesh.geometry.boundingSphere.center.x,
+                    mesh.geometry.boundingSphere.center.y,
+                    mesh.geometry.boundingSphere.center.z
+                );
+                this.geometry.center();
+                this.setGeometry();
+                this.geometry.verticesNeedsUpdate = true;
+                this.geometry.needsUpdate = true;
+
+                if (mesh.userData.mirror) {
+                    mirror.updateMirrorOf(mesh);
+                }
+            }
+        },
+        fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
+            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
+            for (var i = 1; i < vertices.length; i++) {
+                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
+            }
+            var l = scene.getObjectByProperty('uuid', this.uuid);
+            line.render.end();
+            if (returnLineBool == true) {
+                return l;
+            }
+        },
+    },
+    drawingPlane: null, //defined in init
+    addDrawingPlane: function () {
+        var geometry = new THREE.PlaneGeometry(1, 1, 1);
+        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.8, fog: false });
+        var planeBg = new THREE.Mesh(geometry, material);
+        var planeGrid = new THREE.GridHelper(
+            1,
+            1,
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        );
+        planeGrid.rotation.x = Math.PI / 2;
+        this.drawingPlane = new THREE.Group();
+        this.drawingPlane.add(planeBg);
+        this.drawingPlane.add(planeGrid);
+        scene.add(this.drawingPlane);
+    },
+    updateDrawingPlane: function () {
+        this.drawingPlane.rotation.copy(camera.rotation);
+        //camera zoom has a minimum of 450 and a maximum of infinity
+    }
+};
+
+let mirror = {
+    updateMirrorOf: function (obj) {
+        if (obj.type === 'Group') {
+            obj.children.forEach(obj => {
+                mirror.updateMirrorOf(obj)
+            })
+        } else if (obj.userData.mirror) {
+            //let's check if there's a matching mirror object otherwise we do nothing
+            let mirroredObject = scene.getObjectByProperty('uuid', obj.userData.mirror);
+            var position = new THREE.Vector3();
+            obj.getWorldPosition(position);
+            var quaternion = new THREE.Quaternion();
+            obj.getWorldQuaternion(quaternion);
+            var scale = new THREE.Vector3();
+            obj.getWorldScale(scale);
+            switch (obj.userData.mirrorAxis) {
+                case "x":
+                    mirroredObject.position.set(-position.x, position.y, position.z)
+                    mirroredObject.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
+                    mirroredObject.scale.set(-scale.x, scale.y, scale.z)
+                    break;
+                case "y":
+                    mirroredObject.position.set(position.x, -position.y, position.z)
+                    mirroredObject.quaternion.set(quaternion.x, -quaternion.y, quaternion.z, -quaternion.w)
+                    mirroredObject.scale.set(scale.x, -scale.y, scale.z)
+                    break;
+                case "z":
+                    mirroredObject.position.set(position.x, position.y, -position.z)
+                    mirroredObject.quaternion.set(quaternion.x, quaternion.y, -quaternion.z, -quaternion.w)
+                    mirroredObject.scale.set(scale.x, scale.y, -scale.z)
+                    break;
+                default:
+                    return
+            }
+            obj.matrixWorldNeedsUpdate = true;
+        }
+    },
+    object: function (obj, axis) {
+        console.log('mirror')
+        var clone = obj.clone();
+        clone.layers.set(1);
+        //clone.raycast = MeshLineRaycast;
+        clone.userData.mirror = obj.uuid;
+        clone.userData.mirrorAxis = axis;
+        obj.userData.mirror = clone.uuid;
+        obj.userData.mirrorAxis = axis;
+        switch (axis) {
+            case "x":
+                clone.applyMatrix(obj.matrixWorld.makeScale(-1, 1, 1));
+                break;
+            case "y":
+                clone.applyMatrix(obj.matrixWorld.makeScale(1, -1, 1));
+                break;
+            case "z":
+                clone.applyMatrix(obj.matrixWorld.makeScale(1, 1, -1));
+                break;
+            default:
+                return
+        }
+        scene.add(clone);
+    },
+    eraseMirrorOf: function (obj) {
+        if (obj.userData.mirror) {
+            let mirroredObject = scene.getObjectByProperty('uuid', obj.userData.mirror);
+            scene.remove(mirroredObject);
+        }
+    }
+};
 
 let eraser = {
     linepaths: [],
@@ -923,171 +961,7 @@ app.selection = {
     },
 };
 
-let mirror = {
-    updateMirrorOf: function (obj) {
-        if (obj.type === 'Group') {
-            obj.children.forEach(obj => {
-                mirror.updateMirrorOf(obj)
-            })
-        } else if (obj.userData.mirror) {
-            //let's check if there's a matching mirror object otherwise we do nothing
-            let mirroredObject = scene.getObjectByProperty('uuid', obj.userData.mirror);
-            var position = new THREE.Vector3();
-            obj.getWorldPosition(position);
-            var quaternion = new THREE.Quaternion();
-            obj.getWorldQuaternion(quaternion);
-            var scale = new THREE.Vector3();
-            obj.getWorldScale(scale);
-            switch (obj.userData.mirrorAxis) {
-                case "x":
-                    mirroredObject.position.set(-position.x, position.y, position.z)
-                    mirroredObject.quaternion.set(-quaternion.x, quaternion.y, quaternion.z, -quaternion.w)
-                    mirroredObject.scale.set(-scale.x, scale.y, scale.z)
-                    break;
-                case "y":
-                    mirroredObject.position.set(position.x, -position.y, position.z)
-                    mirroredObject.quaternion.set(quaternion.x, -quaternion.y, quaternion.z, -quaternion.w)
-                    mirroredObject.scale.set(scale.x, -scale.y, scale.z)
-                    break;
-                case "z":
-                    mirroredObject.position.set(position.x, position.y, -position.z)
-                    mirroredObject.quaternion.set(quaternion.x, quaternion.y, -quaternion.z, -quaternion.w)
-                    mirroredObject.scale.set(scale.x, scale.y, -scale.z)
-                    break;
-                default:
-                    return
-            }
-            obj.matrixWorldNeedsUpdate = true;
-        }
-    },
-    object: function (obj, axis) {
-        console.log('mirror')
-        var clone = obj.clone();
-        clone.layers.set(1);
-        //clone.raycast = MeshLineRaycast;
-        clone.userData.mirror = obj.uuid;
-        clone.userData.mirrorAxis = axis;
-        obj.userData.mirror = clone.uuid;
-        obj.userData.mirrorAxis = axis;
-        switch (axis) {
-            case "x":
-                clone.applyMatrix(obj.matrixWorld.makeScale(-1, 1, 1));
-                break;
-            case "y":
-                clone.applyMatrix(obj.matrixWorld.makeScale(1, -1, 1));
-                break;
-            case "z":
-                clone.applyMatrix(obj.matrixWorld.makeScale(1, 1, -1));
-                break;
-            default:
-                return
-        }
-        scene.add(clone);
-    },
-    eraseMirrorOf: function (obj) {
-        if (obj.userData.mirror) {
-            let mirroredObject = scene.getObjectByProperty('uuid', obj.userData.mirror);
-            scene.remove(mirroredObject);
-        }
-    }
-};
-
-//TODO improvements to the save and restore:
-//the image should maintain the correct aspect ratio
 let importFrom = {
-    imageWithEncodedFile: function () {
-        console.log('importing')
-        var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-        var input, file, fr;
-        var input = document.createElement('input');
-        input.style.display = 'none';
-        input.type = 'file';
-        document.body.appendChild(input);
-
-        input.onchange = event => {
-            app.modal.show = true;
-            app.modal.mode = 'loader';
-            app.modal.title = "Loading your drawing from image";
-            app.modal.helptext = "This might take a while, please be patient";
-            //The ensure a somewhat decent cross-browser compatibility, pngcrush is used for browsers (at the moment only Firefox) that don't handle color-profiles well.
-
-            //FIREFOX
-            if (navigator.userAgent.indexOf("Firefox") > 0 || navigator.userAgent.indexOf("Chrome") > 0) {
-                var instance = new pngcrush();
-                instance.exec(event.target.files[0], function (event) {
-                    console.log(event.data.line);
-                }).then(function (event) {
-                    // Done processing the image, display file size and output image
-                    var outputFile = new Blob([event.data.data], { type: 'image/png' });
-                    var img = new Image();
-                    img.onload = () => {
-                        var canvasWithEncodedImage = document.createElement('canvas');
-                        canvasWithEncodedImage.width = encodedImageWidth;
-                        canvasWithEncodedImage.height = img.height;
-                        canvasWithEncodedImage.style.zIndex = 5;
-                        canvasWithEncodedImage.style.position = 'absolute';
-                        canvasWithEncodedImage.style.top = '10px';
-                        canvasWithEncodedImage.style.right = '10px';
-                        var ctx = canvasWithEncodedImage.getContext("2d");
-                        ctx.imageSmoothingEnabled = false;
-                        ctx.oImageSmoothingEnabled = false;
-                        ctx.webkitImageSmoothingEnabled = false;
-                        ctx.msImageSmoothingEnabled = false;
-                        ctx.clearRect(0, 0, encodedImageWidth, img.height);
-                        ctx.drawImage(img, 0, 0);
-                        decode(canvasWithEncodedImage, ctx);
-                    }
-                    img.src = URL.createObjectURL(outputFile);
-                });
-                //NOT FIREFOX
-            } else {
-                var img = new Image();
-                img.onload = () => {
-                    console.log('img loaded')
-                    var canvasWithEncodedImage = document.createElement('canvas');
-                    canvasWithEncodedImage.width = encodedImageWidth;
-                    canvasWithEncodedImage.height = img.height;
-                    canvasWithEncodedImage.style.zIndex = 5;
-                    canvasWithEncodedImage.style.position = 'absolute';
-                    canvasWithEncodedImage.style.top = '10px';
-                    canvasWithEncodedImage.style.right = '10px';
-                    var ctx = canvasWithEncodedImage.getContext("2d");
-                    ctx.imageSmoothingEnabled = false;
-                    ctx.oImageSmoothingEnabled = false;
-                    ctx.webkitImageSmoothingEnabled = false;
-                    ctx.msImageSmoothingEnabled = false;
-                    ctx.clearRect(0, 0, encodedImageWidth, img.height);
-                    ctx.drawImage(img, 0, 0);
-                    decode(canvasWithEncodedImage, ctx);
-                };
-                img.src = URL.createObjectURL(event.target.files[0]);
-            }
-        }
-        input.click();
-        function decode(canvas, ctx) {
-            var json = '';
-            for (var y = encodedImageDataStartingAt; y < canvas.height; y++) {
-                for (var x = 0; x < canvas.width; x++) {
-                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[0]];
-                    if (json.slice(-2) == '}]') {
-                        importFrom.json(json);
-                        return
-                    };
-                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[1]];
-                    if (json.slice(-2) == '}]') {
-                        importFrom.json(json);
-                        return
-                    };
-                    json = json + replacementValues[ctx.getImageData(x, y, 1, 1).data[2]];
-                    if (json.slice(-2) == '}]') {
-                        importFrom.json(json);
-                        return
-                    };
-                }
-            }
-
-        }
-    },
     json: function (json) {
         console.log(json);
         var json = JSON.parse(json);
@@ -1315,38 +1189,6 @@ app.exportTo = {
         }
         convertMeshLinetoLine()
     },
-    mesh: function () {
-        //It might be possible to extrude lines into meshes to allow exporting into meshes like here https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
-    },
-    gif: function (rotation) {
-
-        gifMode = rotation;
-
-        app.selection.deselect();
-
-        app.modal.show = true;
-        app.modal.mode = 'loader';
-        app.modal.title = "Making you a gif";
-        app.modal.helptext = "This might take a moment, please be patient";
-
-        makingGif = true;
-        controls.autoRotateSpeed = 30.0;
-
-        gif = new GIF({
-            workers: 10,
-            quality: 10,
-            workerScript: '../build/gif.worker.js'
-        });
-
-        gif.on("finished", function (blob) {
-            app.modal.title = "Here’s your gif";
-            app.modal.helptext = "Long press on the picture on tablet or right click on desktop to save it.";
-            app.modal.mode = "modal";
-            app.modal.image = URL.createObjectURL(blob);
-            console.log("rendered");
-            app.autoRotate = false;
-        });
-    },
     mp4: {
         exporting: false,
         currentLength: 0,
@@ -1452,150 +1294,27 @@ app.exportTo = {
             app.autoRotate = false;
         }
     },
-    image: function () {
-        //nothing yet
-    },
-    imageWithEncodedFile: function () {
-        app.selection.deselect();
-        app.modal.mode = 'loader';
-        app.modal.title = "Saving your drawing";
-        app.modal.helptext = "This might take a moment, please be patient";
-        app.modal.show = true;
+}
 
-        app.exportTo.json().then(function (json) {
+function onWindowResize() {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.left = 900 * camera.aspect / - 2;
+    camera.right = 900 * camera.aspect / 2;
+    camera.top = 900 / 2;
+    camera.bottom = - 900 / 2;
 
-            function encodeImage() {
-                json = JSON.stringify(json);
-                //generate stringified json from scene
-                var replacementValues = ["!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", "-", ".", "/", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9", ":", ";", "<", "=", ">", "?", "@", "A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X", "Y", "Z", "[", "\\", "]", "^", "_", "`", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "{", "|", "}", "~"];
-                renderer.render(scene, camera);
-                var imgData = renderer.domElement.toDataURL();
-                var img = new Image();
-                //Do a quick calulation of the height of the image based on how many characters are in the JSON
-                encodedImageHeigth = encodedImageDataStartingAt + Math.ceil((json.length / 3) / encodedImageWidth);
-                var canvasWithEncodedImage = document.createElement('canvas');
-                canvasWithEncodedImage.width = encodedImageWidth;
-                canvasWithEncodedImage.height = encodedImageHeigth;
-                var ctx = canvasWithEncodedImage.getContext("2d");
-                img.src = imgData;
-                img.onload = function () {
-                    var pixels = [];
-                    for (var i = 0, charsLength = json.length; i < charsLength; i += 3) {
-                        var pixel = {};
-                        pixel.r = replacementValues.indexOf(json.substring(i, i + 1));
-                        pixel.g = replacementValues.indexOf(json.substring(i + 1, i + 2));
-                        pixel.b = replacementValues.indexOf(json.substring(i + 2, i + 3));
-                        // pixel.a = replacementValues.indexOf(json.substring(i + 3, i + 4));
-                        pixels.push(pixel);
-                    }
-                    var count = 0
-                    for (var y = encodedImageDataStartingAt; y < encodedImageHeigth; y++) {
-                        for (var x = 0; x < canvasWithEncodedImage.width; x++) {
-                            if (count < pixels.length) {
-                                ctx.fillStyle = "rgb(" +
-                                    pixels[count].r
-                                    + "," +
-                                    pixels[count].g
-                                    + "," +
-                                    pixels[count].b
-                                    + ")";
-                                ctx.fillRect(x, y, 1, 1);
-                                count = count + 1;
-                            } else {
-                                app.modal.mode = 'modal';
-                                app.modal.title = 'Save this picture, it’s your save file';
-                                app.modal.helptext = 'Long press on the picture on tablet or right click on desktop to save. The bottom part of this picture contains all the data needed to recreate your 3d sketch, so don’t compress it or modify it.';
+    camera.updateProjectionMatrix();
 
-                                var hRatio = canvasWithEncodedImage.width / img.width;
-                                var vRatio = canvasWithEncodedImage.height / img.height;
-                                var ratio = Math.min(hRatio, vRatio);
-                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
-                                ctx.fillRect(0, 0, encodedImageWidth, encodedImageDataStartingAt);
-                                ctx.drawImage(img,
-                                    0,
-                                    0,
-                                    img.width,
-                                    img.height,
-                                    padding,
-                                    padding,
-                                    (img.width * ratio) - padding * 2,
-                                    (img.height * ratio) - padding * 2
-                                );
-                                let blueprintImage = { width: encodedImageWidth, height: encodedImageDataStartingAt }
-                                var padding = 10;
-                                ctx.imageSmoothingEnabled = false;
-                                ctx.oImageSmoothingEnabled = false;
-                                ctx.webkitImageSmoothingEnabled = false;
-                                ctx.msImageSmoothingEnabled = false;
-                                ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-                                ctx.strokeRect(padding, padding, blueprintImage.width - padding * 2, encodedImageDataStartingAt - padding * 2);
-                                var infoBox = { height: 100, width: 250 };
-                                ctx.beginPath();
-                                ctx.moveTo(
-                                    blueprintImage.width - infoBox.width,
-                                    blueprintImage.height - infoBox.height
-                                );
-                                ctx.lineTo(
-                                    blueprintImage.width - padding - 1,
-                                    blueprintImage.height - infoBox.height
-                                );
-                                ctx.stroke();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    drawingCanvas.width = window.innerWidth;
+    drawingCanvas.height = window.innerHeight;
 
-                                ctx.beginPath();
-                                ctx.moveTo(
-                                    blueprintImage.width - infoBox.width,
-                                    blueprintImage.height - infoBox.height
-                                );
-                                ctx.lineTo(
-                                    blueprintImage.width - infoBox.width,
-                                    blueprintImage.height - padding - 2
-                                );
-                                ctx.stroke();
-                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-                                ctx.font = "12px Courier New";
-                                ctx.fillText("Format │ blueprint.png", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 1.7));
-                                ctx.beginPath();
-                                ctx.moveTo(
-                                    blueprintImage.width - infoBox.width,
-                                    blueprintImage.height - infoBox.height + (padding * 3)
-                                );
-                                ctx.lineTo(
-                                    blueprintImage.width - padding - 1,
-                                    blueprintImage.height - infoBox.height + (padding * 3)
-                                );
-                                ctx.stroke();
-                                ctx.fillText(" Date  │ " + new Date().toLocaleDateString(), blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 4.8));
-                                ctx.beginPath();
-                                ctx.moveTo(
-                                    blueprintImage.width - infoBox.width,
-                                    blueprintImage.height - infoBox.height + (padding * 6)
-                                );
-                                ctx.lineTo(
-                                    blueprintImage.width - padding - 1,
-                                    blueprintImage.height - infoBox.height + (padding * 6)
-                                );
-                                ctx.stroke();
-                                ctx.fillText("▉▉▉▉▉▉▉.▉▉▉", blueprintImage.width - infoBox.width + padding, blueprintImage.height - infoBox.height + (padding * 7.8));
-                                ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-                                ctx.font = "15px Courier New";
-                                ctx.fillText("DO NOT MODIFY", 20, 30);
-                                ctx.fillText("DO NOT COMPRESS", blueprintImage.width - 155, 30);
-                                ctx.fillText("DO NOT MODIFY", 20, blueprintImage.height - (padding * 2.3));
-                                app.modal.image = canvasWithEncodedImage.toDataURL("image/png");
-                            }
-                        }
-                    }
-                };
-            }
-            setTimeout(encodeImage, 500); //This is a bad hack to account for the fact that Chrome and Firefox do not show the modal properly. I assume it has something to do with the fact that the encode image function is overwhelming;
-        });
-
-    }
+    insetWidth = window.innerHeight / 4;
+    insetHeight = window.innerHeight / 4;
 }
 
 init();
 animate();
-
 
 function init() {
     renderer = new THREE.WebGLRenderer({
@@ -1712,43 +1431,17 @@ function init() {
     drawingCanvas.addEventListener("touchstart", app.onTapStart, false);
     drawingCanvas.addEventListener("mousedown", app.onTapStart, false);
 
-    //EXTRA RENDERER ONLY FOR MAKING GIFS
-    bufferRenderer = new THREE.WebGLRenderer({
-        antialias: true,
-    });
-    bufferRenderer.setPixelRatio(window.devicePixelRatio);
-    bufferRenderer.setClearColor(0x000000, 0);
-    bufferRenderer.setSize(window.innerWidth / 3, window.innerHeight / 3);
-
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 }
 
-function onWindowResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.left = 900 * camera.aspect / - 2;
-    camera.right = 900 * camera.aspect / 2;
-    camera.top = 900 / 2;
-    camera.bottom = - 900 / 2;
-
-    camera.updateProjectionMatrix();
-
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    drawingCanvas.width = window.innerWidth;
-    drawingCanvas.height = window.innerHeight;
-
-    insetWidth = window.innerHeight / 4;
-    insetHeight = window.innerHeight / 4;
-}
-
 function animate() {
+    const delta = clock.getDelta();
     updateminiAxisScene();
 
     if (app.experimental) {
         line.updateDrawingPlane();
     }
-
-    const delta = clock.getDelta();
 
     let hasdirectControlsUpdated
     if (directControls.enabled == true) {
@@ -1756,76 +1449,14 @@ function animate() {
     }
 
     requestAnimationFrame(animate);
-
-    //may need to wrap this in a function
     if (transformControls) {
         transformControls.mode = app.selectedTransformation;
-    }
-    //check if we need to disable controls
-    // if (controls) {
-    //     controls.enabled = !app.controlsLocked
-    //     //should make sure we can't mess with autorotate
-    //     if (app.autoRotate) {
-    //         app.controlsLocked = true;
-    //         camera.layers.disable(0)
-    //         controls.autoRotate = app.autoRotate;
-    //         controls.update();
-    //     } else {
-    //         camera.layers.enable(0)
-    //         app.controlsLocked = false;
-    //     }
-    // }
-    //Update colors of lines based on theme?
-    if (app.linesNeedThemeUpdate) {
-        scene.children.forEach(object => {
-            if (object.layers.mask == 2) {
-                if (app.selectedTheme == 'blueprint' || app.selectedTheme == 'dark') {
-                    if (
-                        object.material.color.r == 0 &&
-                        object.material.color.g == 0 &&
-                        object.material.color.b == 0
-                    ) { object.material.color = { r: 1, g: 1, b: 1 }; }
-                } else {
-                    if (
-                        object.material.color.r == 1 &&
-                        object.material.color.g == 1 &&
-                        object.material.color.b == 1
-                    ) { object.material.color = { r: 0, g: 0, b: 0 }; }
-                }
-            }
-        })
-        app.linesNeedThemeUpdate = false;
     }
 
     renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
     miniAxisRenderer.setViewport(0, 0, 150, 150);
     renderer.render(scene, camera);
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
-
-    if (makingGif) {
-        if (count < gifLength) {
-            camera.layers.disable(0)
-            if (gifMode == '360' || (gifMode == '180' && count < gifLength / 2)) {
-                directControls.rotate(3 * THREE.MathUtils.DEG2RAD, 0, true)
-            } else {
-                directControls.rotate(-3 * THREE.MathUtils.DEG2RAD, 0, true)
-            }
-
-            bufferRenderer.render(scene, camera)
-            gif.addFrame(bufferRenderer.domElement, {
-                copy: true,
-                delay: 60
-            });
-            count = count + 1;
-        } else {
-            // app.autoRotate = false;
-            camera.layers.enable(0)
-            controls.autoRotateSpeed = 30.0;
-            makingGif = false;
-            gif.render();
-            count = 0;
-        }
-    }
 
     if (app.exportTo.mp4.exporting) {
         camera.layers.disable(0)
@@ -1844,20 +1475,12 @@ function animate() {
         }
 
     }
-
 }
 
-function checkIfHelperObject(object) {
-    if (object.type === "AxesHelper" || object.type === "GridHelper" || object.type === "Object3D") {
-        return true
-    } else { return false }
-}
-
-//CAMERA CONTROLS
+//MINI CAMERA
 function updateminiAxisScene() {
     miniAxisScene.quaternion.copy(camera.quaternion).inverse()
 }
-
 function drawAxisHelperControls() {
 
     let size = 0.9;
@@ -1985,7 +1608,6 @@ let miniAxisMouse = {
         }
     }
 }
-
 function repositionCamera() {
     if (!app.controlsLocked) {
         miniAxisMouse.updateCoordinates(event);
@@ -1998,63 +1620,59 @@ function repositionCamera() {
             ),
             miniAxisCamera);
         var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
-        if (checkIfHelperObject(object)) {
-        } else {
 
-            let target = new THREE.Vector3();
-            target = directControls.getTarget(target);
-            var x = target.x;
-            var y = target.y;
-            var z = target.z;
+        let target = new THREE.Vector3();
+        target = directControls.getTarget(target);
+        var x = target.x;
+        var y = target.y;
+        var z = target.z;
 
-            switch (object.name) {
-                case 'z':
-                    directControls.dampingFactor = 0.5
-                    directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y, target.z + 10, target.x, target.y, target.z, true)
-                    directControls.enabled = true;
-                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-                    break;
-                case 'x':
-                    directControls.dampingFactor = 0.5
-                    directControls.enabled = false;
-                    directControls.setLookAt(target.x + 10, target.y, target.z, target.x, target.y, target.z, true)
-                    directControls.enabled = true;
-                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-                    break;
-                case 'y':
-                    directControls.dampingFactor = 0.5
-                    directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y + 10, target.z, target.x, target.y, target.z, true)
-                    directControls.enabled = true;
-                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-                    break;
-                case '-x':
-                    directControls.dampingFactor = 0.5
-                    directControls.enabled = false;
-                    directControls.setLookAt(target.x - 10, target.y, target.z, target.x, target.y, target.z, true)
-                    directControls.enabled = true;
-                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-                    break;
-                case '-y':
-                    directControls.dampingFactor = 0.5
-                    directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y - 10, target.z, target.x, target.y, target.z, true)
-                    directControls.enabled = true;
-                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-                    break;
-                case '-z':
-                    directControls.dampingFactor = 0.5
-                    directControls.enabled = false;
-                    directControls.setLookAt(target.x, target.y, target.z - 10, target.x, target.y, target.z, true)
-                    directControls.enabled = true;
-                    setTimeout(() => { directControls.dampingFactor = 10 }, 100)
-                    break;
-                default:
-            }
-
+        switch (object.name) {
+            case 'z':
+                directControls.dampingFactor = 0.5
+                directControls.enabled = false;
+                directControls.setLookAt(target.x, target.y, target.z + 10, target.x, target.y, target.z, true)
+                directControls.enabled = true;
+                setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+                break;
+            case 'x':
+                directControls.dampingFactor = 0.5
+                directControls.enabled = false;
+                directControls.setLookAt(target.x + 10, target.y, target.z, target.x, target.y, target.z, true)
+                directControls.enabled = true;
+                setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+                break;
+            case 'y':
+                directControls.dampingFactor = 0.5
+                directControls.enabled = false;
+                directControls.setLookAt(target.x, target.y + 10, target.z, target.x, target.y, target.z, true)
+                directControls.enabled = true;
+                setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+                break;
+            case '-x':
+                directControls.dampingFactor = 0.5
+                directControls.enabled = false;
+                directControls.setLookAt(target.x - 10, target.y, target.z, target.x, target.y, target.z, true)
+                directControls.enabled = true;
+                setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+                break;
+            case '-y':
+                directControls.dampingFactor = 0.5
+                directControls.enabled = false;
+                directControls.setLookAt(target.x, target.y - 10, target.z, target.x, target.y, target.z, true)
+                directControls.enabled = true;
+                setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+                break;
+            case '-z':
+                directControls.dampingFactor = 0.5
+                directControls.enabled = false;
+                directControls.setLookAt(target.x, target.y, target.z - 10, target.x, target.y, target.z, true)
+                directControls.enabled = true;
+                setTimeout(() => { directControls.dampingFactor = 10 }, 100)
+                break;
+            default:
         }
+
+
     }
 };
-
-document.getElementById("Load").addEventListener("click", importFrom.imageWithEncodedFile);
