@@ -695,10 +695,59 @@ let eraser = {
     },
 };
 
+//what do I want to do
+//I want to have an area selection that has startX, startY, endX, endY
+//I want iterate through all objects and unproject their coordinates
+//Check if any one point of the bounding box is inside of the area (minimize calculations)
+//If any one point of the bounding box is inside the area, iterate through all (?) the unprojected vertices and if one is inside of the area, add to the selected group
+//Done
+
+class vertexSelection {
+    constructor() {
+        this.start = new THREE.Vector2();
+        this.end = new THREE.Vector2();
+        this.cssStart = new THREE.Vector2();
+        this.cssEnd = new THREE.Vector2();
+    }
+    pointInRect(x, y, z1, z2, z3, z4) {
+        let x1 = Math.min(z1, z3);
+        let x2 = Math.max(z1, z3);
+        let y1 = Math.min(z2, z4);
+        let y2 = Math.max(z2, z4);
+        if ((x1 <= x) && (x <= x2) && (y1 <= y) && (y <= y2)) {
+            return true;
+        } else {
+            return false;
+        };
+    };
+    select() {
+
+        let selectedObjects = new Array();
+
+        scene.children.forEach(object => {
+            if (object.layers.mask == 2) {
+                object.geometry.vertices.forEach(point => {
+                    let p = new THREE.Vector3(point.x, point.y, point.z);
+                    p.applyMatrix4(object.matrix);
+                    p.project(camera);
+                    if (this.pointInRect(p.x, p.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
+                        selectedObjects.push(object);
+                        return
+                    }
+                })
+            }
+        })
+
+        return selectedObjects;
+
+    }
+}
+
 app.selection = {
     array: [],
     selection: [],
     selected: [],
+    selector: new vertexSelection(),
     helper: undefined,
     group: undefined,
     transforming: function () {
@@ -706,67 +755,38 @@ app.selection = {
             return transformControls.userData.hover
         } else { return false }
     },
-    linepaths: new Array(),
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
         if (this.transforming() === false) {
 
-            console.log('start')
-
-            this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
-            picking.setupPicking();
-            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-            vNow.unproject(camera);
+            this.selector.start.x = mouse.tx;
+            this.selector.start.y = mouse.ty;
+            this.selector.cssStart.x = mouse.cx;
+            this.selector.cssStart.y = mouse.cy;
 
             this.deselect()
-            var pickedObjects = picking.picker.pickArea(
-                mouse.cx - 5,
-                mouse.cy - 5,
-                mouse.cx + 5,
-                mouse.cy + 5,
-                picking.scene,
-                camera);
-
-            if (pickedObjects != undefined && pickedObjects.length > 0) {
-                pickedObjects.forEach(object => {
-                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
-                        this.selection.push(object);
-                        this.toggleSelectionColor(object, true);
-                    }
-                })
-            }
 
         }
     },
     move: function () {
         if (this.transforming() === false && this.selected.length == 0) {
 
-            var pickedObjects = picking.picker.pickArea(
-                this.linepaths[this.linepaths.length - 1].x,
-                this.linepaths[this.linepaths.length - 1].y,
-                mouse.cx,
-                mouse.cy,
-                picking.scene,
-                camera);
-
-            if (pickedObjects != undefined && pickedObjects.length > 0) {
-                pickedObjects.forEach(object => {
-                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
-                        this.selection.push(object);
-                        this.toggleSelectionColor(object, true);
-                    }
-                })
-            }
-            this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
-            this.redrawLine(this.color);
+            context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+            context.beginPath();
+            context.rect(this.selector.cssStart.x, this.selector.cssStart.y, mouse.cx - this.selector.cssStart.x, mouse.cy - this.selector.cssStart.y);
+            context.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected');
+            context.lineWidth = 0.7;
+            context.setLineDash([4, 4]);
+            context.stroke();
 
         }
     },
     end: function () {
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        this.linepaths = new Array();
-        picking.resetPicking();
+
+        context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+        this.selector.end.x = mouse.tx;
+        this.selector.end.y = mouse.ty;
+        this.selection = this.selector.select();
 
         if (this.transforming() === false) {
             if (this.selection.length == 0 || this.selected.length > 0) {
@@ -785,14 +805,12 @@ app.selection = {
             this.selected.forEach(object => {
                 var duplicate = object.clone();
                 duplicate.layers.set(1);
-                //duplicate.raycast = MeshLineRaycast;
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
                 duplicateArray.push(duplicate);
                 scene.add(duplicate);
                 mirror.object(duplicate, duplicate.userData.mirrorAxis);
             })
-            console.log(duplicateArray);
             //deselect selected group
             this.deselect();
             app.selection.selection = duplicateArray;
@@ -800,11 +818,6 @@ app.selection = {
                 this.toggleSelectionColor(element, true)
             })
             this.select(app.selection.selection);
-            // this.group.position.set(
-            //     sourcePosition.x + 0.1,
-            //     sourcePosition.y,
-            //     sourcePosition.z
-            // );
             this.helper.update();
             mirror.updateMirrorOf(this.group);
         }
@@ -835,6 +848,7 @@ app.selection = {
         //It's a single element
         if (selection.length == 1) {
             this.helper = new THREE.BoxHelper(selection[0], new THREE.Color(this.color));
+            this.toggleSelectionColor(selection[0], true);
             scene.add(this.helper);
             transformControls = new TransformControls(camera, drawingCanvas);
             transformControls.attach(selection[0]);
@@ -853,6 +867,7 @@ app.selection = {
             //calculate where is the center for the selected objects so we can set the center of the group before we attach objects to it;
             var center = new THREE.Vector3();
             selection.forEach(obj => {
+                this.toggleSelectionColor(obj, true);
                 center.add(obj.position);
             })
             center.divideScalar(selection.length);
