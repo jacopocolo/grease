@@ -3,6 +3,7 @@ import * as THREE from "../build/three.module.js";
 import CameraControls from "../build/CameraControls.js";
 import { OrbitControls } from "../build/OrbitControls.js";
 import { TransformControls } from "../build/TransformControls.js";
+import { SelectionBox } from "../build/SelectionBox.js";
 import {
     MeshLine,
     MeshLineMaterial
@@ -68,8 +69,8 @@ var app = new Vue({
         },
         selectedTool: function () {
             //on tool change we always deselect
-            app.selection.deselect();
-            picking.resetPicking();
+            //app.selection.deselect();
+            // picking.resetPicking();
         },
         selectedColor: function () {
             switch (true) {
@@ -700,6 +701,8 @@ app.selection = {
     selection: [],
     selected: [],
     helper: undefined,
+    selectionHelper: { start: new THREE.Vector2() },
+    selectionBox: undefined,
     group: undefined,
     transforming: function () {
         if (transformControls.userData.hover) {
@@ -711,62 +714,74 @@ app.selection = {
     start: function () {
         if (this.transforming() === false) {
 
-            console.log('start')
+            this.selectionBox = new SelectionBox(camera, scene);
+            this.selectionHelper.start.x = mouse.cx;
+            this.selectionHelper.start.y = mouse.cy;
 
-            this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
-            picking.setupPicking();
-            var vNow = new THREE.Vector3(mouse.tx, mouse.ty, 0);
-            vNow.unproject(camera);
-
-            this.deselect()
-            var pickedObjects = picking.picker.pickArea(
-                mouse.cx - 5,
-                mouse.cy - 5,
-                mouse.cx + 5,
-                mouse.cy + 5,
-                picking.scene,
-                camera);
-
-            if (pickedObjects != undefined && pickedObjects.length > 0) {
-                pickedObjects.forEach(object => {
-                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
-                        this.selection.push(object);
-                        this.toggleSelectionColor(object, true);
-                    }
-                })
+            for (var item of this.selectionBox.collection) {
+                this.toggleSelectionColor(item, true);
             }
+
+            this.selectionBox.startPoint.set(
+                mouse.tx,
+                mouse.ty,
+                0.5);
+
+            // context.beginPath();
+            // context.rect(this.selectionHelper.start.x, this.selectionHelper.start.y, this.selectionHelper.start.x + 1, this.selectionHelper.start.y + 1);
+            // context.stroke();
 
         }
     },
     move: function () {
         if (this.transforming() === false && this.selected.length == 0) {
 
-            var pickedObjects = picking.picker.pickArea(
-                this.linepaths[this.linepaths.length - 1].x,
-                this.linepaths[this.linepaths.length - 1].y,
-                mouse.cx,
-                mouse.cy,
-                picking.scene,
-                camera);
-
-            if (pickedObjects != undefined && pickedObjects.length > 0) {
-                pickedObjects.forEach(object => {
-                    if (this.selection.indexOf(object) < 0 && this.selected.indexOf(object) < 0) {
-                        this.selection.push(object);
-                        this.toggleSelectionColor(object, true);
-                    }
-                })
+            for (var i = 0; i < this.selectionBox.collection.length; i++) {
+                let object = this.selectionBox.collection[i];
+                this.toggleSelectionColor(object, true);
             }
-            this.linepaths.push(new THREE.Vector2(mouse.cx, mouse.cy));
-            this.redrawLine(this.color);
+
+            this.selectionBox.endPoint.set(
+                mouse.tx,
+                mouse.ty,
+                0.5);
+
+            context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+            context.beginPath();
+            context.rect(this.selectionHelper.start.x, this.selectionHelper.start.y, mouse.cx - this.selectionHelper.start.x, mouse.cy - this.selectionHelper.start.y);
+            context.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--accent-color-selected');
+            context.lineWidth = 0.7;
+            context.setLineDash([4, 4]);
+            context.stroke();
+
+
 
         }
     },
     end: function () {
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        this.linepaths = new Array();
-        picking.resetPicking();
+
+        this.selectionBox.endPoint.set(
+            mouse.tx,
+            mouse.ty,
+            0.5);
+
+        context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+
+        var allSelected = this.selectionBox.select();
+
+        var allSelected = this.selectionBox.select();
+
+        for (var i = 0; i < allSelected.length; i++) {
+            let object = allSelected[i];
+            if (
+                this.selection.indexOf(object) < 0 &&
+                this.selected.indexOf(object) < 0 &&
+                object.layers.mask == 2
+            ) {
+                this.selection.push(object);
+                this.toggleSelectionColor(object, true);
+            }
+        }
 
         if (this.transforming() === false) {
             if (this.selection.length == 0 || this.selected.length > 0) {
