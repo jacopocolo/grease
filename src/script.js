@@ -70,6 +70,7 @@ var app = new Vue({
         selectedTool: function () {
             //on tool change we always deselect
             app.selection.deselect();
+            picking.resetPicking();
         },
         selectedColor: function () {
             switch (true) {
@@ -247,7 +248,7 @@ Vue.component("toast", {
 `
 });
 
-var renderer, miniAxisRenderer, scene, miniAxisScene, camera, miniAxisCamera, controls, directControls, transformControls, clock, insetWidth, insetHeight;
+var renderer, miniAxisRenderer, scene, miniAxisScene, pickingScene, camera, miniAxisCamera, controls, directControls, transformControls, clock, insetWidth, insetHeight;
 var paths = []; //For canvas rendering of selection and erase
 var drawingCanvas = document.getElementById("drawingCanvas");
 var context = drawingCanvas.getContext("2d");
@@ -290,6 +291,168 @@ let mouse = {
         }
     }
 };
+
+class GPUPickHelper {
+    constructor() {
+        this.pickingTexture = new THREE.WebGLRenderTarget();
+        this.pixelBuffer = new Uint8Array(4);
+        this.pickedObject = null;
+        this.pickedObjectSavedColor = 0;
+    }
+    calcPointsInBetween(x1, y1, x2, y2) {
+        var coordinatesArray = new Array();
+        // Define differences and error check
+        var dx = Math.abs(x2 - x1);
+        var dy = Math.abs(y2 - y1);
+        var sx = (x1 < x2) ? 1 : -1;
+        var sy = (y1 < y2) ? 1 : -1;
+        var err = dx - dy;
+        // Set first coordinates
+        coordinatesArray.push(new THREE.Vector2(x1, y1));
+        // Main loop
+        while (!((x1 == x2) && (y1 == y2))) {
+            var e2 = err << 1;
+            if (e2 > -dy) {
+                err -= dy;
+                x1 += sx;
+            }
+            if (e2 < dx) {
+                err += dx;
+                y1 += sy;
+            }
+            // Set coordinates
+            coordinatesArray.push(new THREE.Vector2(x1, y1));
+        }
+        // Return the result
+        return coordinatesArray;
+    }
+    pick(cssPosition, scene, camera) {
+        const { pickingTexture, pixelBuffer } = this;
+
+        // set the view offset to represent just a single pixel under the mouse
+        const pixelRatio = renderer.getPixelRatio();
+        camera.setViewOffset(
+            renderer.getContext().drawingBufferWidth,   // full width
+            renderer.getContext().drawingBufferHeight,  // full top
+            cssPosition.x * pixelRatio | 0,             // rect x
+            cssPosition.y * pixelRatio | 0,             // rect y
+            1,                                          // rect width
+            1,                                          // rect height
+        );
+        // render the scene
+        renderer.setRenderTarget(pickingTexture)
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        // clear the view offset so rendering returns to normal
+        camera.clearViewOffset();
+        //read the pixel
+        renderer.readRenderTargetPixels(
+            pickingTexture,
+            0,   // x
+            0,   // y
+            1,   // width
+            1,   // height
+            pixelBuffer);
+
+        const id =
+            (pixelBuffer[0] << 16) |
+            (pixelBuffer[1] << 8) |
+            (pixelBuffer[2]);
+        const intersectedObject = picking.idToObject[id];
+
+        if (intersectedObject) {
+            return intersectedObject
+        }
+    }
+    pickArea(x1, y1, x2, y2, scene, camera) {
+        const { pickingTexture, pixelBuffer } = this;
+        const width = () => {
+            if (x2 - x1 < 0) { return -(x2 - x1) }
+            else if (x2 - x1 == 0) { return 1 }
+            else { return x2 - x1 }
+        }
+        const height = () => {
+            if (y2 - y1 < 0) { return -(y2 - y1) }
+            else if (y2 - y1 == 0) { return 1 }
+            else { return y2 - y1 }
+        }
+        let intersectObjects = new Array();
+
+        // set the view offset to represent just a single pixel under the mouse
+        const pixelRatio = renderer.getPixelRatio();
+        camera.setViewOffset(
+            renderer.getContext().drawingBufferWidth,   // full width
+            renderer.getContext().drawingBufferHeight,  // full top
+            x1 * pixelRatio | 0,             // rect x
+            y1 * pixelRatio | 0,             // rect y
+            width() * pixelRatio | 1,        // height
+            height() * pixelRatio | 1,        // width
+        );
+        // render the scene
+        this.pickingTexture.setSize(width(), height())
+        renderer.setRenderTarget(pickingTexture)
+        renderer.render(scene, camera);
+        renderer.setRenderTarget(null);
+
+        // clear the view offset so rendering returns to normal
+        camera.clearViewOffset();
+        //read the pixel
+
+        this.calcPointsInBetween(0, 0, width(), height()).forEach(point => {
+            renderer.readRenderTargetPixels(
+                this.pickingTexture,
+                point.x,   // x
+                point.y,   // y
+                1,   // width
+                1,   // height
+                pixelBuffer);
+            const id =
+                (pixelBuffer[0] << 16) |
+                (pixelBuffer[1] << 8) |
+                (pixelBuffer[2]);
+            const intersectedObject = picking.idToObject[id];
+            if (intersectedObject != undefined && intersectObjects.indexOf(intersectedObject) < 0) {
+                intersectObjects.push(intersectedObject)
+            }
+        })
+        return intersectObjects
+
+    }
+}
+let picking = {
+    scene: null,
+    idToObject: {},
+    id: 1,
+    picker: new GPUPickHelper(),
+    setupPicking: function () {
+        console.log("setupPicking")
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0);
+        scene.children.forEach(children => {
+            if (children.layers.mask == 2) {
+                var clone = children.clone();
+                var cloneMaterial = children.material.clone();
+                clone.material = cloneMaterial;
+                cloneMaterial.color = new THREE.Color(this.id);
+                this.scene.add(clone);
+                this.idToObject[this.id] = children;
+                this.id = this.id + 1;
+            }
+        })
+    },
+    resetPicking: function () {
+        console.log("resetPicking")
+        if (this.scene != null) {
+            this.idToObject = {};
+            this.id = 1;
+            this.scene.children.forEach(children => {
+                scene.remove(children);
+                children.material.dispose()
+            })
+        }
+    }
+}
 
 let line = {
     start: function () {
@@ -484,21 +647,15 @@ let mirror = {
 };
 
 let eraser = {
-    raycaster: new THREE.Raycaster(),
     linepaths: [],
     color: getComputedStyle(document.documentElement).getPropertyValue('--accent-color'),
     start: function () {
-        this.raycaster.params.Line.threshold = 0.1;
-        this.raycaster.layers.set(1);
-        try {
-            this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-            var object = this.raycaster.intersectObjects(scene.children)[0].object;
-            scene.remove(object);
-            mirror.eraseMirrorOf(object);
-            object.mirror.dispose();
-            object.dispose();
-        } catch (err) {
-            //if there's an error here, it just means that the raycaster found nothing
+        picking.setupPicking();
+        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
+        if (intersectedObject) {
+            scene.remove(intersectedObject);
+            mirror.eraseMirrorOf(intersectedObject);
+            intersectedObject.material.dispose();
         }
         this.linepaths.push([mouse.cx, mouse.cy]);
     },
@@ -506,18 +663,15 @@ let eraser = {
         this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
         this.redrawLine('rgba(255,255,255)');
 
-        try {
-            this.raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
-            var object = this.raycaster.intersectObjects(scene.children)[0].object;
-            scene.remove(object);
-            mirror.eraseMirrorOf(object);
-            object.mirror.dispose();
-            object.dispose();
-        } catch (err) {
-            //if there's an error here, it just means that the raycaster found nothing
+        var intersectedObject = picking.picker.pick({ x: mouse.cx, y: mouse.cy }, picking.scene, camera);
+        if (intersectedObject) {
+            scene.remove(intersectedObject);
+            mirror.eraseMirrorOf(intersectedObject);
+            intersectedObject.material.dispose();
         }
     },
     end: function () {
+        picking.resetPicking();
         context.closePath();
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         this.linepaths = [];
@@ -674,7 +828,7 @@ app.selection = {
             this.deselect()
 
             let raycaster = new THREE.Raycaster();
-            raycaster.params.Line.threshold = 0.1;
+            raycaster.params.Line.threshold = 0.001;
             raycaster.layers.set(1);
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
             try {
@@ -731,7 +885,6 @@ app.selection = {
             this.selected.forEach(object => {
                 var duplicate = object.clone();
                 duplicate.layers.set(1);
-                duplicate.raycast = MeshLineRaycast;
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
                 duplicateArray.push(duplicate);
