@@ -5,6 +5,7 @@ import { OrbitControls } from "../build/OrbitControls.js";
 import { TransformControls } from "../build/TransformControls.js";
 import {
     MeshLine,
+    MeshLineRaycast,
     MeshLineMaterial
 } from '../build/meshline.js';
 import { GLTFExporter } from '../build/GLTFExporter.js';
@@ -481,7 +482,7 @@ let line = {
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
-            //mesh.raycast = MeshLineRaycast;
+            mesh.raycast = MeshLineRaycast;
             scene.add(mesh);
 
             mesh.userData.lineColor = lineColor;
@@ -617,7 +618,7 @@ let mirror = {
         console.log('mirror')
         var clone = obj.clone();
         clone.layers.set(1);
-        //clone.raycast = MeshLineRaycast;
+        clone.raycast = MeshLineRaycast;
         clone.userData.mirror = obj.uuid;
         clone.userData.mirrorAxis = axis;
         obj.userData.mirror = clone.uuid;
@@ -719,23 +720,88 @@ class vertexSelection {
         } else {
             return false;
         };
-    };
+    }
+    getObjectBoundingBoxPoints(object) {
+
+        let bb = object.geometry.boundingBox
+
+        var points = [
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3(),
+            new THREE.Vector3()
+        ];
+
+        points[0].set(bb.min.x, bb.min.y, bb.min.z); // 000
+        points[1].set(bb.min.x, bb.min.y, bb.max.z); // 001
+        points[2].set(bb.min.x, bb.max.y, bb.min.z); // 010
+        points[3].set(bb.min.x, bb.max.y, bb.max.z); // 011
+        points[4].set(bb.max.x, bb.min.y, bb.min.z); // 100
+        points[5].set(bb.max.x, bb.min.y, bb.max.z); // 101
+        points[6].set(bb.max.x, bb.max.y, bb.min.z); // 110
+        points[7].set(bb.max.x, bb.max.y, bb.max.z); // 111
+        points[8].set(object.geometry.boundingSphere.center.x, object.geometry.boundingSphere.center.y, object.geometry.boundingSphere.center.z) //does it make sense to add this?
+
+        points.forEach(point => {
+            point.applyMatrix4(object.matrix);
+            point.project(camera);
+
+            //DEBUG
+            // let unprojectedPoint = point.clone();
+            // unprojectedPoint.unproject(camera);
+            // const geometry = new THREE.SphereGeometry(0.01, 4, 4);
+            // const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+            // const sphere = new THREE.Mesh(geometry, material);
+            // scene.add(sphere);
+            // sphere.position.set(unprojectedPoint.x, unprojectedPoint.y, unprojectedPoint.z)
+        })
+
+        return points
+    }
     select() {
 
         let selectedObjects = new Array();
 
         scene.children.forEach(object => {
+
             if (object.layers.mask == 2) {
-                object.geometry.vertices.forEach(point => {
-                    let p = new THREE.Vector3(point.x, point.y, point.z);
-                    p.applyMatrix4(object.matrix);
-                    p.project(camera);
-                    if (this.pointInRect(p.x, p.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
-                        selectedObjects.push(object);
-                        return
+                //get the projected bounding points of the rectangle
+                let boundingBoxPoints = this.getObjectBoundingBoxPoints(object);
+
+                for (var j = boundingBoxPoints.length; j--;) {
+
+                    //check if any of the points is part of the selection 
+                    let point = boundingBoxPoints[j]
+                    if (this.pointInRect(point.x, point.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
+
+                        //If even one point is inside of the selection, it's worth checking for all the vertices, otherwise not
+                        for (var k = object.geometry.vertices.length; k--;) {
+
+                            let p = new THREE.Vector3(
+                                object.geometry.vertices[k].x,
+                                object.geometry.vertices[k].y,
+                                object.geometry.vertices[k].z
+                            );
+                            p.applyMatrix4(object.matrix);
+                            p.project(camera);
+
+                            if (this.pointInRect(p.x, p.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
+
+                                selectedObjects.push(object);
+                                return
+                            }
+
+                        }
                     }
-                })
+                }
+
             }
+
         })
 
         return selectedObjects;
@@ -759,12 +825,23 @@ app.selection = {
     start: function () {
         if (this.transforming() === false) {
 
+            this.deselect()
+
+            let raycaster = new THREE.Raycaster();
+            raycaster.params.Line.threshold = 0.001;
+            raycaster.layers.set(1);
+            raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
+            try {
+                var intersectedObject = raycaster.intersectObjects(scene.children)[0].object;
+                this.selection.push(intersectedObject)
+            } catch (err) {
+                //expected error if nothing is found
+            }
+
             this.selector.start.x = mouse.tx;
             this.selector.start.y = mouse.ty;
             this.selector.cssStart.x = mouse.cx;
             this.selector.cssStart.y = mouse.cy;
-
-            this.deselect()
 
         }
     },
@@ -786,7 +863,10 @@ app.selection = {
         context.clearRect(0, 0, window.innerWidth, window.innerHeight)
         this.selector.end.x = mouse.tx;
         this.selector.end.y = mouse.ty;
-        this.selection = this.selector.select();
+        let objectsInRect = this.selector.select();
+        objectsInRect.forEach(object => {
+            this.selection.push(object);
+        })
 
         if (this.transforming() === false) {
             if (this.selection.length == 0 || this.selected.length > 0) {
