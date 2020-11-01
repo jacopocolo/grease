@@ -55,33 +55,13 @@
   --line-color-dark:rgb(170, 170, 170);
 }  */
 
-
-@font-face {
-  font-family: 'Sometype Mono';
-  src: url('fonts/SometypeMono-Regular.woff2') format('woff2'),
-       url('fonts/SometypeMono-Regular.woff') format('woff');
-  font-weight: 400;
-}
-@font-face {
-  font-family: 'Sometype Mono';
-  src: url('fonts/SometypeMono-Medium.woff2') format('woff2'),
-       url('fonts/SometypeMono-Medium.woff') format('woff');
-  font-weight: 500;
-}
-@font-face {
-  font-family: 'Sometype Mono';
-  src: url('fonts/SometypeMono-Bold.woff2') format('woff2'),
-       url('fonts/SometypeMono-Bold.woff') format('woff'); 
-  font-weight: 600;
-}
-
 @font-face {
   font-family: "VCR";
-  src: url("//cdn.shopify.com/s/files/1/1255/2951/t/2/assets/VCR_OSD_MONO.eot?741669282348130352");
-  src: url("//cdn.shopify.com/s/files/1/1255/2951/t/2/assets/VCR_OSD_MONO.eot?741669282348130352&#iefix") format("embedded-opentype"),
-  url("//cdn.shopify.com/s/files/1/1255/2951/t/2/assets/VCR_OSD_MONO.woff?741669282348130352") format("woff"),
-  url("//cdn.shopify.com/s/files/1/1255/2951/t/2/assets/VCR_OSD_MONO.ttf?741669282348130352") format("truetype"),
-  url("//cdn.shopify.com/s/files/1/1255/2951/t/2/assets/VCR_OSD_MONO.svg?741669282348130352#VCR") format("svg");
+  src: url("/fonts/VCR_OSD_MONO.eot");
+  src: url("/fonts/VCR_OSD_MONO.eot") format("embedded-opentype"),
+  url("/fonts/VCR_OSD_MONO.woff") format("woff"),
+  url("/fonts/VCR_OSD_MONO.ttf") format("truetype"),
+  url("/fonts/VCR_OSD_MONO.svg") format("svg");
   font-weight: "normal";
   font-style: "normal"; }
 
@@ -91,9 +71,9 @@ body, html, #app {
   overflow: hidden;
   font-family: "VCR";
   text-transform: uppercase;
-  text-shadow: 0px 1px 0px rgba(255,0,0,0.5), 0px -1px 0px rgba(0,255,0,0.5);
+  /* text-shadow: 0px 1px 0px rgba(255,0,0,0.5), 0px -1px 0px rgba(0,255,0,0.5); */
   font-weight: 400;
-  font-size: 14px;
+  font-size: 12px;
   /* text-transform: uppercase; */
 }
 
@@ -145,8 +125,8 @@ margin: 0px;
 
 #miniAxis {
   /* set width to 210px to give room to camera controls again */
-  width: 150px;
-  height: 200px;
+  width: 160px;
+  height: 176px;
   position: absolute;
   border-radius: 8px;
   left: 10px;
@@ -158,9 +138,11 @@ margin: 0px;
 
 #miniAxis>canvas{
   /* border-radius: 0px 0px 8px 0px; */
-  z-index: 5;
+  z-index: 4;
   float: left;
   position: relative;
+  top: -32px;
+  left: 8px;
 }
 
 .circle-under-orientation-gizmo {
@@ -170,8 +152,8 @@ margin: 0px;
 	position: absolute;
 	z-index: -1;
 	float: left;
-	left: 15px;
-	top: 45px;
+	left: 24px;
+	top: 24px;
 	width: 120px;
 	height: 120px;
 	border-radius: 50%;
@@ -181,11 +163,6 @@ margin: 0px;
 	-moz-user-select: none;
 	-ms-user-select: none;
 	user-select: none;
-}
-
-#miniAxisHandle {
-  border-radius: 8px 8px 0px 0px;
-  padding: 16px 8px;
 }
 
 .label-camera {
@@ -199,21 +176,34 @@ margin: 0px;
 }
 
 .reset-camera {
+  height: 32px;
+  width: 32px;
+  border-radius: 16px;
+  background-color: rgba(255,255,255,0.2);
+  font-size: 2em;
+  line-height: 1em;
   position: absolute;
-  color:var(--accent-color);
+  color: rgba(255,255,255,1);
   opacity: 1;
-  top: 174px;
-  left: 55px;
+  bottom: 8px;
+  right: 8px;
+  justify-content: center;
+  align-content: center;
+  text-align: center;
   z-index: 6;
 }
 
 .handle {
-  width: 100%;
-  height: 30px;
+  width: 32px;
+  height: 32px;
+  margin-left: 8px;
+  margin-top: 8px;
+  padding-top: 15px;
   background-color: var(--ui-bg-color);
-  border-radius: 6px 6px 0px 0px;
-  z-index: 6;
-  padding: 16px 0px;
+  border-radius: 32px;
+  border: 1px solid var(--accent-color);
+  position: relative;
+  z-index: 7;
   cursor: move;
   box-sizing: border-box;
 }
@@ -223,7 +213,6 @@ margin: 0px;
   width: 30px;
   background-color: var(--accent-color);
   border-radius: 1px;
-  margin-bottom: 4px;
 }
 
 .verticalHandle {
@@ -243,8 +232,9 @@ margin: 0px;
 }
 
 button {
+  font-family: "VCR";
+  text-transform: uppercase;
   z-index: 5;
-  font-size: 12px;
   height: 40px;
   width: auto;
   min-width: 40px;
@@ -253,7 +243,7 @@ button {
   background: #333333;
   margin: 0px;
   border: none;
-  border-top: 1px solid #555;
+  /* border-top: 1px solid #555; */
   border-radius: 8px;
   box-sizing: border-box;
   margin-right: 2px;
@@ -282,7 +272,7 @@ button {
   position: absolute;
   top: 10px;
   right: 10px;
-  padding: 0px 8px 8px 8px;
+  padding: 8px;
   color: white;
   z-index: 5;
   display: block;
@@ -299,7 +289,6 @@ button {
 }
 
 #toolSelection {
-  padding: 4px;
   padding-left: 6px;
   white-space: discard;
   display: flex;
@@ -348,8 +337,11 @@ button {
 }
 
 .toolbarLabel {
-  margin-top: 10px;
   margin-bottom: 7px;
+}
+
+.toolbarLabel:not(:first-child) {
+  margin-top: 13px;
 }
 
 #lineWidth, #lineColor, #mirror {
@@ -377,9 +369,9 @@ input[type="radio"] + label {
   font-size: 12px;
   color: white;
   background: #222;
-  box-shadow: 0px -4px 4px rgba(51, 51, 51, 0.25);
+  /* box-shadow: 0px -4px 4px rgba(51, 51, 51, 0.25); */
   border: none;
-  border-top: 1px solid #444;
+  /* border-top: 1px solid #444; */
   box-sizing: border-box;
   align-items: center;
   min-width: 40px;
@@ -392,21 +384,30 @@ span:not(:last-child) {
 }
 
 span:first-child > label:nth-child(2) {
-  border-radius: 6px 0 0 6px;
+  border-radius: 8px 0 0 8px;
+}
+
+#toolSelection span:first-child > label:nth-child(2) {
+  border-radius: 0px 0 0 8px;
 }
 
 span:last-child > label:nth-child(2) {
-  border-radius: 0 8px 6px 0;
+  border-radius: 0 8px 8px 0;
   margin-right: 0px;
+}
+
+#toolSelection span:last-child > label:nth-child(2) {
+  border-radius: 0px 0 8px 0;
 }
 
 input[type="radio"]:checked + label {
   color: var(--accent-color);
   text-shadow: 0px 0px 1px var(--accent-color);
-  box-shadow: inset 1px 1px 6px #111, inset -1px -1px 6px #333;
+  border: 1px solid var(--accent-color);
+  /* box-shadow: inset 1px 1px 6px #111, inset -1px -1px 6px #333; */
 }
 
-span:first-child > input[type="radio"]:checked + label + div {
+/* span:first-child > input[type="radio"]:checked + label + div {
   height: 1px;
   display: block;
   float: right;
@@ -434,7 +435,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   background: var(--accent-color);
   border-radius: 0 0 1px 0;
   content: '';
-}
+} */
 
 #cameraControlSelection span > label {
   border-radius: 0px;
@@ -456,7 +457,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   align-items: center;
   box-sizing: border-box;
   width: 100%;
-  height: 44px;
+  height: 40px;
   min-width: 60px;
   box-sizing: border-box;
   text-align: center;
@@ -543,17 +544,17 @@ span:last-child > input[type="radio"]:checked + label + div {
 }
 
 #mirrorX + label>span {
-  color: #FF0000 !important;
+  color: #FF6600 !important;
   text-shadow: none;
 }
 
 #mirrorY + label>span {
-  color: #00FF00;
+  color: #99FF00;
   text-shadow: none;
 }
 
 #mirrorZ + label>span {
-  color: #0000FF;
+  color: #0099FF;
   text-shadow: none;
 }
 
@@ -614,6 +615,7 @@ span:last-child > input[type="radio"]:checked + label + div {
   display: inline;
   border-radius: 40px;
 }
+
 /* 
 #themeSelection {
   top: auto;
@@ -648,7 +650,6 @@ span:last-child > input[type="radio"]:checked + label + div {
 }
 
 .blackButton {
-  font-family: inherit;
   color: white;
   background-color: var(--ui-bg-color);
   border: none;

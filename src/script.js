@@ -27,6 +27,7 @@ var app = new Vue({
         selection: {}, //to be filled from init
         exportTo: {},
         ui: {
+            resetDisabled: true,
             show: true,
             theme: '',
         },
@@ -107,6 +108,7 @@ var app = new Vue({
             app.selection.deselectFromButton()
         },
         resetCamera: function () {
+            app.ui.resetDisabled = true;
             directControls.dampingFactor = 0.5
             directControls.enabled = false;
             directControls.setLookAt(0, 0, 10, 0, 0, 0, true)
@@ -1698,12 +1700,16 @@ function drawAxisHelperControls() {
     }, false)
 
     miniAxisRenderer.domElement.addEventListener("mousemove", (e) => {
+
+        app.ui.resetDisabled = false;
         if (directControls.enabled == false) {
             console.log(e.movementX, e.movementY);
             miniAxisMouse.moved = true;
         }
     }, false)
     miniAxisRenderer.domElement.addEventListener("touchmove", () => {
+
+        app.ui.resetDisabled = false;
         if (directControls.enabled == false) {
             miniAxisMouse.moved = true;
         }
@@ -1767,6 +1773,8 @@ function repositionCamera() {
 
         switch (object.name) {
             case 'z':
+
+                app.ui.resetDisabled = true;
                 directControls.dampingFactor = 0.5
                 directControls.enabled = false;
                 directControls.setLookAt(target.x, target.y, target.z + 10, target.x, target.y, target.z, true)

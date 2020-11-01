@@ -61,7 +61,6 @@
         <div id="miniAxis" v-bind:class="[ui.show ? '' : 'hidden']">
             <div class="handle" id="miniAxisHandle">
                 <div class="handleLine"></div>
-                <div class="handleLine"></div>
             </div>
             <div class="circle-under-orientation-gizmo"></div>
             <div id="cameraControlSelection">
@@ -87,15 +86,16 @@
                     <div></div>
                 </span>
             </div>
-            <span class="reset-camera" @click="resetCamera()">Reset</span>
+            <span class="reset-camera" @click="resetCamera()"
+                v-bind:class="[ui.resetDisabled ? 'disabled ' : '']">↺</span>
         </div>
 
         <div class="toolbar" id="toolbar"
             v-bind:class="[ui.show == true ? '' : 'hidden', selectedTool != 'erase' ? '' : 'hidden']">
-            <div class="handle" id="toolbarHandle">
+            <!-- <div class="handle" id="toolbarHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
-            </div>
+            </div> -->
 
             <span class="lineTools" v-if="selectedTool == 'draw'">
                 <div class="toolbarLabel">Width</div>
@@ -235,7 +235,6 @@
             </span>
             <button v-if="selectedTool === 'select'" id="duplicate" class="button"
                 v-bind:class="[selection.selected.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
-                selection
             </button>
         </div>
 
