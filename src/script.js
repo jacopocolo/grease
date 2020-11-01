@@ -120,62 +120,80 @@ var app = new Vue({
         //MOUSE HANDLERS
         onTapStart: function (event) {
 
-            if (event.touches && event.touches.length > 1 || app.selection.selected.length > 0 || event.which == 3) { return }
+            if (event.touches && event.touches.length > 1) {
 
-            mouse.updateCoordinates(event);
+                mouse.multitouch = true;
+                drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
+                drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
+                drawingCanvas.removeEventListener("touchend", this.onTapEnd, false);
+                drawingCanvas.removeEventListener("mouseup", this.onTapEnd, false);
+                return
 
-            switch (this.selectedTool) {
-                case "draw":
-                    line.start();
-                    break;
-                case "erase":
-                    eraser.start();
-                    break;
-                case "select":
-                    app.selection.start();
-                    break;
+            } else {
+
+                mouse.multitouch = false;
+                mouse.updateCoordinates(event);
+
+                switch (this.selectedTool) {
+                    case "draw":
+                        line.start();
+                        break;
+                    case "erase":
+                        eraser.start();
+                        break;
+                    case "select":
+                        app.selection.start();
+                        break;
+                }
+
+                drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
+                drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
+                drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
+                drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
+                console.log("event added")
             }
-
-            drawingCanvas.addEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
-            drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
-            drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
         },
         onTapMove: function (event) {
 
-            if (event.touches && event.touches.length > 1) { return }
-
-            mouse.updateCoordinates(event);
-            //DRAW
-            if (this.selectedTool == "draw") {
-                line.move();
-            }
-            //ERASER
-            else if (this.selectedTool == "erase") {
-                eraser.move()
-            }
-            //SELECT
-            else if (this.selectedTool == "select") {
-                app.selection.move();
+            if (mouse.multitouch == false) {
+                mouse.updateCoordinates(event);
+                //DRAW
+                switch (this.selectedTool) {
+                    case "draw":
+                        line.move();
+                        break;
+                    case "erase":
+                        eraser.move();
+                        break;
+                    case "select":
+                        app.selection.move();
+                        break;
+                }
             }
         },
         onTapEnd: function (event) {
-            //handler if it's a touch event
-            mouse.updateCoordinates(event);
-            //DRAW
-            if (this.selectedTool == "draw") {
-                line.end()
+
+            if (mouse.multitouch == false) {
+
+                //handler if it's a touch event
+                mouse.updateCoordinates(event);
+                //DRAW
+                switch (this.selectedTool) {
+                    case "draw":
+                        line.end();
+                        break;
+                    case "erase":
+                        eraser.end();
+                        break;
+                    case "select":
+                        app.selection.end();
+                        break;
+                }
+                drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
+                drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
+                drawingCanvas.removeEventListener("touchend", this.onTapEnd, false);
+                drawingCanvas.removeEventListener("mouseup", this.onTapEnd, false);
             }
-            //ERASER
-            else if (this.selectedTool == "erase") {
-                eraser.end()
-            }
-            //SELECT
-            else if (this.selectedTool == "select") {
-                app.selection.end()
-            }
-            drawingCanvas.removeEventListener("touchmove", this.onTapMove, false);
-            drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
         }
     },
     mounted() {
@@ -259,6 +277,7 @@ var miniAxis = document.getElementById("miniAxis");
 CameraControls.install({ THREE: THREE });
 
 let mouse = {
+    multitouch: false,
     down: false,
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
@@ -665,11 +684,19 @@ let eraser = {
                 object.material.dispose();
             })
         }
-        this.linepaths.push([mouse.cx, mouse.cy]);
+        context.globalAlpha = 0.25;
+        context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+        context.fillStyle = 'white';
+        context.fillRect(mouse.cx - 8, mouse.cy - 8, 16, 16);
+        // this.linepaths.push([mouse.cx, mouse.cy]);
     },
     move: function () {
-        this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
-        this.redrawLine('rgba(255,255,255)');
+        // this.linepaths[this.linepaths.length - 1].push([mouse.cx, mouse.cy]);
+        // this.redrawLine('rgba(255,255,255)');
+        context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+        context.fillStyle = 'white';
+        context.fillRect(mouse.cx - 8, mouse.cy - 8, 16, 16);
+
         var pickedObjects = picking.picker.pickArea(
             mouse.cx - 5,
             mouse.cy - 5,
@@ -686,18 +713,19 @@ let eraser = {
         }
     },
     end: function () {
+        context.clearRect(0, 0, window.innerWidth, window.innerHeight)
         picking.resetPicking();
-        context.closePath();
-        context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
-        this.linepaths = [];
+        // context.closePath();
+        // context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
+        // this.linepaths = [];
     },
     redrawLine: function (color) {
         context.clearRect(0, 0, drawingCanvas.width, drawingCanvas.height);
         context.strokeStyle = color;
         context.globalAlpha = 0.25;
-        context.lineCap = 'round';
-        context.lineJoin = 'round';
-        context.lineWidth = 30;
+        // context.lineCap = 'round';
+        context.lineJoin = 'bevel';
+        context.lineWidth = 15;
         context.beginPath();
         for (var i = 0; i < this.linepaths.length; ++i) {
             var path = this.linepaths[i];
@@ -730,8 +758,12 @@ class vertexSelection {
         };
     }
     getObjectBoundingBoxPoints(object) {
-
-        let bb = object.geometry.boundingBox
+        let bb;
+        if (object.geometry.boundingBox != undefined) {
+            bb = object.geometry.boundingBox;
+        } else {
+            return
+        }
 
         var points = [
             new THREE.Vector3(),
@@ -779,7 +811,11 @@ class vertexSelection {
 
             if (object.layers.mask == 2) {
                 //get the projected bounding points of the rectangle
-                let boundingBoxPoints = this.getObjectBoundingBoxPoints(object);
+                let boundingBoxPoints;
+
+                try { boundingBoxPoints = this.getObjectBoundingBoxPoints(object); } catch {
+                    console.log(err)
+                }
 
                 for (var j = boundingBoxPoints.length; j--;) {
 
@@ -833,10 +869,8 @@ app.selection = {
     start: function () {
         if (this.transforming() === false) {
 
-            this.deselect()
-
             let raycaster = new THREE.Raycaster();
-            raycaster.params.Line.threshold = 0.001;
+            raycaster.params.Line.threshold = 0.01;
             raycaster.layers.set(1);
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
             try {
