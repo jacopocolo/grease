@@ -197,7 +197,7 @@
                     </span>
 
                 </span>
-                <div class="button" id="zDepth" v-if="experimental">
+                <!-- <div class="button" id="zDepth" v-if="experimental">
                     <span class="toolbarLabel">Drawing plane</span>
                     <div>
                         <label for="distance">
@@ -208,8 +208,8 @@
                         </label>
                         <input type="range" id="distance" name="distance" min="-0.25" max="0.25" step="0.01" value="0"
                             v-model="zDepth">
-                    </div>
-                </div>
+                    </div> 
+                </div>-->
 
             </span>
 
@@ -237,16 +237,17 @@
                 v-bind:class="[selection.selected.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
             </button>
         </div>
-
-        <div id="saveLoad">
-            <button id="Save" @click="exportTo.json()" v-bind:class="[ui.show ? '' : 'hidden']">Save…</button>
-            <button id="Load" v-bind:class="[ui.show ? '' : 'hidden']">Load…</button>
-            <button v-if="experimental" id="Export" @click="exportTo.geometry"
-                v-bind:class="[ui.show ? '' : 'hidden']">Export
+        <button id="more" @click="ui.showOverflowMenu = !ui.showOverflowMenu">{{ui.showOverflowMenu?"X":"…"}}</button>
+        <div id="overflowMenu" v-bind:class="[ui.showOverflowMenu  ? '' : 'hidden']">
+            <button id=" Save" @click="exportTo.json()">Save…</button>
+            <button id="Load" @click="importFrom.json()">Load…</button>
+            <button id=" Export" @click="exportTo.geometry">Export
                 geometry</button>
-            <button id="makeVideo" @click="exportTo.mp4.exporting = true"
-                v-bind:class="[ui.show ? '' : 'hidden']">video</button>
-            <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
+            <button id="makeVideo" @click="exportTo.mp4.start()">Export
+                video</button>
+            <button id="hidePlane"
+                @click="toggleDrawingPlane()">{{ui.showDrawingPlane?"Hide drawing plane":"Show drawing plane"}}</button>
+            <!-- <button @click=" toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button> -->
         </div>
     </div>
 </body>

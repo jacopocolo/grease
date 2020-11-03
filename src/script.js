@@ -27,8 +27,11 @@ var app = new Vue({
         selection: {}, //to be filled from init
         exportTo: {},
         ui: {
+            intro: true,
             resetDisabled: true,
             show: true,
+            showDrawingPlane: true,
+            showOverflowMenu: false,
             theme: '',
         },
         modal: {
@@ -108,7 +111,6 @@ var app = new Vue({
             app.selection.deselectFromButton()
         },
         resetCamera: function () {
-            app.ui.resetDisabled = true;
             directControls.dampingFactor = 0.5
             directControls.enabled = false;
             directControls.setLookAt(0, 0, 10, 0, 0, 0, true)
@@ -118,6 +120,10 @@ var app = new Vue({
         },
         toggleUi: function () {
             app.ui.show = !app.ui.show;
+        },
+        toggleDrawingPlane: function () {
+            this.ui.showDrawingPlane = !this.ui.showDrawingPlane
+            line.drawingPlane.children[0].material.opacity = this.ui.showDrawingPlane ? '1' : '0'
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
@@ -415,24 +421,43 @@ let line = {
     },
     drawingPlane: null, //defined in init
     addDrawingPlane: function () {
-        var geometry = new THREE.PlaneGeometry(1, 1, 1);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.8, fog: false });
+        var geometry = new THREE.PlaneGeometry(4, 4, 4);
+        var grid = new THREE.TextureLoader().load("../img/grid.png");
+        var material = new THREE.MeshBasicMaterial({
+            map: grid,
+            // color: 0xffffff,
+            transparent: true,
+            opacity: 1,
+            fog: false
+        });
         var planeBg = new THREE.Mesh(geometry, material);
-        var planeGrid = new THREE.GridHelper(
-            1,
-            1,
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
-        );
-        planeGrid.rotation.x = Math.PI / 2;
+
+        var geometry = new THREE.PlaneGeometry(4, 4, 4);
+        var grid = new THREE.TextureLoader().load("../img/meta.png");
+        var material = new THREE.MeshBasicMaterial({
+            map: grid,
+            // color: 0xffffff,
+            transparent: true,
+            opacity: 1,
+            fog: false
+        });
+        var planeMeta = new THREE.Mesh(geometry, material);
+        planeMeta.position.z = planeBg.position.z + 1;
+
+        // var planeGrid = new THREE.GridHelper(
+        //     1,
+        //     1,
+        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        // );
+        // planeGrid.rotation.x = Math.PI / 2;
         this.drawingPlane = new THREE.Group();
         this.drawingPlane.add(planeBg);
-        this.drawingPlane.add(planeGrid);
+        this.drawingPlane.add(planeMeta);
         scene.add(this.drawingPlane);
     },
     updateDrawingPlane: function () {
         this.drawingPlane.rotation.copy(camera.rotation);
-        //camera zoom has a minimum of 450 and a maximum of infinity
     }
 };
 
@@ -654,7 +679,6 @@ let picking = {
         })
     },
     resetPicking: function () {
-        console.log("resetPicking")
         if (this.scene != null) {
             this.idToObject = {};
             this.id = 1;
@@ -1332,9 +1356,13 @@ app.exportTo = {
     mp4: {
         exporting: false,
         currentLength: 0,
-        length: 10,
+        length: 60,
         images: [],
         worker: new Worker("../build/ffmpeg-worker-mp4.js"),
+        start: function () {
+            camera.layers.disable(0)
+            this.exporting = true;
+        },
         pad: function (n, insetWidth, z) {
             z = z || "0";
             n = n + "";
@@ -1454,6 +1482,7 @@ function onWindowResize() {
 }
 
 init();
+introAnimation();
 animate();
 
 function init() {
@@ -1517,7 +1546,7 @@ function init() {
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
     camera.zoom = 160;
-    camera.position.set(0, 0, 10);
+    camera.position.set(10, 10, 10);
 
     clock = new THREE.Clock();
 
@@ -1551,19 +1580,33 @@ function init() {
         controls.target = target;
         targetSphere.position.set(target.x, target.y, target.z)
         if (app.experimental) { line.drawingPlane.position.set(target.x, target.y, target.z) }
-    })
+    });
+    directControls.addEventListener("sleep", () => {
+        let target = new THREE.Vector3();
+        target = directControls.getTarget(target);
+        var x = target.x;
+        var y = target.y;
+        var z = target.z;
+
+        console.log(x, y, z)
+        console.log(camera.position.z)
+
+        if (camera.position.z != 10) {
+            app.ui.resetDisabled = false;
+        } else {
+            app.ui.resetDisabled = true;
+        }
+    });
 
     transformControls = new TransformControls(camera, drawingCanvas);
 
     miniAxisCamera = new THREE.OrthographicCamera();
-    miniAxisCamera.position.copy(camera.position);
+    miniAxisCamera.position.set(0, 0, 10);
     //miniAxisCamera.zoom = 750;
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
-    if (app.experimental) {
-        line.addDrawingPlane()
-    }
+    line.addDrawingPlane()
 
     window.addEventListener("resize", onWindowResize);
     window.addEventListener("orientationchange", onWindowResize);
@@ -1579,7 +1622,7 @@ function animate() {
     const delta = clock.getDelta();
     updateminiAxisScene();
 
-    if (app.experimental) {
+    if (!app.ui.intro) {
         line.updateDrawingPlane();
     }
 
@@ -1599,7 +1642,6 @@ function animate() {
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 
     if (app.exportTo.mp4.exporting) {
-        camera.layers.disable(0)
 
         if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
             directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
@@ -1615,6 +1657,28 @@ function animate() {
         }
 
     }
+}
+
+function introAnimation() {
+    directControls.dampingFactor = 0.04
+    directControls.setLookAt(0, 0, 10, 0, 0, 0, true)
+    setTimeout(() => {
+        directControls.dampingFactor = 10;
+        app.ui.intro = false;
+    }, 2000)
+
+    setTimeout(() => {
+        line.drawingPlane.children[1].material.opacity = 0;
+    }, 1800)
+
+    setTimeout(() => {
+        line.drawingPlane.children[1].material.opacity = 1;
+    }, 1900)
+
+    setTimeout(() => {
+        line.drawingPlane.children[1].material.opacity = 0;
+    }, 1930)
+
 }
 
 //MINI CAMERA
@@ -1700,8 +1764,6 @@ function drawAxisHelperControls() {
     }, false)
 
     miniAxisRenderer.domElement.addEventListener("mousemove", (e) => {
-
-        app.ui.resetDisabled = false;
         if (directControls.enabled == false) {
             console.log(e.movementX, e.movementY);
             miniAxisMouse.moved = true;
@@ -1709,7 +1771,6 @@ function drawAxisHelperControls() {
     }, false)
     miniAxisRenderer.domElement.addEventListener("touchmove", () => {
 
-        app.ui.resetDisabled = false;
         if (directControls.enabled == false) {
             miniAxisMouse.moved = true;
         }
@@ -1774,7 +1835,6 @@ function repositionCamera() {
         switch (object.name) {
             case 'z':
 
-                app.ui.resetDisabled = true;
                 directControls.dampingFactor = 0.5
                 directControls.enabled = false;
                 directControls.setLookAt(target.x, target.y, target.z + 10, target.x, target.y, target.z, true)
