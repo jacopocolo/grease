@@ -1460,7 +1460,7 @@ app.exportTo = {
                 app.modal.title = "Making you a movie";
                 app.modal.helptext = "This might take a moment, please be patient";
             } else {
-                app.modal.helptext = "Frame " + this.currentLength + " out of " + this.length;
+                app.modal.helptext = "Recording frame " + this.currentLength + " out of " + this.length;
             }
 
             const img = new Image(),
@@ -1496,6 +1496,7 @@ app.exportTo = {
                     case "stdout":
                     case "stderr":
                         messages += msg.data + "\n";
+                        app.modal.helptext = msg.data;
                         break;
                     case "exit":
                         console.log("Process exited with code " + msg.data);
