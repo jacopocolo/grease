@@ -253,13 +253,14 @@ button {
   background-color: var(--accent-color);
   outline: none;
   padding: 0px 8px;
-  border-radius: 6px;
+  border-radius: 8px;
   box-sizing: border-box;
   color: var(--ui-bg-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 44px;
+  text-decoration: none;
+  height: 40px;
 }
 
 #drawingCanvas {
@@ -712,10 +713,10 @@ span:last-child > input[type="radio"]:checked + label + div {
   height: auto;
   margin: 0px auto;
   padding: 14px;
-  background-color: var(--ui-bg-color);
+  /* background-color: var(--ui-bg-color); */
   color: #ffffff;
   border-radius: 2px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33);
+  /* box-shadow: 0 2px 8px rgba(0, 0, 0, 0.33); */
   box-sizing: content-box;
   transition: all 0.3s ease;
   font-weight: 400;
@@ -778,6 +779,14 @@ span:last-child > input[type="radio"]:checked + label + div {
   margin-top: 3em;
   width: 50%;
   float: right;
+}
+
+.modal-button-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: white;
+  height: 40px;
 }
 
 .modal-footer {
