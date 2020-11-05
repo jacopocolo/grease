@@ -25,9 +25,14 @@ var app = new Vue({
         mirror: false,
         autoRotate: false,
         selection: {}, //to be filled from init
+        importFrom: {},
         exportTo: {},
         ui: {
+            intro: true,
+            resetDisabled: true,
             show: true,
+            showDrawingPlane: true,
+            showOverflowMenu: false,
             theme: '',
         },
         modal: {
@@ -35,7 +40,7 @@ var app = new Vue({
             mode: 'loader', //modal, loader
             title: 'Saving your drawing',
             helptext: 'This might take a moment, please be patient',
-            image: ''
+            source: ''
         },
         toast: {
             show: false,
@@ -71,6 +76,22 @@ var app = new Vue({
             //on tool change we always deselect
             app.selection.deselect();
             picking.resetPicking();
+            context.clearRect(0, 0, window.innerWidth, window.innerHeight)
+
+            switch (this.selectedTool) {
+                case "draw":
+                    if (this.ui.showDrawingPlane) {
+                        line.showDrawingPlane()
+                    }
+                    break;
+                case "erase":
+                    line.hideDrawingPlane()
+                    break;
+                case "select":
+                    line.hideDrawingPlane()
+                    break;
+            }
+
         },
         selectedColor: function () {
             switch (true) {
@@ -116,6 +137,10 @@ var app = new Vue({
         },
         toggleUi: function () {
             app.ui.show = !app.ui.show;
+        },
+        toggleDrawingPlane: function () {
+            this.ui.showDrawingPlane = !this.ui.showDrawingPlane
+            line.drawingPlane.children[0].material.opacity = this.ui.showDrawingPlane ? '1' : '0'
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
@@ -211,31 +236,25 @@ Vue.component("modal", {
     props: ['mode', 'title', 'helptext', 'source'],
     template: `
     <div class="modal-mask">
-        <div class="modal-wrapper">
+
+                        <div class="modal-wrapper">
             <div class="modal-container">
 
                 <div v-if="mode == 'modal'" class="modal-body">
-                    <slot name="body">
-                        <div class="modal-left-column">
-                            <img :src="source" class="saveImg" id="saveImg">
+                
+                <div class="modal-button-close" @click="$emit('close')">
+                            Close
                         </div>
-                        <div class="modal-right-column">
-                        
+    
+                    <slot name="body">
                         <div class="modal-header">
                             <slot name="header">
                                 {{title}}
                             </slot>
                         </div>
 
-                        <div class="modal-helptext">
-                            <slot name="helptext">
-                               <a download="video.mp4" :href="helptext">Link</a>
-                            </slot>
-                        </div>
-                        <div class="primaryButton modal-button" @click="$emit('close')">
-                            Done
-                        </div>
-                        </div>
+                        <video style="margin-bottom: 16px" :src="source" controls autoplay loop></video>
+                               <a class="primaryButton" download="video.mp4" :href="helptext">Download</a>
                     </slot>
                 </div>
 
@@ -370,6 +389,7 @@ let line = {
             this.setGeometry();
         },
         end: function () {
+
             this.geometry.userData = this.geometry.vertices;
             this.setGeometry('mouseup');
             //reset
@@ -412,26 +432,66 @@ let line = {
         },
     },
     drawingPlane: null, //defined in init
+    drawingPlaneNeedsUpdate: false,
+    count: 0,
     addDrawingPlane: function () {
-        var geometry = new THREE.PlaneGeometry(1, 1, 1);
-        var material = new THREE.MeshBasicMaterial({ color: new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--bg-color')), transparent: true, opacity: 0.8, fog: false });
+        var geometry = new THREE.PlaneGeometry(4, 4, 4);
+        var grid = new THREE.TextureLoader().load("../img/grid.png");
+        var material = new THREE.MeshBasicMaterial({
+            map: grid,
+            // color: 0xffffff,
+            transparent: true,
+            side: THREE.DoubleSide,
+            opacity: 1,
+            fog: false
+        });
         var planeBg = new THREE.Mesh(geometry, material);
-        var planeGrid = new THREE.GridHelper(
-            1,
-            1,
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
-            new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
-        );
-        planeGrid.rotation.x = Math.PI / 2;
+
+        var geometry = new THREE.PlaneGeometry(4, 4, 4);
+        var grid = new THREE.TextureLoader().load("../img/meta.png");
+        var material = new THREE.MeshBasicMaterial({
+            map: grid,
+            // color: 0xffffff,
+            transparent: true,
+            opacity: 1,
+            fog: false
+        });
+        var planeMeta = new THREE.Mesh(geometry, material);
+        planeMeta.position.z = planeBg.position.z + 1;
+
+        // var planeGrid = new THREE.GridHelper(
+        //     1,
+        //     1,
+        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light')),
+        //     new THREE.Color(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'))
+        // );
+        // planeGrid.rotation.x = Math.PI / 2;
         this.drawingPlane = new THREE.Group();
         this.drawingPlane.add(planeBg);
-        this.drawingPlane.add(planeGrid);
+        this.drawingPlane.add(planeMeta);
         scene.add(this.drawingPlane);
     },
     updateDrawingPlane: function () {
-        this.drawingPlane.rotation.copy(camera.rotation);
-        //camera zoom has a minimum of 450 and a maximum of infinity
-    }
+
+        let target = new THREE.Vector3();
+        target = directControls.getTarget(target);
+        var x = target.x;
+        var y = target.y;
+        var z = target.z;
+
+        this.drawingPlane.position.set(x, y, z);
+
+        if (this.count < 60) {
+            this.drawingPlane.quaternion.slerp(camera.quaternion, 0.2);
+            this.count++
+        }
+    },
+    hideDrawingPlane: function () {
+        line.drawingPlane.children[0].material.opacity = 0
+    },
+    showDrawingPlane: function () {
+        line.drawingPlane.children[0].material.opacity = 1
+    },
 };
 
 let mirror = {
@@ -652,7 +712,6 @@ let picking = {
         })
     },
     resetPicking: function () {
-        console.log("resetPicking")
         if (this.scene != null) {
             this.idToObject = {};
             this.id = 1;
@@ -811,35 +870,33 @@ class vertexSelection {
 
             if (object.layers.mask == 2) {
                 //get the projected bounding points of the rectangle
-                let boundingBoxPoints;
+                let boundingBoxPoints = this.getObjectBoundingBoxPoints(object);
 
-                try { boundingBoxPoints = this.getObjectBoundingBoxPoints(object); } catch {
-                    console.log(err)
-                }
+                if (boundingBoxPoints != undefined) {
+                    for (var j = boundingBoxPoints.length; j--;) {
 
-                for (var j = boundingBoxPoints.length; j--;) {
+                        //check if any of the points is part of the selection 
+                        let point = boundingBoxPoints[j]
+                        if (this.pointInRect(point.x, point.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
 
-                    //check if any of the points is part of the selection 
-                    let point = boundingBoxPoints[j]
-                    if (this.pointInRect(point.x, point.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
+                            //If even one point is inside of the selection, it's worth checking for all the vertices, otherwise not
+                            for (var k = object.geometry.vertices.length; k--;) {
 
-                        //If even one point is inside of the selection, it's worth checking for all the vertices, otherwise not
-                        for (var k = object.geometry.vertices.length; k--;) {
+                                let p = new THREE.Vector3(
+                                    object.geometry.vertices[k].x,
+                                    object.geometry.vertices[k].y,
+                                    object.geometry.vertices[k].z
+                                );
+                                p.applyMatrix4(object.matrix);
+                                p.project(camera);
 
-                            let p = new THREE.Vector3(
-                                object.geometry.vertices[k].x,
-                                object.geometry.vertices[k].y,
-                                object.geometry.vertices[k].z
-                            );
-                            p.applyMatrix4(object.matrix);
-                            p.project(camera);
+                                if (this.pointInRect(p.x, p.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
 
-                            if (this.pointInRect(p.x, p.y, this.start.x, this.start.y, this.end.x, this.end.y)) {
+                                    selectedObjects.push(object);
+                                    return
+                                }
 
-                                selectedObjects.push(object);
-                                return
                             }
-
                         }
                     }
                 }
@@ -907,9 +964,14 @@ app.selection = {
         this.selector.end.x = mouse.tx;
         this.selector.end.y = mouse.ty;
         let objectsInRect = this.selector.select();
-        objectsInRect.forEach(object => {
-            this.selection.push(object);
-        })
+
+        try {
+            objectsInRect.forEach(object => {
+                this.selection.push(object);
+            })
+        } catch (err) {
+            alert(err)
+        }
 
         if (this.transforming() === false) {
             if (this.selection.length == 0 || this.selected.length > 0) {
@@ -1099,69 +1161,107 @@ app.selection = {
     },
 };
 
-let importFrom = {
+app.importFrom = {
     json: function (json) {
-        console.log(json);
-        var json = JSON.parse(json);
-        var lightestColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
-        var lightColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
-        var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
-        var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
-        json.forEach(importedLine => {
-            if (importedLine.g.length > 1) { //Let's make sure there are at least 2 points in the line
-                var vertices = [];
 
-                for (var i = 0; i < importedLine.g.length; i = i + 3) {
-                    vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+        var input, file, fr;
+        var input = document.createElement('input');
+        input.style.display = 'none';
+        input.type = 'file';
+        document.body.appendChild(input);
+
+        input.onchange = event => {
+
+            file = event.target.files[0];
+
+            function onReaderLoad(event) {
+                var json = JSON.parse(event.target.result);
+
+                var lightestColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest');
+                var lightColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-light');
+                var mediumColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-medium');
+                var darkColor = getComputedStyle(document.documentElement).getPropertyValue('--line-color-dark');
+
+                try {
+                    json.forEach(importedLine => {
+                        if (importedLine.g.length > 1) { //Let's make sure there are at least 2 points in the line
+                            var vertices = [];
+
+                            for (var i = 0; i < importedLine.g.length; i = i + 3) {
+                                vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+                            }
+
+
+                            var color;
+                            switch (true) {
+                                case (importedLine.c == 0):
+                                    color = lightestColor;
+                                    break;
+                                case (importedLine.c == 1):
+                                    color = lightColor;
+                                    break;
+                                case (importedLine.c == 2):
+                                    color = mediumColor;
+                                    break;
+                                case (importedLine.c == 3):
+                                    color = darkColor;
+                                    break;
+                                default:
+                                    color = lightestColor; //safe
+                            }
+
+                            var l = line.render.fromVertices(
+                                vertices,
+                                color,
+                                importedLine.w,
+                                importedLine.a,
+                                true);
+
+                            l.position.set(
+                                importedLine.p.x,
+                                importedLine.p.y,
+                                importedLine.p.z
+                            );
+                            l.quaternion.set(
+                                importedLine.q._x,
+                                importedLine.q._y,
+                                importedLine.q._z,
+                                importedLine.q._w,
+                            );
+                            l.scale.set(
+                                importedLine.s.x,
+                                importedLine.s.y,
+                                importedLine.s.z
+                            );
+
+                            mirror.updateMirrorOf(l);
+                        };
+                    })
+                    app.ui.showOverflowMenu = false;
+                } catch (err) {
+                    app.toast.show = true;
+                    app.toast.text = "Error. No line data found";
+                    setTimeout(function () {
+                        app.toast.show = false;
+                    }, 2000)
                 }
+            }
 
+            if (file.type == "application/json") {
+                var reader = new FileReader();
+                reader.onload = onReaderLoad;
+                reader.readAsText(file);
 
-                var color;
-                switch (true) {
-                    case (importedLine.c == 0):
-                        color = lightestColor;
-                        break;
-                    case (importedLine.c == 1):
-                        color = lightColor;
-                        break;
-                    case (importedLine.c == 2):
-                        color = mediumColor;
-                        break;
-                    case (importedLine.c == 3):
-                        color = darkColor;
-                        break;
-                    default:
-                        color = lightestColor; //safe
-                }
+            } else {
+                app.toast.show = true;
+                app.toast.text = "Error. File type not correct";
+                setTimeout(function () {
+                    app.toast.show = false;
+                }, 2000)
+            }
+        }
+        input.click();
 
-                var l = line.render.fromVertices(
-                    vertices,
-                    color,
-                    importedLine.w,
-                    importedLine.a,
-                    true);
-
-                l.position.set(
-                    importedLine.p.x,
-                    importedLine.p.y,
-                    importedLine.p.z
-                );
-                l.quaternion.set(
-                    importedLine.q._x,
-                    importedLine.q._y,
-                    importedLine.q._z,
-                    importedLine.q._w,
-                );
-                l.scale.set(
-                    importedLine.s.x,
-                    importedLine.s.y,
-                    importedLine.s.z
-                );
-
-                mirror.updateMirrorOf(l);
-            };
-        })
-        app.modal.show = false;
     }
 };
 
@@ -1233,7 +1333,13 @@ app.exportTo = {
                 return
             }
         });
-        return json
+        // return json
+        var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(json));
+        var el = document.createElement("a");;
+        el.setAttribute("href", dataStr);
+        el.setAttribute("download", "scene.json");
+        el.click();
+        app.ui.showOverflowMenu = false;
     },
     geometry: function () {
         app.selection.deselect();
@@ -1283,9 +1389,10 @@ app.exportTo = {
         var link = document.createElement('a');
         link.style.display = 'none';
         document.body.appendChild(link); // Firefox workaround, see #6594
-        function save(blob, filename) {
+
+        function save(blob) {
             link.href = URL.createObjectURL(blob);
-            link.download = filename;
+            link.download = "scene.gltf";
             link.click();
             // URL.revokeObjectURL( url ); breaks Firefox...
         }
@@ -1330,9 +1437,13 @@ app.exportTo = {
     mp4: {
         exporting: false,
         currentLength: 0,
-        length: 10,
-        images: [],
+        length: 60,
+        images: new Array(),
         worker: new Worker("../build/ffmpeg-worker-mp4.js"),
+        start: function () {
+            camera.layers.disable(0)
+            this.exporting = true;
+        },
         pad: function (n, insetWidth, z) {
             z = z || "0";
             n = n + "";
@@ -1341,12 +1452,15 @@ app.exportTo = {
         addFrame: function () {
 
             if (this.currentLength == 0) {
+                this.images = new Array();
                 app.modal.show = true;
+                app.ui.show = false;
+                app.ui.showOverflowMenu = false;
                 app.modal.mode = 'loader';
                 app.modal.title = "Making you a movie";
                 app.modal.helptext = "This might take a moment, please be patient";
             } else {
-                app.modal.helptext = "Frame " + this.currentLength + " out of " + this.length;
+                app.modal.helptext = "Recording frame " + this.currentLength + " out of " + this.length;
             }
 
             const img = new Image(),
@@ -1382,6 +1496,7 @@ app.exportTo = {
                     case "stdout":
                     case "stderr":
                         messages += msg.data + "\n";
+                        app.modal.helptext = msg.data;
                         break;
                     case "exit":
                         console.log("Process exited with code " + msg.data);
@@ -1403,8 +1518,8 @@ app.exportTo = {
                 arguments: [
                     "-r",
                     "20",
-                    "-stream_loop", //loop twice
-                    "1",            //loop twice
+                    // "-stream_loop", //loop twice
+                    // "1",            //loop twice
                     "-i",
                     "img%03d.jpeg",
                     "-c:v",
@@ -1426,6 +1541,7 @@ app.exportTo = {
             const url = webkitURL.createObjectURL(output);
             console.log("Completed video")
             app.modal.title = "Here’s your video";
+            app.modal.source = url;
             app.modal.helptext = url;
             app.modal.mode = "modal";
             console.log("done");
@@ -1452,6 +1568,7 @@ function onWindowResize() {
 }
 
 init();
+introAnimation();
 animate();
 
 function init() {
@@ -1515,7 +1632,7 @@ function init() {
     camera.layers.enable(0); // enabled by default
     camera.layers.enable(1);
     camera.zoom = 160;
-    camera.position.set(0, 0, 10);
+    camera.position.set(10, 10, 10);
 
     clock = new THREE.Clock();
 
@@ -1549,19 +1666,32 @@ function init() {
         controls.target = target;
         targetSphere.position.set(target.x, target.y, target.z)
         if (app.experimental) { line.drawingPlane.position.set(target.x, target.y, target.z) }
-    })
+    });
+    directControls.addEventListener("sleep", () => {
+        let target = new THREE.Vector3();
+        target = directControls.getTarget(target);
+        var x = target.x;
+        var y = target.y;
+        var z = target.z;
+
+        line.count = 0;
+
+        if (camera.position.z != 10 || (x != 0) || (y != 0) || (z != 0)) {
+            app.ui.resetDisabled = false;
+        } else {
+            app.ui.resetDisabled = true;
+        }
+    });
 
     transformControls = new TransformControls(camera, drawingCanvas);
 
     miniAxisCamera = new THREE.OrthographicCamera();
-    miniAxisCamera.position.copy(camera.position);
+    miniAxisCamera.position.set(0, 0, 10);
     //miniAxisCamera.zoom = 750;
     miniAxisCamera.layers.enable(0);
     miniAxisCamera.layers.enable(1);
 
-    if (app.experimental) {
-        line.addDrawingPlane()
-    }
+    line.addDrawingPlane()
 
     window.addEventListener("resize", onWindowResize);
     window.addEventListener("orientationchange", onWindowResize);
@@ -1577,7 +1707,7 @@ function animate() {
     const delta = clock.getDelta();
     updateminiAxisScene();
 
-    if (app.experimental) {
+    if (!app.ui.intro) {
         line.updateDrawingPlane();
     }
 
@@ -1597,7 +1727,6 @@ function animate() {
     miniAxisRenderer.render(miniAxisScene, miniAxisCamera);
 
     if (app.exportTo.mp4.exporting) {
-        camera.layers.disable(0)
 
         if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
             directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
@@ -1613,6 +1742,28 @@ function animate() {
         }
 
     }
+}
+
+function introAnimation() {
+    directControls.dampingFactor = 0.04
+    directControls.setLookAt(0, 0, 10, 0, 0, 0, true)
+    setTimeout(() => {
+        directControls.dampingFactor = 10;
+        app.ui.intro = false;
+    }, 2000)
+
+    setTimeout(() => {
+        line.drawingPlane.children[1].material.opacity = 0;
+    }, 1800)
+
+    setTimeout(() => {
+        line.drawingPlane.children[1].material.opacity = 1;
+    }, 1900)
+
+    setTimeout(() => {
+        line.drawingPlane.children[1].material.opacity = 0;
+    }, 1930)
+
 }
 
 //MINI CAMERA
@@ -1704,6 +1855,7 @@ function drawAxisHelperControls() {
         }
     }, false)
     miniAxisRenderer.domElement.addEventListener("touchmove", () => {
+
         if (directControls.enabled == false) {
             miniAxisMouse.moved = true;
         }
@@ -1751,12 +1903,14 @@ function repositionCamera() {
         miniAxisMouse.updateCoordinates(event);
         var miniAxisRaycaster = new THREE.Raycaster();
         miniAxisRaycaster.layers.set(1);
-        miniAxisRaycaster.setFromCamera(
-            new THREE.Vector2(
-                miniAxisMouse.tx,
-                miniAxisMouse.ty
-            ),
-            miniAxisCamera);
+        try {
+            miniAxisRaycaster.setFromCamera(
+                new THREE.Vector2(
+                    miniAxisMouse.tx,
+                    miniAxisMouse.ty
+                ),
+                miniAxisCamera);
+        } catch (err) { return }
         var object = miniAxisRaycaster.intersectObjects(miniAxisScene.children)[0].object;
 
         let target = new THREE.Vector3();
@@ -1767,6 +1921,7 @@ function repositionCamera() {
 
         switch (object.name) {
             case 'z':
+
                 directControls.dampingFactor = 0.5
                 directControls.enabled = false;
                 directControls.setLookAt(target.x, target.y, target.z + 10, target.x, target.y, target.z, true)

@@ -12,7 +12,7 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, height=device-height, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0" />
-    <script src="../src/script.js" type="module" defer></script>
+    <script src="../src/app.js" type="module" defer></script>
     <script src="../build/utils.js" type="module" defer></script>
     <link rel="stylesheet" href="reset.css" />
     <link rel="stylesheet" href="style.css" />
@@ -23,15 +23,15 @@
 
 <body>
     <div id="app">
-        <modal v-if="modal.show" @close="modal.show = false" :mode="modal.mode" :title="modal.title"
-            :helptext="modal.helptext" :source="modal.image">
+        <modal v-if="modal.show" @close="modal.show = false; ui.show = true" :mode="modal.mode" :title="modal.title"
+            :helptext="modal.helptext" :source="modal.source">
         </modal>
         <toast v-if="toast.show" :text=toast.text></toast>
 
         <canvas id="drawingCanvas"></canvas>
         <div id="main"></div>
 
-        <div id="mainToolbar">
+        <div id="mainToolbar" v-bind:class="[ui.show ? '' : 'hidden']">
 
             <div id="toolSelection">
                 <span>
@@ -61,7 +61,6 @@
         <div id="miniAxis" v-bind:class="[ui.show ? '' : 'hidden']">
             <div class="handle" id="miniAxisHandle">
                 <div class="handleLine"></div>
-                <div class="handleLine"></div>
             </div>
             <div class="circle-under-orientation-gizmo"></div>
             <div id="cameraControlSelection">
@@ -87,15 +86,16 @@
                     <div></div>
                 </span>
             </div>
-            <span class="reset-camera" @click="resetCamera()">Reset</span>
+            <span class="reset-camera" @click="resetCamera()"
+                v-bind:class="[ui.resetDisabled ? 'disabled ' : '']">↺</span>
         </div>
 
         <div class="toolbar" id="toolbar"
             v-bind:class="[ui.show == true ? '' : 'hidden', selectedTool != 'erase' ? '' : 'hidden']">
-            <div class="handle" id="toolbarHandle">
+            <!-- <div class="handle" id="toolbarHandle">
                 <div class="handleLine"></div>
                 <div class="handleLine"></div>
-            </div>
+            </div> -->
 
             <span class="lineTools" v-if="selectedTool == 'draw'">
                 <div class="toolbarLabel">Width</div>
@@ -197,7 +197,7 @@
                     </span>
 
                 </span>
-                <div class="button" id="zDepth" v-if="experimental">
+                <!-- <div class="button" id="zDepth" v-if="experimental">
                     <span class="toolbarLabel">Drawing plane</span>
                     <div>
                         <label for="distance">
@@ -208,8 +208,8 @@
                         </label>
                         <input type="range" id="distance" name="distance" min="-0.25" max="0.25" step="0.01" value="0"
                             v-model="zDepth">
-                    </div>
-                </div>
+                    </div> 
+                </div>-->
 
             </span>
 
@@ -235,19 +235,20 @@
             </span>
             <button v-if="selectedTool === 'select'" id="duplicate" class="button"
                 v-bind:class="[selection.selected.length ? '' : 'disabled']" v-on:click="duplicateSelected">Duplicate
-                selection
             </button>
         </div>
-
-        <div id="saveLoad">
-            <button id="Save" @click="exportTo.json()" v-bind:class="[ui.show ? '' : 'hidden']">Save…</button>
-            <button id="Load" v-bind:class="[ui.show ? '' : 'hidden']">Load…</button>
-            <button v-if="experimental" id="Export" @click="exportTo.geometry"
-                v-bind:class="[ui.show ? '' : 'hidden']">Export
+        <button id="more" @click="ui.showOverflowMenu = !ui.showOverflowMenu"
+            v-bind:class="[ui.show ? '' : 'hidden']">{{ui.showOverflowMenu?"X":"…"}}</button>
+        <div id="overflowMenu" v-bind:class="[ui.showOverflowMenu  ? '' : 'hidden']">
+            <button id=" Save" @click="exportTo.json()">Save…</button>
+            <button id="Load" @click="importFrom.json()">Load…</button>
+            <button id=" Export" @click="exportTo.geometry">Export
                 geometry</button>
-            <button id="makeVideo" @click="exportTo.mp4.exporting = true"
-                v-bind:class="[ui.show ? '' : 'hidden']">video</button>
-            <button @click="toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button>
+            <button id="makeVideo" @click="exportTo.mp4.start()">Export
+                video</button>
+            <button id="hidePlane"
+                @click="toggleDrawingPlane()">{{ui.showDrawingPlane?"Hide drawing plane":"Show drawing plane"}}</button>
+            <!-- <button @click=" toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button> -->
         </div>
     </div>
 </body>
