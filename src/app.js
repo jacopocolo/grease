@@ -8,6 +8,8 @@ import {
     MeshLineRaycast,
     MeshLineMaterial
 } from '../build/meshline.js';
+import { simplify } from '../build/simplify.js'
+import { simplify4d } from '../build/simplify4d.js'
 import { GLTFExporter } from '../build/GLTFExporter.js';
 import Vue from '../build/vue.esm.browser.js';
 
@@ -21,6 +23,9 @@ var app = new Vue({
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 3, //Default 3
+        simplify: 0.0001,
+        smooth: 7,
+        iterations: 1,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
@@ -296,14 +301,15 @@ var miniAxis = document.getElementById("miniAxis");
 CameraControls.install({ THREE: THREE });
 
 let mouse = {
-    multitouch: false,
     down: false,
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
+    force: 0,
     smoothing: function () {
-        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
+        return app.smooth
+        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
         if (event.touches
@@ -314,6 +320,12 @@ let mouse = {
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
             this.cy = event.changedTouches[0].pageY;
+
+            if (event.touches[0] && event.touches[0]["force"] !== undefined) {
+                this.force = event.touches[0]["force"]
+            } else {
+                this.force = 0
+            }
         }
         else {
             if (
@@ -332,10 +344,10 @@ let mouse = {
 
 let line = {
     start: function () {
-        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
+        this.render.start(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
+        this.render.update(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true);
     },
     end: function () {
         this.render.end();
@@ -344,13 +356,15 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
-        start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
+        start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
+            this.line.geometry.userData.originalPoints = [];
+            this.line.geometry.userData.vertices = [];
             var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 3000, //kind of eyballing it
+                lineWidth: lineWidth / 1000, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
@@ -381,15 +395,57 @@ let line = {
             mesh.layers.set(1);
             this.uuid = mesh.uuid;
         },
-        update: function (x, y, z, unproject) {
-            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
-            var vNow = new THREE.Vector3(x, y, z);
-            if (unproject) { vNow.unproject(camera) };
-            this.geometry.vertices.push(vNow);
+        update: function (x, y, z, force, unproject) {
+            var v3 = new THREE.Vector3(x, y, z);
+            if (unproject) { v3.unproject(camera) };
+            var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
+
+            let segment = 5
+
+            if (this.line.geometry.userData.originalPoints.length % segment === 0) {
+                this.line.geometry.userData.originalPoints.push(v4);
+
+                let simplifiedArray = this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment);
+
+                for (let i = 0; i < app.iterations; i++) {
+                    simplifiedArray = simplify4d(
+                        this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment),
+                        app.simplify,
+                        true
+                    );
+                }
+
+                for (let i = 0; i < segment; i++) {
+                    this.line.geometry.userData.vertices.pop()
+                    this.geometry.vertices.pop()
+                }
+
+                simplifiedArray.forEach(p => {
+                    this.line.geometry.userData.vertices.push(p)
+                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
+                })
+            } else {
+                var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
+                this.geometry.vertices.push(v3);
+                this.line.geometry.userData.originalPoints.push(v4);
+            }
+
+            //If we don't have force, we artificially generate some based on distance between points
+            // if (force == 0 && this.geometry.vertices.length > 1) {
+            //     function map(n, start1, stop1, start2, stop2) {
+            //         return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+            //     };
+            //     force = this.geometry.vertices[this.geometry.vertices.length - 1].distanceTo(v3)
+            //     force = map(force, 0, 0.5, 0.1, 1)
+            // }
+
+            // var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
+            // this.geometry.vertices.push(v3);
+            this.line.geometry.userData.vertices.push(v4);
+
             this.setGeometry();
         },
         end: function () {
-
             this.geometry.userData = this.geometry.vertices;
             this.setGeometry('mouseup');
             //reset
@@ -399,7 +455,32 @@ let line = {
         },
         setGeometry(mouseup) {
             this.line.setGeometry(this.geometry, function (p) {
-                return Math.pow(2 * p * (1 - p), 0.5) * 4
+
+                function map(n, start1, stop1, start2, stop2) {
+                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+                };
+                let index = Math.round(p * (this.geometry.vertices.length - 1))
+                let minWidth = 0.1;
+                let baseWidth = 1;
+                let width = 2; //this.geometry.geometry.userData.vertices[index].w * 4
+                let tipLength = 5;
+
+                //Beginning of the line
+                if (index < tipLength) {
+                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
+                }
+                //End of the line
+                else if (
+                    this.geometry.vertices.length > (tipLength * 2) &&
+                    index > this.geometry.vertices.length - tipLength
+                ) {
+                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
+                }
+                //bulk of the line
+                else {
+                    return baseWidth + width
+                }
+
             });
 
             if (mouseup) {
@@ -413,7 +494,6 @@ let line = {
                 this.setGeometry();
                 this.geometry.verticesNeedsUpdate = true;
                 this.geometry.needsUpdate = true;
-
                 if (mesh.userData.mirror) {
                     mirror.updateMirrorOf(mesh);
                 }
@@ -1018,7 +1098,7 @@ app.selection = {
             //     originalPosition.z
             // )
             scene.add(duplicate);
-            //duplicate.raycast = MeshLineRaycast;
+            duplicate.raycast = MeshLineRaycast;
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
             //deselect selected object
             this.deselect();
