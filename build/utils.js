@@ -58,3 +58,37 @@ function makeDragable(dragHandle, dragTarget) {
 makeDragable('#miniAxisHandle', '#miniAxis');
 // makeDragable('#toolbarHandle', '#toolbar')
 
+function hexToRgb(hex) {
+    var result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+    } : null;
+}
+
+function Rgb(rgb) {
+    if (!(this instanceof Rgb)) return new Rgb(rgb);
+    var c = rgb.match(/\d+(\.\d+)?%?/g);
+    if (c) {
+        c = c.map(function (itm) {
+            if (itm.indexOf('%') != -1) itm = parseFloat(itm) * 2.55;
+            return parseInt(itm);
+        });
+    }
+    this.r = c[0];
+    this.g = c[1];
+    this.b = c[2];
+}
+
+//Update css color variables so they can be used with opacity
+let bgColor = Rgb(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color'))
+
+document.documentElement.style.setProperty('--ui-bg-color-r', bgColor.r);
+document.documentElement.style.setProperty('--ui-bg-color-g', bgColor.g);
+document.documentElement.style.setProperty('--ui-bg-color-b', bgColor.b);
+
+console.log(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color-r'))
+
+//Should also update the text color if it's too dark
+//https://stackoverflow.com/questions/12043187/how-to-check-if-hex-color-is-too-black

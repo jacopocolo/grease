@@ -1007,7 +1007,7 @@ app.selection = {
         if (this.transforming() === false) {
 
             let raycaster = new THREE.Raycaster();
-            raycaster.params.Line.threshold = 0.01;
+            raycaster.params.Line.threshold = 0.05;
             raycaster.layers.set(1);
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
             try {
