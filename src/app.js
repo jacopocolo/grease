@@ -23,9 +23,7 @@ var app = new Vue({
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 3, //Default 3
-        simplify: 0.0001,
-        smooth: 7,
-        iterations: 1,
+        smooth: 20,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
@@ -118,6 +116,9 @@ var app = new Vue({
         },
         zDepth: function () {
             line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
+        },
+        smooth: function (val) {
+            line.render.buffer.size = val;
         }
     },
     methods: {
@@ -180,7 +181,6 @@ var app = new Vue({
                 drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
                 drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
                 drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
-                console.log("event added")
             }
         },
         onTapMove: function (event) {
@@ -308,7 +308,7 @@ let mouse = {
     cy: 0, //y coord for canvas
     force: 0,
     smoothing: function () {
-        return app.smooth
+        return 0
         // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
@@ -356,13 +356,49 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
+        buffer: {
+            points: [],
+            size: app.smooth,
+            appendToBuffer: function (pt) {
+                this.points.push(pt);
+                while (this.points.length > this.size) {
+                    this.points.shift();
+                }
+            },
+            getAveragePoint: function (offset) {
+                var len = this.points.length;
+                if (len % 2 === 1 || len >= this.size) {
+                    var totalX = 0;
+                    var totalY = 0;
+                    var totalZ = 0;
+                    var totalW = 0;
+                    var pt, i;
+                    var count = 0;
+                    for (i = offset; i < len; i++) {
+                        count++;
+                        pt = this.points[i];
+                        totalX += pt.x;
+                        totalY += pt.y;
+                        totalZ += pt.z;
+                        totalW += pt.w;
+                    }
+                    return {
+                        x: totalX / count,
+                        y: totalY / count,
+                        z: totalZ / count,
+                        w: totalW / count
+                    }
+                }
+                return null
+            },
+        },
         start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
             this.line.geometry.userData.originalPoints = [];
-            this.line.geometry.userData.vertices = [];
+            this.line.geometry.userData.force = [];
             var material = new MeshLineMaterial({
                 lineWidth: lineWidth / 1000, //kind of eyballing it
                 sizeAttenuation: 1,
@@ -400,55 +436,24 @@ let line = {
             if (unproject) { v3.unproject(camera) };
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
 
-            let segment = 5
-
-            if (this.line.geometry.userData.originalPoints.length % segment === 0) {
-                this.line.geometry.userData.originalPoints.push(v4);
-
-                let simplifiedArray = this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment);
-
-                for (let i = 0; i < app.iterations; i++) {
-                    simplifiedArray = simplify4d(
-                        this.line.geometry.userData.originalPoints.slice(this.line.geometry.userData.originalPoints.length - segment),
-                        app.simplify,
-                        true
-                    );
-                }
-
-                for (let i = 0; i < segment; i++) {
-                    this.line.geometry.userData.vertices.pop()
-                    this.geometry.vertices.pop()
-                }
-
-                simplifiedArray.forEach(p => {
-                    this.line.geometry.userData.vertices.push(p)
-                    this.geometry.vertices.push(new THREE.Vector3(p.x, p.y, p.z))
-                })
-            } else {
-                var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
+            this.buffer.appendToBuffer(v4);
+            let pt = this.buffer.getAveragePoint(0);
+            if (pt) {
+                v3 = new THREE.Vector3(pt.x, pt.y, pt.z);
+                this.line.geometry.userData.force.push(pt.w)
                 this.geometry.vertices.push(v3);
-                this.line.geometry.userData.originalPoints.push(v4);
             }
 
-            //If we don't have force, we artificially generate some based on distance between points
-            // if (force == 0 && this.geometry.vertices.length > 1) {
-            //     function map(n, start1, stop1, start2, stop2) {
-            //         return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
-            //     };
-            //     force = this.geometry.vertices[this.geometry.vertices.length - 1].distanceTo(v3)
-            //     force = map(force, 0, 0.5, 0.1, 1)
-            // }
-
-            // var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force)
-            // this.geometry.vertices.push(v3);
-            this.line.geometry.userData.vertices.push(v4);
-
             this.setGeometry();
+
         },
         end: function () {
-            this.geometry.userData = this.geometry.vertices;
+            //this produces only a very minor reduction of length. Not sure if we need it
+            //this.geometry.vertices = simplify(this.geometry.vertices, 0.00001, true)
+
             this.setGeometry('mouseup');
             //reset
+            this.buffer.points = [];
             this.line = null;
             this.geometry = null;
             this.uuid = null;
@@ -460,21 +465,20 @@ let line = {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
                 let index = Math.round(p * (this.geometry.vertices.length - 1))
-                let minWidth = 0.1;
-                let baseWidth = 1;
-                let width = 2; //this.geometry.geometry.userData.vertices[index].w * 4
-                let tipLength = 5;
+                let minWidth = 0;
+                let baseWidth = 3;
+                let width = this.geometry.geometry.userData.force[index] * 8
+                let tipLength = 3;
 
                 //Beginning of the line
                 if (index < tipLength) {
-                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) + width
+                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) //+ width
                 }
                 //End of the line
                 else if (
-                    this.geometry.vertices.length > (tipLength * 2) &&
                     index > this.geometry.vertices.length - tipLength
                 ) {
-                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) + width
+                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) //+ width
                 }
                 //bulk of the line
                 else {
@@ -485,6 +489,7 @@ let line = {
 
             if (mouseup) {
                 var mesh = scene.getObjectByProperty('uuid', this.uuid);
+                this.geometry.verticesNeedsUpdate = true;
                 mesh.position.set(
                     mesh.geometry.boundingSphere.center.x,
                     mesh.geometry.boundingSphere.center.y,
@@ -492,7 +497,6 @@ let line = {
                 );
                 this.geometry.center();
                 this.setGeometry();
-                this.geometry.verticesNeedsUpdate = true;
                 this.geometry.needsUpdate = true;
                 if (mesh.userData.mirror) {
                     mirror.updateMirrorOf(mesh);
@@ -1756,7 +1760,7 @@ function init() {
 
         line.count = 0;
 
-        if (camera.position.z != 10 || (x != 0) || (y != 0) || (z != 0)) {
+        if (camera.position.z != 10 || (x != 0) || (y != 0) || (z != 0) || camera.zoom != 160) {
             app.ui.resetDisabled = false;
         } else {
             app.ui.resetDisabled = true;

@@ -88,7 +88,5 @@ document.documentElement.style.setProperty('--ui-bg-color-r', bgColor.r);
 document.documentElement.style.setProperty('--ui-bg-color-g', bgColor.g);
 document.documentElement.style.setProperty('--ui-bg-color-b', bgColor.b);
 
-console.log(getComputedStyle(document.documentElement).getPropertyValue('--ui-bg-color-r'))
-
 //Should also update the text color if it's too dark
 //https://stackoverflow.com/questions/12043187/how-to-check-if-hex-color-is-too-black
