@@ -63,11 +63,11 @@
 
 @font-face {
   font-family: "VCR";
-  src: url("/fonts/VCR_OSD_MONO.eot");
-  src: url("/fonts/VCR_OSD_MONO.eot") format("embedded-opentype"),
-  url("/fonts/VCR_OSD_MONO.woff") format("woff"),
-  url("/fonts/VCR_OSD_MONO.ttf") format("truetype"),
-  url("/fonts/VCR_OSD_MONO.svg") format("svg");
+  src: url("../fonts/VCR_OSD_MONO.eot");
+  src: url("../fonts/VCR_OSD_MONO.eot") format("embedded-opentype"),
+  url("../fonts/VCR_OSD_MONO.woff") format("woff"),
+  url("../fonts/VCR_OSD_MONO.ttf") format("truetype"),
+  url("../fonts/VCR_OSD_MONO.svg") format("svg");
   font-weight: "normal";
   font-style: "normal"; }
 

@@ -23,7 +23,7 @@ var app = new Vue({
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 3, //Default 3
-        smooth: 20,
+        smooth: 8,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
@@ -460,7 +460,6 @@ let line = {
         },
         setGeometry(mouseup) {
             this.line.setGeometry(this.geometry, function (p) {
-
                 function map(n, start1, stop1, start2, stop2) {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
                 };
@@ -1076,6 +1075,7 @@ app.selection = {
                 duplicate.layers.set(1);
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
+                duplicate.raycast = MeshLineRaycast;
                 duplicateArray.push(duplicate);
                 scene.add(duplicate);
                 mirror.object(duplicate, duplicate.userData.mirrorAxis);
@@ -1523,9 +1523,10 @@ app.exportTo = {
         currentLength: 0,
         length: 60,
         images: new Array(),
-        worker: new Worker("../build/ffmpeg-worker-mp4.js"),
+        worker: undefined,
         start: function () {
-            camera.layers.disable(0)
+            this.worker = new Worker("../build/ffmpeg-worker-mp4.js");
+            camera.layers.disable(0);
             this.exporting = true;
         },
         pad: function (n, insetWidth, z) {
