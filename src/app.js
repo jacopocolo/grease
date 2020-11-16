@@ -1522,9 +1522,14 @@ app.exportTo = {
         exporting: false,
         currentLength: 0,
         length: 60,
+        loop: false,
+        rotation: 360,
         images: new Array(),
         worker: undefined,
-        start: function () {
+        start: function (rotation, length, loop) {
+            this.length = length;
+            this.rotation = rotation;
+            this.loop = loop;
             this.worker = new Worker("../build/ffmpeg-worker-mp4.js");
             camera.layers.disable(0);
             this.exporting = true;
@@ -1597,30 +1602,56 @@ app.exportTo = {
                 console.log(messages);
                 //app.modal.helptext = messages
             };
-            this.worker.postMessage({
-                type: "run",
-                TOTAL_MEMORY: 468435456,
-                arguments: [
-                    "-r",
-                    "20",
-                    // "-stream_loop", //loop twice
-                    // "1",            //loop twice
-                    "-i",
-                    "img%03d.jpeg",
-                    "-c:v",
-                    "libx264",
-                    "-crf",
-                    "1",
-                    "-vf",
-                    "scale=" + 1024 + ":" + 1024 + "",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-vb",
-                    "20M",
-                    "out.mp4"
-                ],
-                MEMFS: this.images
-            });
+
+            if (this.loop) {
+                this.worker.postMessage({
+                    type: "run",
+                    TOTAL_MEMORY: 468435456,
+                    arguments: [
+                        "-r",
+                        "20",
+                        "-stream_loop", //loop twice
+                        "1",            //loop twice
+                        "-i",
+                        "img%03d.jpeg",
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        "1",
+                        "-vf",
+                        "scale=" + 1024 + ":" + 1024 + "",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-vb",
+                        "20M",
+                        "out.mp4"
+                    ],
+                    MEMFS: this.images
+                });
+            } else {
+                this.worker.postMessage({
+                    type: "run",
+                    TOTAL_MEMORY: 468435456,
+                    arguments: [
+                        "-r",
+                        "20",
+                        "-i",
+                        "img%03d.jpeg",
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        "1",
+                        "-vf",
+                        "scale=" + 1024 + ":" + 1024 + "",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-vb",
+                        "20M",
+                        "out.mp4"
+                    ],
+                    MEMFS: this.images
+                });
+            }
         },
         done: function (output) {
             const url = webkitURL.createObjectURL(output);
@@ -1813,16 +1844,37 @@ function animate() {
 
     if (app.exportTo.mp4.exporting) {
 
-        if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
-            directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
-            app.exportTo.mp4.addFrame();
-            app.exportTo.mp4.currentLength++;
-        } else {
-            if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
-                camera.layers.enable(0)
-                app.exportTo.mp4.finalizeVideo();
-                app.exportTo.mp4.currentLength = 0;
-                app.exportTo.mp4.exporting = false;
+        if (app.exportTo.mp4.rotation == 360) {
+            if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+                directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
+                app.exportTo.mp4.addFrame();
+                app.exportTo.mp4.currentLength++;
+            } else {
+                if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
+                    camera.layers.enable(0)
+                    app.exportTo.mp4.finalizeVideo();
+                    app.exportTo.mp4.currentLength = 0;
+                    app.exportTo.mp4.exporting = false;
+                }
+            }
+        }
+
+        if (app.exportTo.mp4.rotation == 30) {
+            if (app.exportTo.mp4.currentLength <= app.exportTo.mp4.length / 2) {
+                directControls.rotate(1 * THREE.MathUtils.DEG2RAD, 0, true)
+                app.exportTo.mp4.addFrame();
+                app.exportTo.mp4.currentLength++;
+            } else if (app.exportTo.mp4.currentLength >= app.exportTo.mp4.length / 2 && app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+                directControls.rotate(-1 * THREE.MathUtils.DEG2RAD, 0, true)
+                app.exportTo.mp4.addFrame();
+                app.exportTo.mp4.currentLength++;
+            } else {
+                if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
+                    camera.layers.enable(0)
+                    app.exportTo.mp4.finalizeVideo();
+                    app.exportTo.mp4.currentLength = 0;
+                    app.exportTo.mp4.exporting = false;
+                }
             }
         }
 

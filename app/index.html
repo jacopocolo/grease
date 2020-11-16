@@ -249,8 +249,10 @@
             <button id="Load" @click="importFrom.json()">Load…</button>
             <button id=" Export" @click="exportTo.geometry">Export
                 geometry</button>
-            <button id="makeVideo" @click="exportTo.mp4.start()">Export
-                video</button>
+            <button id="makeVideo" @click="exportTo.mp4.start(360, 60, false)">Export
+                360 video</button>
+            <button id="makeVideo" @click="exportTo.mp4.start(30, 30, true)">Export
+                wiggle video</button>
             <button id="hidePlane"
                 @click="toggleDrawingPlane()">{{ui.showDrawingPlane?"Hide drawing plane":"Show drawing plane"}}</button>
             <!-- <button @click=" toggleUi()">{{ui.show?"Hide menus":"Show menus"}}</button> -->
