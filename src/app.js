@@ -463,7 +463,7 @@ let line = {
             this.geometry = null;
             this.uuid = null;
         },
-        setGeometry(mouseup) {
+        setGeometry(end) {
             this.line.setGeometry(this.geometry, function (p) {
                 function map(n, start1, stop1, start2, stop2) {
                     return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
@@ -480,7 +480,7 @@ let line = {
                 }
                 //End of the line
                 else if (
-                    index > this.geometry.vertices.length - tipLength
+                    index > this.geometry.vertices.length - tipLength && end == 'tail'
                 ) {
                     return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length - 1, baseWidth + width, minWidth))
                 }
@@ -491,7 +491,7 @@ let line = {
 
             });
 
-            if (mouseup) {
+            if (end == "mouseup") {
                 var mesh = scene.getObjectByProperty('uuid', this.uuid);
                 this.geometry.verticesNeedsUpdate = true;
                 mesh.position.set(
@@ -500,7 +500,7 @@ let line = {
                     mesh.geometry.boundingSphere.center.z
                 );
                 this.geometry.center();
-                this.setGeometry();
+                this.setGeometry('tail');
                 this.geometry.needsUpdate = true;
                 if (mesh.userData.mirror) {
                     mirror.updateMirrorOf(mesh);
