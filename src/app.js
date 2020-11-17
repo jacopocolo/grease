@@ -24,6 +24,7 @@ var app = new Vue({
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 3, //Default 3
         smooth: 8,
+        tipLength: 3,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
@@ -150,6 +151,10 @@ var app = new Vue({
         },
         //MOUSE HANDLERS
         onTapStart: function (event) {
+
+            if (event.which == 3) {
+                return
+            }
 
             if (event.touches && event.touches.length > 1) {
 
@@ -466,18 +471,18 @@ let line = {
                 let index = Math.round(p * (this.geometry.vertices.length - 1))
                 let minWidth = 0;
                 let baseWidth = 3;
-                let width = this.geometry.geometry.userData.force[index] * 8
-                let tipLength = 3;
+                let width = this.geometry.geometry.userData.force[index] * 16
+                let tipLength = app.tipLength;
 
                 //Beginning of the line
                 if (index < tipLength) {
-                    return (map(index, minWidth, tipLength, minWidth, baseWidth)) //+ width
+                    return (map(index, minWidth, tipLength, minWidth, baseWidth + width)) //+ width
                 }
                 //End of the line
                 else if (
                     index > this.geometry.vertices.length - tipLength
                 ) {
-                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length, baseWidth, minWidth)) //+ width
+                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length - 1, baseWidth + width, minWidth))
                 }
                 //bulk of the line
                 else {
@@ -1756,7 +1761,7 @@ function init() {
     directControls.dampingFactor = 10
     directControls.mouseButtons.left = CameraControls.ACTION.NONE
     directControls.mouseButtons.right = CameraControls.ACTION.ROTATE
-    directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE
+    directControls.mouseButtons.wheel = CameraControls.ACTION.ZOOM
     directControls.touches.one = CameraControls.ACTION.NONE
     directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE_ZOOM
     directControls.touches.three = CameraControls.ACTION.TOUCH_DOLLY_TRUCK
