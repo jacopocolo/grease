@@ -1087,6 +1087,18 @@ app.selection = {
             });
         });
         scene.add(transformControls);
+
+        let pos = new THREE.Vector3(
+            this.helper.geometry.boundingSphere.center.x, this.helper.geometry.boundingSphere.center.y + this.helper.geometry.boundingSphere.radius, 0).project(camera);
+
+        var canvasHalfWidth = renderer.domElement.offsetWidth / 2;
+        var canvasHalfHeight = renderer.domElement.offsetHeight / 2;
+        let posX = (pos.x * canvasHalfWidth) + canvasHalfWidth + renderer.domElement.offsetLeft;
+        let posY = -(pos.y * canvasHalfHeight) + canvasHalfHeight + renderer.domElement.offsetTop;
+
+        document.getElementById("toolbar").style.right = window.innerWidth - posX - 100 + "px";
+        document.getElementById("toolbar").style.top = posY - 100 + "px";
+
         this.selection = [];
     },
     deselect: function () {
