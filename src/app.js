@@ -404,12 +404,18 @@ let line = {
             this.line = new MeshLine();
             this.line.geometry.userData.originalPoints = [];
             this.line.geometry.userData.force = [];
+            //let strokeTexture = new THREE.TextureLoader().load("../img/watercolor.png");
             var material = new MeshLineMaterial({
                 lineWidth: lineWidth / 1000, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
                 fog: true,
+                //For textured stroke
+                // useMap: true,
+                // map: strokeTexture,
+                // transparent: true,
+                // depthTest: false,
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
@@ -508,9 +514,9 @@ let line = {
             }
         },
         fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
-            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
+            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, vertices[0].w, false, lineColor, lineWidth, mirrorOn);
             for (var i = 1; i < vertices.length; i++) {
-                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
+                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, vertices[i].w, false)
             }
             var l = scene.getObjectByProperty('uuid', this.uuid);
             line.render.end();
@@ -620,7 +626,6 @@ let mirror = {
         }
     },
     object: function (obj, axis) {
-        console.log('mirror')
         var clone = obj.clone();
         clone.layers.set(1);
         clone.raycast = MeshLineRaycast;
@@ -937,15 +942,6 @@ class vertexSelection {
         points.forEach(point => {
             point.applyMatrix4(object.matrix);
             point.project(camera);
-
-            //DEBUG
-            // let unprojectedPoint = point.clone();
-            // unprojectedPoint.unproject(camera);
-            // const geometry = new THREE.SphereGeometry(0.01, 4, 4);
-            // const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            // const sphere = new THREE.Mesh(geometry, material);
-            // scene.add(sphere);
-            // sphere.position.set(unprojectedPoint.x, unprojectedPoint.y, unprojectedPoint.z)
         })
 
         return points
@@ -1179,16 +1175,6 @@ app.selection = {
         this.selection = [];
     },
     deselect: function () {
-        //tooltip on top of object
-        //https://stackoverflow.com/questions/54410532/how-to-correctly-position-html-elements-in-three-js-coordinate-system
-        // var posX = (this.selected[0].position.x * window.innerWidth) / 2 + 1;
-        // var posY = (this.selected[0].position.y * window.innerHeight) / 2 + 1;
-        // var x = (this.selected[0].geometry.boundingBox.max.x * window.innerWidth) / 2 + 1;
-        // var y = (this.selected[0].geometry.boundingBox.max.y * window.innerHeight) / 2 + 1;
-        // var position = new THREE.Vector3(posX + x, posY + y, 0).project(camera)
-        // document.getElementById('toolbar').style.left = position.x + "px";
-        // document.getElementById('toolbar').style.top = position.y + "px";
-
         transformControls.detach();
         scene.remove(transformControls);
         scene.remove(this.helper);
@@ -1276,8 +1262,8 @@ app.importFrom = {
                         if (importedLine.g.length > 1) { //Let's make sure there are at least 2 points in the line
                             var vertices = [];
 
-                            for (var i = 0; i < importedLine.g.length; i = i + 3) {
-                                vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+                            for (var i = 0; i < importedLine.g.length; i = i + 4) {
+                                vertices.push(new THREE.Vector4().fromArray(importedLine.g, i))
                             }
 
 
@@ -1369,9 +1355,6 @@ app.exportTo = {
                 var line = {};
                 line.c = 0;
                 var color = obj.userData.lineColor;
-                console.log(color === lightColor);
-                //console.log(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'));
-                //To enable theming, colors should be stored as numbers: 0 is lightest, 1 is light, 2 is medium, 3 is dark.
                 switch (true) {
                     case (color === lightestColor):
                         line.c = 0;
@@ -1390,11 +1373,20 @@ app.exportTo = {
                 }
                 line.w = obj.userData.lineWidth;
                 line.g = [];
-                obj.geometry.vertices.forEach(vector3 => {
-                    line.g.push(vector3.x);
-                    line.g.push(vector3.y);
-                    line.g.push(vector3.z);
-                });
+
+                for (let i = 0; i < obj.geometry.vertices.length; i++) {
+                    line.g.push(obj.geometry.vertices[i].x);
+                    line.g.push(obj.geometry.vertices[i].y);
+                    line.g.push(obj.geometry.vertices[i].z);
+                    line.g.push(obj.geometry.userData.force[i]);
+                }
+
+                //Old force-less implementation
+                // obj.geometry.vertices.forEach(vector3 => {
+                //     line.g.push(vector3.x);
+                //     line.g.push(vector3.y);
+                //     line.g.push(vector3.z);
+                // });
 
                 var position = new THREE.Vector3();
                 position = obj.getWorldPosition(position);
@@ -1424,10 +1416,15 @@ app.exportTo = {
         });
         // return json
         var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(json));
-        var el = document.createElement("a");;
-        el.setAttribute("href", dataStr);
-        el.setAttribute("download", "scene.json");
-        el.click();
+
+        var filename = prompt("Enter filename", "sketch");
+
+        if (filename != null) {
+            var el = document.createElement("a");;
+            el.setAttribute("href", dataStr);
+            el.setAttribute("download", filename + ".json");
+            el.click();
+        }
         app.ui.showOverflowMenu = false;
     },
     geometry: function () {
@@ -1869,7 +1866,7 @@ function animate() {
                 directControls.rotate(1 * THREE.MathUtils.DEG2RAD, 0, true)
                 app.exportTo.mp4.addFrame();
                 app.exportTo.mp4.currentLength++;
-            } else if (app.exportTo.mp4.currentLength >= app.exportTo.mp4.length / 2 && app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+            } else if (app.exportTo.mp4.currentLength > app.exportTo.mp4.length / 2 && app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
                 directControls.rotate(-1 * THREE.MathUtils.DEG2RAD, 0, true)
                 app.exportTo.mp4.addFrame();
                 app.exportTo.mp4.currentLength++;
