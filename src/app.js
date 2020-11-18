@@ -8,6 +8,8 @@ import {
     MeshLineRaycast,
     MeshLineMaterial
 } from '../build/meshline.js';
+import { simplify } from '../build/simplify.js'
+import { simplify4d } from '../build/simplify4d.js'
 import { GLTFExporter } from '../build/GLTFExporter.js';
 import Vue from '../build/vue.esm.browser.js';
 
@@ -21,6 +23,8 @@ var app = new Vue({
         selectedColor: 'lightest', //buffer from the selector so it can be genericized
         lineColor: getComputedStyle(document.documentElement).getPropertyValue('--line-color-lightest'), //Rgb value
         lineWidth: 3, //Default 3
+        smooth: 8,
+        tipLength: 3,
         controlsLocked: false,
         mirror: false,
         autoRotate: false,
@@ -113,6 +117,9 @@ var app = new Vue({
         },
         zDepth: function () {
             line.drawingPlane.position.copy(new THREE.Vector3(directControls.target.x, directControls.target.y, -app.zDepth + (app.lineWidth / 1500) / 2).unproject(camera));
+        },
+        smooth: function (val) {
+            line.render.buffer.size = val;
         }
     },
     methods: {
@@ -145,6 +152,10 @@ var app = new Vue({
         //MOUSE HANDLERS
         onTapStart: function (event) {
 
+            if (event.which == 3) {
+                return
+            }
+
             if (event.touches && event.touches.length > 1) {
 
                 mouse.multitouch = true;
@@ -175,7 +186,6 @@ var app = new Vue({
                 drawingCanvas.addEventListener("mousemove", this.onTapMove, false);
                 drawingCanvas.addEventListener("touchend", this.onTapEnd, false);
                 drawingCanvas.addEventListener("mouseup", this.onTapEnd, false);
-                console.log("event added")
             }
         },
         onTapMove: function (event) {
@@ -296,14 +306,15 @@ var miniAxis = document.getElementById("miniAxis");
 CameraControls.install({ THREE: THREE });
 
 let mouse = {
-    multitouch: false,
     down: false,
     tx: 0, //x coord for threejs
     ty: 0, //y coord for threejs
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
+    force: 0,
     smoothing: function () {
-        if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 5 } else { return 1 }
+        return 0
+        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
     }, //Smoothing can create artifacts if it's too high. Might need to play around with it
     updateCoordinates: function (event) {
         if (event.touches
@@ -314,6 +325,12 @@ let mouse = {
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
             this.cy = event.changedTouches[0].pageY;
+
+            if (event.touches[0] && event.touches[0]["force"] !== undefined) {
+                this.force = event.touches[0]["force"]
+            } else {
+                this.force = 0
+            }
         }
         else {
             if (
@@ -332,10 +349,10 @@ let mouse = {
 
 let line = {
     start: function () {
-        this.render.start(mouse.tx, mouse.ty, -app.zDepth, true, app.lineColor, app.lineWidth, app.mirror);
+        this.render.start(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true, app.lineColor, app.lineWidth, app.mirror);
     },
     move: function () {
-        this.render.update(mouse.tx, mouse.ty, -app.zDepth, true);
+        this.render.update(mouse.tx, mouse.ty, -app.zDepth, mouse.force, true);
     },
     end: function () {
         this.render.end();
@@ -344,17 +361,61 @@ let line = {
         line: null,
         geometry: null,
         uuid: null,
-        start: function (x, y, z, unproject, lineColor, lineWidth, mirrorOn) {
+        buffer: {
+            points: [],
+            size: app.smooth,
+            appendToBuffer: function (pt) {
+                this.points.push(pt);
+                while (this.points.length > this.size) {
+                    this.points.shift();
+                }
+            },
+            getAveragePoint: function (offset) {
+                var len = this.points.length;
+                if (len % 2 === 1 || len >= this.size) {
+                    var totalX = 0;
+                    var totalY = 0;
+                    var totalZ = 0;
+                    var totalW = 0;
+                    var pt, i;
+                    var count = 0;
+                    for (i = offset; i < len; i++) {
+                        count++;
+                        pt = this.points[i];
+                        totalX += pt.x;
+                        totalY += pt.y;
+                        totalZ += pt.z;
+                        totalW += pt.w;
+                    }
+                    return {
+                        x: totalX / count,
+                        y: totalY / count,
+                        z: totalZ / count,
+                        w: totalW / count
+                    }
+                }
+                return null
+            },
+        },
+        start: function (x, y, z, force, unproject, lineColor, lineWidth, mirrorOn) {
             var vNow = new THREE.Vector3(x, y, z);
             if (unproject) { vNow.unproject(camera) };
             this.geometry = new THREE.Geometry();
             this.line = new MeshLine();
+            this.line.geometry.userData.originalPoints = [];
+            this.line.geometry.userData.force = [];
+            //let strokeTexture = new THREE.TextureLoader().load("../img/watercolor.png");
             var material = new MeshLineMaterial({
-                lineWidth: lineWidth / 3000, //kind of eyballing it
+                lineWidth: lineWidth / 1000, //kind of eyballing it
                 sizeAttenuation: 1,
                 color: new THREE.Color(lineColor),
                 side: THREE.DoubleSide,
                 fog: true,
+                //For textured stroke
+                // useMap: true,
+                // map: strokeTexture,
+                // transparent: true,
+                // depthTest: false,
                 //resolution: new THREE.Vector2(insetWidth, insetHeight)
             });
             var mesh = new THREE.Mesh(this.line.geometry, material);
@@ -381,48 +442,81 @@ let line = {
             mesh.layers.set(1);
             this.uuid = mesh.uuid;
         },
-        update: function (x, y, z, unproject) {
-            //It might be possible to smooth the line drawing with and ongoing rendering of a CatmullRomCurve https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3
-            var vNow = new THREE.Vector3(x, y, z);
-            if (unproject) { vNow.unproject(camera) };
-            this.geometry.vertices.push(vNow);
+        update: function (x, y, z, force, unproject) {
+            var v3 = new THREE.Vector3(x, y, z);
+            if (unproject) { v3.unproject(camera) };
+            var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
+
+            this.buffer.appendToBuffer(v4);
+            let pt = this.buffer.getAveragePoint(0);
+            if (pt) {
+                v3 = new THREE.Vector3(pt.x, pt.y, pt.z);
+                this.line.geometry.userData.force.push(pt.w)
+                this.geometry.vertices.push(v3);
+            }
+
             this.setGeometry();
+
         },
         end: function () {
+            //this produces only a very minor reduction of length. Not sure if we need it
+            //this.geometry.vertices = simplify(this.geometry.vertices, 0.00001, true)
 
-            this.geometry.userData = this.geometry.vertices;
             this.setGeometry('mouseup');
             //reset
+            this.buffer.points = [];
             this.line = null;
             this.geometry = null;
             this.uuid = null;
         },
-        setGeometry(mouseup) {
+        setGeometry(end) {
             this.line.setGeometry(this.geometry, function (p) {
-                return Math.pow(2 * p * (1 - p), 0.5) * 4
+                function map(n, start1, stop1, start2, stop2) {
+                    return ((n - start1) / (stop1 - start1)) * (stop2 - start2) + start2;
+                };
+                let index = Math.round(p * (this.geometry.vertices.length - 1))
+                let minWidth = 0;
+                let baseWidth = 3;
+                let width = this.geometry.geometry.userData.force[index] * 16
+                let tipLength = app.tipLength;
+
+                //Beginning of the line
+                if (index < tipLength) {
+                    return (map(index, minWidth, tipLength, minWidth, baseWidth + width)) //+ width
+                }
+                //End of the line
+                else if (
+                    index > this.geometry.vertices.length - tipLength && end == 'tail'
+                ) {
+                    return (map(index, this.geometry.vertices.length - tipLength, this.geometry.vertices.length - 1, baseWidth + width, minWidth))
+                }
+                //bulk of the line
+                else {
+                    return baseWidth + width
+                }
+
             });
 
-            if (mouseup) {
+            if (end == "mouseup") {
                 var mesh = scene.getObjectByProperty('uuid', this.uuid);
+                this.geometry.verticesNeedsUpdate = true;
                 mesh.position.set(
                     mesh.geometry.boundingSphere.center.x,
                     mesh.geometry.boundingSphere.center.y,
                     mesh.geometry.boundingSphere.center.z
                 );
                 this.geometry.center();
-                this.setGeometry();
-                this.geometry.verticesNeedsUpdate = true;
+                this.setGeometry('tail');
                 this.geometry.needsUpdate = true;
-
                 if (mesh.userData.mirror) {
                     mirror.updateMirrorOf(mesh);
                 }
             }
         },
         fromVertices(vertices, lineColor, lineWidth, mirrorOn, returnLineBool) {
-            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, false, lineColor, lineWidth, mirrorOn);
+            line.render.start(vertices[0].x, vertices[0].y, vertices[0].z, vertices[0].w, false, lineColor, lineWidth, mirrorOn);
             for (var i = 1; i < vertices.length; i++) {
-                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, false)
+                line.render.update(vertices[i].x, vertices[i].y, vertices[i].z, vertices[i].w, false)
             }
             var l = scene.getObjectByProperty('uuid', this.uuid);
             line.render.end();
@@ -532,7 +626,6 @@ let mirror = {
         }
     },
     object: function (obj, axis) {
-        console.log('mirror')
         var clone = obj.clone();
         clone.layers.set(1);
         clone.raycast = MeshLineRaycast;
@@ -849,15 +942,6 @@ class vertexSelection {
         points.forEach(point => {
             point.applyMatrix4(object.matrix);
             point.project(camera);
-
-            //DEBUG
-            // let unprojectedPoint = point.clone();
-            // unprojectedPoint.unproject(camera);
-            // const geometry = new THREE.SphereGeometry(0.01, 4, 4);
-            // const material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
-            // const sphere = new THREE.Mesh(geometry, material);
-            // scene.add(sphere);
-            // sphere.position.set(unprojectedPoint.x, unprojectedPoint.y, unprojectedPoint.z)
         })
 
         return points
@@ -927,7 +1011,7 @@ app.selection = {
         if (this.transforming() === false) {
 
             let raycaster = new THREE.Raycaster();
-            raycaster.params.Line.threshold = 0.01;
+            raycaster.params.Line.threshold = 0.05;
             raycaster.layers.set(1);
             raycaster.setFromCamera(new THREE.Vector2(mouse.tx, mouse.ty), camera);
             try {
@@ -992,6 +1076,7 @@ app.selection = {
                 duplicate.layers.set(1);
                 var duplicateMaterial = object.material.clone();
                 duplicate.material = duplicateMaterial;
+                duplicate.raycast = MeshLineRaycast;
                 duplicateArray.push(duplicate);
                 scene.add(duplicate);
                 mirror.object(duplicate, duplicate.userData.mirrorAxis);
@@ -1018,7 +1103,7 @@ app.selection = {
             //     originalPosition.z
             // )
             scene.add(duplicate);
-            //duplicate.raycast = MeshLineRaycast;
+            duplicate.raycast = MeshLineRaycast;
             mirror.object(duplicate, duplicate.userData.mirrorAxis);
             //deselect selected object
             this.deselect();
@@ -1090,16 +1175,6 @@ app.selection = {
         this.selection = [];
     },
     deselect: function () {
-        //tooltip on top of object
-        //https://stackoverflow.com/questions/54410532/how-to-correctly-position-html-elements-in-three-js-coordinate-system
-        // var posX = (this.selected[0].position.x * window.innerWidth) / 2 + 1;
-        // var posY = (this.selected[0].position.y * window.innerHeight) / 2 + 1;
-        // var x = (this.selected[0].geometry.boundingBox.max.x * window.innerWidth) / 2 + 1;
-        // var y = (this.selected[0].geometry.boundingBox.max.y * window.innerHeight) / 2 + 1;
-        // var position = new THREE.Vector3(posX + x, posY + y, 0).project(camera)
-        // document.getElementById('toolbar').style.left = position.x + "px";
-        // document.getElementById('toolbar').style.top = position.y + "px";
-
         transformControls.detach();
         scene.remove(transformControls);
         scene.remove(this.helper);
@@ -1187,8 +1262,8 @@ app.importFrom = {
                         if (importedLine.g.length > 1) { //Let's make sure there are at least 2 points in the line
                             var vertices = [];
 
-                            for (var i = 0; i < importedLine.g.length; i = i + 3) {
-                                vertices.push(new THREE.Vector3().fromArray(importedLine.g, i))
+                            for (var i = 0; i < importedLine.g.length; i = i + 4) {
+                                vertices.push(new THREE.Vector4().fromArray(importedLine.g, i))
                             }
 
 
@@ -1280,9 +1355,6 @@ app.exportTo = {
                 var line = {};
                 line.c = 0;
                 var color = obj.userData.lineColor;
-                console.log(color === lightColor);
-                //console.log(getComputedStyle(document.documentElement).getPropertyValue('--line-color-light'));
-                //To enable theming, colors should be stored as numbers: 0 is lightest, 1 is light, 2 is medium, 3 is dark.
                 switch (true) {
                     case (color === lightestColor):
                         line.c = 0;
@@ -1301,11 +1373,20 @@ app.exportTo = {
                 }
                 line.w = obj.userData.lineWidth;
                 line.g = [];
-                obj.geometry.vertices.forEach(vector3 => {
-                    line.g.push(vector3.x);
-                    line.g.push(vector3.y);
-                    line.g.push(vector3.z);
-                });
+
+                for (let i = 0; i < obj.geometry.vertices.length; i++) {
+                    line.g.push(obj.geometry.vertices[i].x);
+                    line.g.push(obj.geometry.vertices[i].y);
+                    line.g.push(obj.geometry.vertices[i].z);
+                    line.g.push(obj.geometry.userData.force[i]);
+                }
+
+                //Old force-less implementation
+                // obj.geometry.vertices.forEach(vector3 => {
+                //     line.g.push(vector3.x);
+                //     line.g.push(vector3.y);
+                //     line.g.push(vector3.z);
+                // });
 
                 var position = new THREE.Vector3();
                 position = obj.getWorldPosition(position);
@@ -1335,10 +1416,15 @@ app.exportTo = {
         });
         // return json
         var dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(json));
-        var el = document.createElement("a");;
-        el.setAttribute("href", dataStr);
-        el.setAttribute("download", "scene.json");
-        el.click();
+
+        var filename = prompt("Enter filename", "sketch");
+
+        if (filename != null) {
+            var el = document.createElement("a");;
+            el.setAttribute("href", dataStr);
+            el.setAttribute("download", filename + ".json");
+            el.click();
+        }
         app.ui.showOverflowMenu = false;
     },
     geometry: function () {
@@ -1438,10 +1524,16 @@ app.exportTo = {
         exporting: false,
         currentLength: 0,
         length: 60,
+        loop: false,
+        rotation: 360,
         images: new Array(),
-        worker: new Worker("../build/ffmpeg-worker-mp4.js"),
-        start: function () {
-            camera.layers.disable(0)
+        worker: undefined,
+        start: function (rotation, length, loop) {
+            this.length = length;
+            this.rotation = rotation;
+            this.loop = loop;
+            this.worker = new Worker("../build/ffmpeg-worker-mp4.js");
+            camera.layers.disable(0);
             this.exporting = true;
         },
         pad: function (n, insetWidth, z) {
@@ -1512,30 +1604,56 @@ app.exportTo = {
                 console.log(messages);
                 //app.modal.helptext = messages
             };
-            this.worker.postMessage({
-                type: "run",
-                TOTAL_MEMORY: 468435456,
-                arguments: [
-                    "-r",
-                    "20",
-                    // "-stream_loop", //loop twice
-                    // "1",            //loop twice
-                    "-i",
-                    "img%03d.jpeg",
-                    "-c:v",
-                    "libx264",
-                    "-crf",
-                    "1",
-                    "-vf",
-                    "scale=" + 1024 + ":" + 1024 + "",
-                    "-pix_fmt",
-                    "yuv420p",
-                    "-vb",
-                    "20M",
-                    "out.mp4"
-                ],
-                MEMFS: this.images
-            });
+
+            if (this.loop) {
+                this.worker.postMessage({
+                    type: "run",
+                    TOTAL_MEMORY: 468435456,
+                    arguments: [
+                        "-r",
+                        "20",
+                        "-stream_loop", //loop twice
+                        "1",            //loop twice
+                        "-i",
+                        "img%03d.jpeg",
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        "1",
+                        "-vf",
+                        "scale=" + 1024 + ":" + 1024 + "",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-vb",
+                        "20M",
+                        "out.mp4"
+                    ],
+                    MEMFS: this.images
+                });
+            } else {
+                this.worker.postMessage({
+                    type: "run",
+                    TOTAL_MEMORY: 468435456,
+                    arguments: [
+                        "-r",
+                        "20",
+                        "-i",
+                        "img%03d.jpeg",
+                        "-c:v",
+                        "libx264",
+                        "-crf",
+                        "1",
+                        "-vf",
+                        "scale=" + 1024 + ":" + 1024 + "",
+                        "-pix_fmt",
+                        "yuv420p",
+                        "-vb",
+                        "20M",
+                        "out.mp4"
+                    ],
+                    MEMFS: this.images
+                });
+            }
         },
         done: function (output) {
             const url = webkitURL.createObjectURL(output);
@@ -1640,7 +1758,7 @@ function init() {
     directControls.dampingFactor = 10
     directControls.mouseButtons.left = CameraControls.ACTION.NONE
     directControls.mouseButtons.right = CameraControls.ACTION.ROTATE
-    directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE
+    directControls.mouseButtons.wheel = CameraControls.ACTION.ZOOM
     directControls.touches.one = CameraControls.ACTION.NONE
     directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE_ZOOM
     directControls.touches.three = CameraControls.ACTION.TOUCH_DOLLY_TRUCK
@@ -1676,7 +1794,7 @@ function init() {
 
         line.count = 0;
 
-        if (camera.position.z != 10 || (x != 0) || (y != 0) || (z != 0)) {
+        if (camera.position.z != 10 || (x != 0) || (y != 0) || (z != 0) || camera.zoom != 160) {
             app.ui.resetDisabled = false;
         } else {
             app.ui.resetDisabled = true;
@@ -1728,16 +1846,37 @@ function animate() {
 
     if (app.exportTo.mp4.exporting) {
 
-        if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
-            directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
-            app.exportTo.mp4.addFrame();
-            app.exportTo.mp4.currentLength++;
-        } else {
-            if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
-                camera.layers.enable(0)
-                app.exportTo.mp4.finalizeVideo();
-                app.exportTo.mp4.currentLength = 0;
-                app.exportTo.mp4.exporting = false;
+        if (app.exportTo.mp4.rotation == 360) {
+            if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+                directControls.rotate(6 * THREE.MathUtils.DEG2RAD, 0, true)
+                app.exportTo.mp4.addFrame();
+                app.exportTo.mp4.currentLength++;
+            } else {
+                if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
+                    camera.layers.enable(0)
+                    app.exportTo.mp4.finalizeVideo();
+                    app.exportTo.mp4.currentLength = 0;
+                    app.exportTo.mp4.exporting = false;
+                }
+            }
+        }
+
+        if (app.exportTo.mp4.rotation == 30) {
+            if (app.exportTo.mp4.currentLength <= app.exportTo.mp4.length / 2) {
+                directControls.rotate(1 * THREE.MathUtils.DEG2RAD, 0, true)
+                app.exportTo.mp4.addFrame();
+                app.exportTo.mp4.currentLength++;
+            } else if (app.exportTo.mp4.currentLength > app.exportTo.mp4.length / 2 && app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+                directControls.rotate(-1 * THREE.MathUtils.DEG2RAD, 0, true)
+                app.exportTo.mp4.addFrame();
+                app.exportTo.mp4.currentLength++;
+            } else {
+                if (app.exportTo.mp4.currentLength == app.exportTo.mp4.length) {
+                    camera.layers.enable(0)
+                    app.exportTo.mp4.finalizeVideo();
+                    app.exportTo.mp4.currentLength = 0;
+                    app.exportTo.mp4.exporting = false;
+                }
             }
         }
 
