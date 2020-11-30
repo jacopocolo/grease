@@ -1752,6 +1752,47 @@ function init() {
     camera.zoom = 160;
     camera.position.set(10, 10, 10);
 
+    const ambientlight = new THREE.AmbientLight(0x404040); // soft white light
+    scene.add(ambientlight);
+
+    const light = new THREE.PointLight(0xFFFFFF, 1, 100);
+    light.position.set(0, 5, 0);
+    scene.add(light);
+
+    const sphereSize = 1;
+    const pointLightHelper = new THREE.PointLightHelper(light, sphereSize);
+    scene.add(pointLightHelper);
+
+    var draw = new THREE.TextureLoader().load("../img/draw.png");
+    let geo = new THREE.BoxGeometry(0.5, 0.1, 0.3);
+    let mat = new THREE.MeshLambertMaterial({ color: 0x00ff00, emissive: 0x00ff00, emissiveIntensity: 0.5, emissiveMap: draw, map: draw });
+    let cube = new THREE.Mesh(geo, mat);
+    scene.add(cube)
+    camera.attach(cube);
+    cube.position.set(-0.5, 2, -10)
+    cube.rotation.set(-0.05, 0, 0)
+
+    geo = new THREE.BoxGeometry(0.5, 0.1, 0.3);
+    mat = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+    cube = new THREE.Mesh(geo, mat);
+    scene.add(cube)
+    camera.attach(cube);
+    cube.position.set(0, 2, -10)
+    cube.rotation.set(-0.05, 0, 0)
+
+    geo = new THREE.BoxGeometry(0.5, 0.1, 0.3);
+    mat = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+    cube = new THREE.Mesh(geo, mat);
+    scene.add(cube)
+    camera.attach(cube);
+    cube.position.set(0.5, 2, -10)
+    cube.rotation.set(-0.05, 0, 0)
+
+    scene.add(camera)
+
+    console.log(camera)
+
+
     clock = new THREE.Clock();
 
     directControls = new CameraControls(camera, drawingCanvas);
