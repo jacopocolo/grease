@@ -447,13 +447,19 @@ let line = {
             if (unproject) { v3.unproject(camera) };
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
 
-            this.buffer.appendToBuffer(v4);
-            let pt = this.buffer.getAveragePoint(0);
-            if (pt) {
-                v3 = new THREE.Vector3(pt.x, pt.y, pt.z);
-                this.line.geometry.userData.force.push(pt.w)
+            if (unproject) {
+                this.buffer.appendToBuffer(v4);
+                let pt = this.buffer.getAveragePoint(0);
+                if (pt) {
+                    v3 = new THREE.Vector3(pt.x, pt.y, pt.z);
+                    this.line.geometry.userData.force.push(pt.w)
+                    this.geometry.vertices.push(v3);
+                }
+            } else {
+                this.line.geometry.userData.force.push(force)
                 this.geometry.vertices.push(v3);
             }
+
 
             this.setGeometry();
 
