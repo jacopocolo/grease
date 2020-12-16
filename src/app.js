@@ -191,6 +191,37 @@ var app = new Vue({
         onTapMove: function (event) {
 
             if (mouse.multitouch == false) {
+
+                // if (mouse.previousPosition.x == null) {
+                //     mouse.previousPosition.x = mouse.cx;
+                //     mouse.previousPosition.y = mouse.cy;
+                // } else {
+                //     if (
+                //         mouse.distanceBetweenTwoCanvasPoints(
+                //             mouse.previousPosition.x,
+                //             mouse.previousPosition.y,
+                //             mouse.cx,
+                //             mouse.cy
+                //         ) > 500) {
+
+                //         console.log(mouse.previousPosition.x,
+                //             mouse.previousPosition.y, mouse.cx,
+                //             mouse.cy)
+
+                //         console.log(mouse.distanceBetweenTwoCanvasPoints(
+                //             mouse.previousPosition.x,
+                //             mouse.previousPosition.y,
+                //             mouse.cx,
+                //             mouse.cy
+                //         ))
+
+                //         console.log("palm")
+                //         return
+                //     }
+                //     mouse.previousPosition.x = mouse.cx;
+                //     mouse.previousPosition.y = mouse.cy;
+                // }
+
                 mouse.updateCoordinates(event);
                 //DRAW
                 switch (this.selectedTool) {
@@ -205,6 +236,7 @@ var app = new Vue({
                         break;
                 }
             }
+
         },
         onTapEnd: function (event) {
 
@@ -228,6 +260,8 @@ var app = new Vue({
                 drawingCanvas.removeEventListener("mousemove", this.onTapMove, false);
                 drawingCanvas.removeEventListener("touchend", this.onTapEnd, false);
                 drawingCanvas.removeEventListener("mouseup", this.onTapEnd, false);
+
+                mouse.previousPosition = { x: null, y: null };
             }
         }
     },
@@ -312,15 +346,14 @@ let mouse = {
     cx: 0, //x coord for canvas
     cy: 0, //y coord for canvas
     force: 0,
-    smoothing: function () {
-        return 0
-        // if (app.lineWidth <= 3 && (line.render.geometry && line.render.geometry.vertices.length > 6)) { return 8 } else { return 3 }
-    }, //Smoothing can create artifacts if it's too high. Might need to play around with it
+    previousPosition: { x: null, y: null },
+    distanceBetweenTwoCanvasPoints: function (x1, y1, x2, y2) {
+        var a = x1 - x2;
+        var b = y1 - y2;
+        return Math.sqrt(a * a + b * b);
+    },
     updateCoordinates: function (event) {
-        if (event.touches
-            &&
-            new THREE.Vector2(event.changedTouches[0].pageX, event.changedTouches[0].pageY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
-        ) {
+        if (event.touches) {
             this.tx = (event.changedTouches[0].pageX / window.innerWidth) * 2 - 1;
             this.ty = -(event.changedTouches[0].pageY / window.innerHeight) * 2 + 1;
             this.cx = event.changedTouches[0].pageX;
@@ -333,11 +366,7 @@ let mouse = {
             }
         }
         else {
-            if (
-                event.button == 0
-                &&
-                new THREE.Vector2(event.clientX, event.clientY).distanceTo(new THREE.Vector2(this.cx, this.cy)) > this.smoothing()
-            ) {
+            if (event.button == 0) {
                 this.tx = (event.clientX / window.innerWidth) * 2 - 1;
                 this.ty = -(event.clientY / window.innerHeight) * 2 + 1;
                 this.cx = event.clientX;
@@ -444,7 +473,20 @@ let line = {
         },
         update: function (x, y, z, force, unproject) {
             var v3 = new THREE.Vector3(x, y, z);
+
             if (unproject) { v3.unproject(camera) };
+
+            if (this.geometry.vertices.length > 1) {
+
+                if (v3.distanceTo(
+                    this.geometry.vertices[this.geometry.vertices.length - 1]) > camera.zoom / 30) {
+
+                    console.log("palm")
+                }
+            } else {
+                console.log("====")
+            }
+
             var v4 = new THREE.Vector4(v3.x, v3.y, v3.z, force);
 
             if (unproject) {
@@ -536,7 +578,7 @@ let line = {
     count: 0,
     addDrawingPlane: function () {
         var geometry = new THREE.PlaneGeometry(4, 4, 4);
-        var grid = new THREE.TextureLoader().load("../img/grid.png");
+        var grid = new THREE.TextureLoader().load("../img/grid-dark.png");
         var material = new THREE.MeshBasicMaterial({
             map: grid,
             // color: 0xffffff,
@@ -548,7 +590,7 @@ let line = {
         var planeBg = new THREE.Mesh(geometry, material);
 
         var geometry = new THREE.PlaneGeometry(4, 4, 4);
-        var grid = new THREE.TextureLoader().load("../img/meta.png");
+        var grid = new THREE.TextureLoader().load("../img/meta-dark.png");
         var material = new THREE.MeshBasicMaterial({
             map: grid,
             // color: 0xffffff,
@@ -1776,7 +1818,7 @@ function init() {
     controls.saveState();
 
     var geometry = new THREE.SphereBufferGeometry(0.025, 32, 32);
-    var material = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+    var material = new THREE.MeshBasicMaterial({ color: 0x666666 });
     var targetSphere = new THREE.Mesh(geometry, material);
     scene.add(targetSphere);
 
