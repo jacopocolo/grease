@@ -1559,6 +1559,7 @@ app.exportTo = {
                     convertedLine.scale.set(scale.x, scale.y, scale.z)
                     scene2.add(convertedLine);
                     convertedLine.geometry.center();
+                    convertedLine.geometry.applyMatrix(convertedLine.matrix) //maybe?
                 }
                 itemProcessed = itemProcessed + 1;
                 if (itemProcessed === scene.children.length) {
@@ -1910,11 +1911,11 @@ function animate() {
         }
 
         if (app.exportTo.mp4.rotation == 30) {
-            if (app.exportTo.mp4.currentLength <= app.exportTo.mp4.length / 2) {
+            if (app.exportTo.mp4.currentLength < app.exportTo.mp4.length / 2) {
                 directControls.rotate(1 * THREE.MathUtils.DEG2RAD, 0, true)
                 app.exportTo.mp4.addFrame();
                 app.exportTo.mp4.currentLength++;
-            } else if (app.exportTo.mp4.currentLength > app.exportTo.mp4.length / 2 && app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
+            } else if (app.exportTo.mp4.currentLength >= app.exportTo.mp4.length / 2 && app.exportTo.mp4.currentLength < app.exportTo.mp4.length) {
                 directControls.rotate(-1 * THREE.MathUtils.DEG2RAD, 0, true)
                 app.exportTo.mp4.addFrame();
                 app.exportTo.mp4.currentLength++;
