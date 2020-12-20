@@ -536,7 +536,7 @@ let line = {
     count: 0,
     addDrawingPlane: function () {
         var geometry = new THREE.PlaneGeometry(4, 4, 4);
-        var grid = new THREE.TextureLoader().load("../img/grid.png");
+        var grid = new THREE.TextureLoader().load("../img/grid-dark.png");
         var material = new THREE.MeshBasicMaterial({
             map: grid,
             // color: 0xffffff,
@@ -548,7 +548,7 @@ let line = {
         var planeBg = new THREE.Mesh(geometry, material);
 
         var geometry = new THREE.PlaneGeometry(4, 4, 4);
-        var grid = new THREE.TextureLoader().load("../img/meta.png");
+        var grid = new THREE.TextureLoader().load("../img/meta-dark.png");
         var material = new THREE.MeshBasicMaterial({
             map: grid,
             // color: 0xffffff,
@@ -1764,8 +1764,8 @@ function init() {
     directControls = new CameraControls(camera, drawingCanvas);
     directControls.dampingFactor = 10
     directControls.mouseButtons.left = CameraControls.ACTION.NONE
-    directControls.mouseButtons.right = CameraControls.ACTION.ROTATE
-    directControls.mouseButtons.wheel = CameraControls.ACTION.ZOOM
+    directControls.mouseButtons.wheel = CameraControls.ACTION.ROTATE
+    directControls.mouseButtons.right = CameraControls.ACTION.ZOOM
     directControls.touches.one = CameraControls.ACTION.NONE
     directControls.touches.two = CameraControls.ACTION.TOUCH_ROTATE_ZOOM
     directControls.touches.three = CameraControls.ACTION.TOUCH_DOLLY_TRUCK
